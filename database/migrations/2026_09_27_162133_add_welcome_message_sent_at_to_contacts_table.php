@@ -1,0 +1,30 @@
+<?php
+
+use Illuminate\Database\Migrations\Migration;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\Schema;
+
+return new class extends Migration
+{
+    /**
+     * Run the migrations.
+     */
+    public function up(): void
+    {
+        Schema::table('contacts', function (Blueprint $table) {
+            // Verrou anti-double-envoi du message de bienvenue/demande d'opt-in
+            // (cahier des charges §4 : opt-in traçable et daté).
+            $table->timestamp('welcome_message_sent_at')->nullable()->after('consent_status');
+        });
+    }
+
+    /**
+     * Reverse the migrations.
+     */
+    public function down(): void
+    {
+        Schema::table('contacts', function (Blueprint $table) {
+            $table->dropColumn('welcome_message_sent_at');
+        });
+    }
+};

@@ -2,6 +2,8 @@
 
 namespace Database\Factories;
 
+use App\Models\Organization;
+use App\Models\Role;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Factories\Factory;
 use Illuminate\Support\Facades\Hash;
@@ -30,6 +32,13 @@ class UserFactory extends Factory
             'email_verified_at' => now(),
             'password' => static::$password ??= Hash::make('password'),
             'remember_token' => Str::random(10),
+            'organization_id' => Organization::factory(),
+            'role_id' => function (array $attributes) {
+                $organization = Organization::find($attributes['organization_id']) ?? Organization::factory()->create();
+                Role::seedDefaultsFor($organization);
+
+                return Role::where('organization_id', $organization->id)->where('name', 'Super administrateur')->first()->id;
+            },
         ];
     }
 

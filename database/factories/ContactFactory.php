@@ -1,0 +1,28 @@
+<?php
+
+namespace Database\Factories;
+
+use App\Models\Contact;
+use App\Models\Store;
+use Illuminate\Database\Eloquent\Factories\Factory;
+
+/**
+ * @extends Factory<Contact>
+ */
+class ContactFactory extends Factory
+{
+    /**
+     * Define the model's default state.
+     *
+     * @return array<string, mixed>
+     */
+    public function definition(): array
+    {
+        return [
+            'store_id' => Store::factory(),
+            'name' => fake()->name(),
+            'phone_e164' => '241'.fake()->numerify('########'),
+            'consent_status' => fake()->randomElement(['unknown', 'opt_in', 'opt_out']),
+        ];
+    }
+}
