@@ -1,0 +1,82 @@
+name: Tests
+
+on:
+  push:
+    branches: [ "staging", "main" ]
+  pull_request:
+    branches: [ "staging", "main" ]
+  workflow_call:
+
+jobs:
+  laravel-tests:
+    runs-on: ubuntu-latest
+    # DB_CONNECTION=sqlite pour TOUTE commande artisan de ce job (pas
+    # seulement migrate/test) : on force explicitement SQLite ici plutôt que
+    # de dépendre de la valeur par défaut de .env.example, pour que ce
+    # workflow reste correct même si l'environnement local (Windows) est un
+    # jour configuré sur un autre driver (ex. sqlsrv). Toute commande
+    # artisan démarre le framework et résout la connexion DB configurée dès
+    # le boot : sans cette variable, une valeur non-SQLite dans .env.example
+    # ferait échouer le job avant même d'atteindre le code métier.
+    env:
+      DB_CONNECTION: sqlite
+      DB_DATABASE: database/database.sqlite
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+          extensions: mbstring, pdo, pdo_sqlite, sqlite3, dom, fileinfo, curl, zip, intl, gd, bcmath
+          coverage: none
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Copy .env
+        run: php -r "file_exists('.env') || copy('.env.example', '.env');"
+
+      # --no-scripts : on ne laisse pas composer enchaîner directement sur
+      # "php artisan package:discover" (script post-autoload-dump). Ce script
+      # démarre le framework Laravel ; s'il échoue, composer noie l'erreur
+      # réelle dans son propre message d'échec. On le relance nous-mêmes
+      # plus bas, une fois l'environnement prêt, pour avoir un message
+      # d'erreur clair en cas de nouvel échec.
+      - name: Install Composer dependencies
+        run: composer install -q --no-ansi --no-interaction --no-progress --prefer-dist --no-scripts
+
+      - name: Install npm dependencies
+        run: npm ci
+
+      - name: Build frontend assets
+        run: npm run build
+
+      # Le fichier SQLite doit exister AVANT la première commande artisan
+      # (key:generate, package:discover...) : ces commandes démarrent le
+      # framework et se connectent déjà à la base via DB_CONNECTION=sqlite.
+      - name: Create SQLite database
+        run: |
+          mkdir -p database
+          touch database/database.sqlite
+
+      # bootstrap/cache doit être inscriptible (package:discover y écrit
+      # packages.php/services.php), storage aussi (logs, cache, sessions).
+      - name: Directory permissions
+        run: chmod -R 775 storage bootstrap/cache database
+
+      - name: Generate app key
+        run: php artisan key:generate
+
+      - name: Discover packages
+        run: php artisan package:discover --ansi
+
+      - name: Run migrations
+        run: php artisan migrate --force
+
+      - name: Check code style (Pint)
+        run: vendor/bin/pint --test
+
+      - name: Execute tests (Pest/PHPUnit)
+        run: php artisan test

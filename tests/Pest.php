@@ -1,5 +1,7 @@
 <?php
 
+use App\Models\Organization;
+use App\Models\Role;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
@@ -15,7 +17,7 @@ use Tests\TestCase;
 */
 
 pest()->extend(TestCase::class)
- // ->use(RefreshDatabase::class)
+    ->use(RefreshDatabase::class)
     ->in('Feature');
 
 /*
@@ -44,7 +46,14 @@ expect()->extend('toBeOne', function () {
 |
 */
 
-function something()
+/**
+ * Récupère (en le créant si besoin) l'un des 4 rôles fournis par défaut à
+ * toute organisation (cf. App\Models\Role::defaultDefinitions()), pour les
+ * tests qui ont besoin d'un rôle réel sans tester le CRUD des rôles lui-même.
+ */
+function defaultRole(Organization $organization, string $name): Role
 {
-    // ..
+    Role::seedDefaultsFor($organization);
+
+    return Role::where('organization_id', $organization->id)->where('name', $name)->firstOrFail();
 }

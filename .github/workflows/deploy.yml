@@ -1,0 +1,71 @@
+name: Deploy
+
+on:
+  push:
+    branches: [ "main" ]
+
+jobs:
+  tests:
+    uses: ./.github/workflows/tests.yml
+
+  deploy:
+    name: Deploy to staging (VPS via SSH)
+    needs: tests
+    runs-on: ubuntu-latest
+    steps:
+      - name: Deploy via SSH
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          passphrase: ${{ secrets.SSH_PASSPHRASE }}
+          port: ${{ secrets.SSH_PORT }}
+          script: |
+            set -e
+            PHP=/opt/cpanel/ea-php83/root/usr/bin/php
+            COMPOSER=$(which composer)
+            DEPLOY_PATH=${{ secrets.DEPLOY_PATH }}
+            cd "$DEPLOY_PATH"
+
+            # chown seul ne suffit pas : "git reset --hard" recrée les
+            # fichiers avec les permissions par défaut du compte SSH, qui
+            # peuvent être trop restrictives pour qu'Apache les lise (d'où
+            # "Server unable to read htaccess file" -> 403 sur tout le site).
+            # On force donc aussi des droits standards après chaque déploiement.
+            fix_permissions() {
+              chown -R nader:nader "$DEPLOY_PATH" || true
+              find "$DEPLOY_PATH" -type d -exec chmod 755 {} \; || true
+              find "$DEPLOY_PATH" -type f -exec chmod 644 {} \; || true
+              chmod -R 775 "$DEPLOY_PATH/storage" "$DEPLOY_PATH/bootstrap/cache" || true
+            }
+
+            # Quoi qu'il arrive (succès ou échec d'une étape ci-dessous),
+            # on remet les droits à nader et on sort du mode maintenance,
+            # pour ne jamais laisser le site inaccessible.
+            trap 'fix_permissions; $PHP artisan up || true' EXIT
+
+            $PHP artisan down || true
+            git fetch origin main
+            git reset --hard origin/main
+            fix_permissions
+            $PHP $COMPOSER install --no-dev --optimize-autoloader --no-interaction
+            npm ci
+            npm run build
+            # migrate (sans :refresh/:fresh) : applique uniquement les
+            # migrations pas encore jouées, sans jamais supprimer une table
+            # ou une donnée existante. Ne JAMAIS utiliser migrate:refresh ou
+            # migrate:fresh ici : ces commandes réinitialisent toute la base
+            # à CHAQUE déploiement (cf. CLAUDE.md "Déploiement" — les
+            # données clients, conversations et campagnes de RETAIL GROUP
+            # ne doivent jamais être perdues).
+            $PHP artisan migrate --force
+            $PHP artisan storage:link || true
+            $PHP artisan config:clear
+            $PHP artisan route:clear
+            $PHP artisan view:clear
+            $PHP artisan config:cache
+            $PHP artisan route:cache
+            $PHP artisan view:cache
+            $PHP artisan queue:restart
+            fix_permissions
