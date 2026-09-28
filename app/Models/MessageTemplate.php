@@ -28,8 +28,24 @@ class MessageTemplate extends Model
         ];
     }
 
+    public const DEFAULT_LANGUAGE = 'fr';
+
     public function organization(): BelongsTo
     {
         return $this->belongsTo(Organization::class);
+    }
+
+    /**
+     * Code langue à transmettre à Meta pour un template de l'organisation :
+     * Meta rejette l'envoi si la langue ne correspond pas à celle approuvée.
+     * Repli sur le français si le template n'est pas (ou plus) référencé.
+     */
+    public static function languageFor(int $organizationId, string $name): string
+    {
+        return self::where('organization_id', $organizationId)
+            ->where('name', $name)
+            ->orderByDesc('is_active')
+            ->orderBy('id')
+            ->value('language') ?: self::DEFAULT_LANGUAGE;
     }
 }

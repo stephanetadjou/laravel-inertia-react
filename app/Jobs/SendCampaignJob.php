@@ -3,6 +3,7 @@
 namespace App\Jobs;
 
 use App\Models\Campaign;
+use App\Models\MessageTemplate;
 use App\Models\Store;
 use App\Services\WhatsAppApiException;
 use App\Services\WhatsAppClient;
@@ -18,6 +19,9 @@ class SendCampaignJob implements ShouldQueue
 
     /** @var array<int, WhatsAppClient> Un client par boutique, construit à la demande. */
     private array $clientsByStoreId = [];
+
+    /** @var array<int, string> Langue du template par organisation, résolue une seule fois. */
+    private array $languagesByOrganizationId = [];
 
     public function __construct(public Campaign $campaign) {}
 
@@ -37,7 +41,11 @@ class SendCampaignJob implements ShouldQueue
 
                         $result = $this->campaign->message_type === 'text'
                             ? $client->sendText($message->contact->phone_e164, $this->campaign->text_body)
-                            : $client->sendTemplate($message->contact->phone_e164, $this->campaign->template_name, 'en_US');
+                            : $client->sendTemplate(
+                                $message->contact->phone_e164,
+                                $this->campaign->template_name,
+                                $this->templateLanguageFor($store),
+                            );
 
                         $message->update([
                             'status' => 'sent',
@@ -70,6 +78,14 @@ class SendCampaignJob implements ShouldQueue
         return $this->clientsByStoreId[$store->id] ??= new WhatsAppClient(
             $store->whatsapp_access_token,
             $store->whatsapp_phone_number_id,
+        );
+    }
+
+    private function templateLanguageFor(Store $store): string
+    {
+        return $this->languagesByOrganizationId[$store->organization_id] ??= MessageTemplate::languageFor(
+            $store->organization_id,
+            $this->campaign->template_name,
         );
     }
 }

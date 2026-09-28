@@ -3,6 +3,7 @@
 namespace App\Jobs;
 
 use App\Models\Contact;
+use App\Models\MessageTemplate;
 use App\Services\WhatsAppApiException;
 use App\Services\WhatsAppClient;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -34,7 +35,11 @@ class SendWelcomeMessageJob implements ShouldQueue
         $client = new WhatsAppClient($store->whatsapp_access_token, $store->whatsapp_phone_number_id);
 
         try {
-            $client->sendTemplate($this->contact->phone_e164, $this->templateName, 'en_US');
+            $client->sendTemplate(
+                $this->contact->phone_e164,
+                $this->templateName,
+                MessageTemplate::languageFor($store->organization_id, $this->templateName),
+            );
             $this->contact->update(['welcome_message_sent_at' => now()]);
         } catch (WhatsAppApiException|ConnectionException $e) {
             report($e);
