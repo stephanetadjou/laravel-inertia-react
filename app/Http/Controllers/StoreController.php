@@ -50,7 +50,9 @@ class StoreController extends Controller
                 ? Brand::where('organization_id', $user->organization_id)->orderBy('name')->get(['id', 'name'])
                 : [],
             'canManage' => $canManage,
-            'sharedAccountConfigured' => filled(config('services.meta_whatsapp.token')) && filled(config('services.meta_whatsapp.phone_number_id')),
+            // Compte Meta partagé (.env) : organisations historiques uniquement.
+            'sharedAccountConfigured' => (bool) $user->organization?->uses_shared_whatsapp_account
+                && filled(config('services.meta_whatsapp.token')) && filled(config('services.meta_whatsapp.phone_number_id')),
         ]);
     }
 
@@ -81,18 +83,13 @@ class StoreController extends Controller
     }
 
     /**
-     * Modification d'une boutique :
-     * - nom et marque : réservés aux rôles qui gèrent l'organisation (ignorés
-     *   sinon, comme la création et la suppression) ;
-     * - connexion WhatsApp : tout utilisateur dont le périmètre inclut la
-     *   boutique. `use_shared_account` efface les identifiants propres pour
-     *   revenir au compte Meta partagé de l'organisation.
+     * Nom et marque d'une boutique (réservé aux rôles qui gèrent
+     * l'organisation, cf. middleware sur la route). La connexion WhatsApp se
+     * règle dans Paramètres → WhatsApp (WhatsAppSettingsController).
      */
     public function update(Request $request, Store $store): RedirectResponse
     {
-        $this->authorizeVisible($request, $store);
-
-        $canManage = $request->user()->canManageOrganization();
+        $this->authorizeSameOrganization($request, $store);
 
         $data = $request->validate([
             'name' => ['sometimes', 'required', 'string', 'max:255'],
@@ -100,30 +97,9 @@ class StoreController extends Controller
                 'sometimes', 'required', 'integer',
                 Rule::exists('brands', 'id')->where('organization_id', $store->organization_id),
             ],
-            'use_shared_account' => ['sometimes', 'boolean'],
-            'whatsapp_phone_number_id' => ['nullable', 'string', 'max:255'],
-            'whatsapp_access_token' => ['nullable', 'string'],
         ]);
 
-        if ($canManage) {
-            $store->fill(array_intersect_key($data, array_flip(['name', 'brand_id'])));
-        }
-
-        if ($request->boolean('use_shared_account')) {
-            $store->whatsapp_phone_number_id = null;
-            $store->whatsapp_access_token = null;
-        } else {
-            $store->whatsapp_phone_number_id = $data['whatsapp_phone_number_id'] ?? null;
-
-            // On ne touche au token que si un nouveau a été saisi : le champ arrive
-            // toujours vide depuis le frontend (le token existant n'est jamais renvoyé
-            // au navigateur), donc une valeur vide ne doit pas effacer le token en place.
-            if (! empty($data['whatsapp_access_token'])) {
-                $store->whatsapp_access_token = $data['whatsapp_access_token'];
-            }
-        }
-
-        $store->save();
+        $store->update($data);
 
         return back()->with('success', "Boutique {$store->name} mise à jour.");
     }
@@ -140,28 +116,6 @@ class StoreController extends Controller
         $store->delete();
 
         return back()->with('success', "Boutique « {$name} » supprimée.");
-    }
-
-    public function testConnection(Request $request, Store $store): RedirectResponse
-    {
-        $this->authorizeVisible($request, $store);
-
-        if (! $store->canSendWhatsApp()) {
-            return back()->with('error', "{$store->name} : aucun identifiant WhatsApp, ni propre à la boutique ni compte partagé (.env).");
-        }
-
-        $client = $store->whatsappClient();
-
-        try {
-            $info = $client->verifyConnection();
-        } catch (WhatsAppApiException|ConnectionException $e) {
-            return back()->with('error', "{$store->name} : {$e->getMessage()}");
-        }
-
-        $verifiedName = $info['verified_name'] ?? 'nom non vérifié';
-        $phoneNumber = $info['display_phone_number'] ?? '?';
-
-        return back()->with('success', "{$store->name} connectée : {$verifiedName} ({$phoneNumber}).");
     }
 
     /**

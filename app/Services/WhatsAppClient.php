@@ -72,11 +72,38 @@ class WhatsAppClient
                 'verified_name' => 'Simulation (WHATSAPP_DRIVER=log)',
                 'display_phone_number' => 'numéro simulé',
                 'quality_rating' => 'GREEN',
+                'messaging_limit_tier' => 'TIER_250',
             ];
         }
 
         $response = $this->baseRequest()->get("/{$this->phoneNumberId}", [
-            'fields' => 'verified_name,display_phone_number,quality_rating',
+            'fields' => 'verified_name,display_phone_number,quality_rating,messaging_limit_tier,name_status,code_verification_status',
+        ]);
+
+        if ($response->failed()) {
+            throw new WhatsAppApiException($this->phoneNumberId, $response->status(), $response->json());
+        }
+
+        return $response->json();
+    }
+
+    /**
+     * Enregistre le numéro auprès de la Cloud API (étape obligatoire avant le
+     * premier envoi d'un numéro ajouté à la main), avec le PIN à 6 chiffres
+     * de la vérification en deux étapes : défini à cette occasion s'il
+     * n'existe pas encore, sinon identique à celui déjà configuré chez Meta.
+     */
+    public function registerPhoneNumber(string $pin): array
+    {
+        if (self::simulated()) {
+            Log::info('[WhatsApp simulé] Enregistrement du numéro', ['phone_number_id' => $this->phoneNumberId]);
+
+            return ['success' => true];
+        }
+
+        $response = $this->baseRequest()->post("/{$this->phoneNumberId}/register", [
+            'messaging_product' => 'whatsapp',
+            'pin' => $pin,
         ]);
 
         if ($response->failed()) {

@@ -51,7 +51,10 @@ function buildNavGroups(canManageOrganization: boolean): NavGroup[] {
     );
 
     if (canManageOrganization) {
-        administrationItems.push({ icon: <UserCircleIcon />, name: 'Utilisateurs & rôles', path: '/users', alsoActiveOn: ['/roles'] });
+        administrationItems.push(
+            { icon: <ChatIcon />, name: 'Paramètres WhatsApp', path: '/settings/whatsapp' },
+            { icon: <UserCircleIcon />, name: 'Utilisateurs & rôles', path: '/users', alsoActiveOn: ['/roles'] },
+        );
     }
 
     return [

@@ -17,6 +17,7 @@ use App\Http\Controllers\PurchaseController;
 use App\Http\Controllers\RoleController;
 use App\Http\Controllers\StoreController;
 use App\Http\Controllers\UserController;
+use App\Http\Controllers\WhatsAppSettingsController;
 use Illuminate\Support\Facades\Route;
 
 Route::middleware('guest')->group(function () {
@@ -69,9 +70,7 @@ Route::middleware('auth')->group(function () {
     Route::delete('/categories/{category}', [CategoryController::class, 'destroy'])->name('categories.destroy');
 
     Route::get('/stores', [StoreController::class, 'index'])->name('stores.index');
-    Route::put('/stores/{store}', [StoreController::class, 'update'])->name('stores.update');
     Route::get('/stores/{store}/qr', [StoreController::class, 'qr'])->name('stores.qr');
-    Route::post('/stores/{store}/test-connection', [StoreController::class, 'testConnection'])->name('stores.test-connection');
 
     Route::middleware('can-manage-organization')->group(function () {
         Route::get('/organisation', [OrganizationController::class, 'index'])->name('organisation.index');
@@ -83,7 +82,13 @@ Route::middleware('auth')->group(function () {
         Route::delete('/brands/{brand}', [BrandController::class, 'destroy'])->name('brands.destroy');
 
         Route::post('/stores', [StoreController::class, 'store'])->name('stores.store');
+        Route::put('/stores/{store}', [StoreController::class, 'update'])->name('stores.update');
         Route::delete('/stores/{store}', [StoreController::class, 'destroy'])->name('stores.destroy');
+
+        Route::get('/settings/whatsapp', [WhatsAppSettingsController::class, 'index'])->name('settings.whatsapp');
+        Route::put('/settings/whatsapp/{store}', [WhatsAppSettingsController::class, 'update'])->name('settings.whatsapp.update');
+        Route::post('/settings/whatsapp/{store}/test', [WhatsAppSettingsController::class, 'test'])->name('settings.whatsapp.test');
+        Route::post('/settings/whatsapp/{store}/register', [WhatsAppSettingsController::class, 'register'])->name('settings.whatsapp.register');
 
         Route::get('/users', [UserController::class, 'index'])->name('users.index');
         Route::post('/users', [UserController::class, 'store'])->name('users.store');

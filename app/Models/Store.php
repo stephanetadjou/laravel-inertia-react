@@ -19,13 +19,30 @@ class Store extends Model
         'brand_id',
         'name',
         'whatsapp_phone_number_id',
+        'whatsapp_business_account_id',
+        'whatsapp_app_id',
         'whatsapp_access_token',
+        'whatsapp_app_secret',
+        'whatsapp_verified_name',
+        'whatsapp_display_phone_number',
+        'whatsapp_quality_rating',
+        'whatsapp_messaging_limit_tier',
+        'whatsapp_checked_at',
+        'whatsapp_registered_at',
     ];
+
+    /**
+     * Les secrets Meta ne quittent jamais le serveur (ni JSON, ni Inertia).
+     */
+    protected $hidden = ['whatsapp_access_token', 'whatsapp_app_secret'];
 
     protected function casts(): array
     {
         return [
             'whatsapp_access_token' => 'encrypted',
+            'whatsapp_app_secret' => 'encrypted',
+            'whatsapp_checked_at' => 'datetime',
+            'whatsapp_registered_at' => 'datetime',
         ];
     }
 
@@ -87,6 +104,23 @@ class Store extends Model
         $phoneNumberId = $this->whatsapp_phone_number_id ?: ($shared ? config('services.meta_whatsapp.phone_number_id') : null);
 
         return filled($token) && filled($phoneNumberId);
+    }
+
+    /**
+     * Nombre de destinataires uniques autorisés par 24 h d'après le dernier
+     * test de connexion (TIER_250, TIER_1K…). Null si inconnu ou illimité.
+     */
+    public function dailyMessagingLimit(): ?int
+    {
+        return match ($this->whatsapp_messaging_limit_tier) {
+            'TIER_50' => 50,
+            'TIER_250' => 250,
+            'TIER_1K' => 1_000,
+            'TIER_2K' => 2_000,
+            'TIER_10K' => 10_000,
+            'TIER_100K' => 100_000,
+            default => null,
+        };
     }
 
     public function usesSharedWhatsAppAccount(): bool

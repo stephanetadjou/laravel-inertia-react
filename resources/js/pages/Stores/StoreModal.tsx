@@ -22,7 +22,6 @@ interface StoreModalProps {
     onClose: () => void;
     canManage: boolean;
     brands: { id: number; name: string }[];
-    sharedAccountConfigured: boolean;
 }
 
 const field =
@@ -30,14 +29,11 @@ const field =
 const label = 'mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-300';
 const hint = 'mt-1.5 text-xs text-gray-500 dark:text-gray-400';
 
-export default function StoreModal({ store, isOpen, onClose, canManage, brands, sharedAccountConfigured }: StoreModalProps) {
+export default function StoreModal({ store, isOpen, onClose, canManage, brands }: StoreModalProps) {
     const isEditing = store !== null;
     const { data, setData, post, put, transform, processing, errors, reset, clearErrors } = useForm({
         name: '',
         brand_id: '',
-        mode: 'shared' as 'shared' | 'own',
-        whatsapp_phone_number_id: '',
-        whatsapp_access_token: '',
     });
 
     // Recharge le formulaire à chaque ouverture, sur la boutique choisie.
@@ -47,9 +43,6 @@ export default function StoreModal({ store, isOpen, onClose, canManage, brands, 
         setData({
             name: store?.name ?? '',
             brand_id: String(store?.brand_id ?? brands[0]?.id ?? ''),
-            mode: store && (store.whatsapp_phone_number_id || store.has_token) ? 'own' : 'shared',
-            whatsapp_phone_number_id: store?.whatsapp_phone_number_id ?? '',
-            whatsapp_access_token: '',
         });
     }, [isOpen, store?.id]);
 
@@ -69,13 +62,7 @@ export default function StoreModal({ store, isOpen, onClose, canManage, brands, 
             return;
         }
 
-        // Nom et marque ne sont envoyés que par les rôles qui gèrent l'organisation.
-        transform((d) => ({
-            ...(canManage ? { name: d.name, brand_id: Number(d.brand_id) } : {}),
-            use_shared_account: d.mode === 'shared',
-            whatsapp_phone_number_id: d.mode === 'own' ? d.whatsapp_phone_number_id : '',
-            whatsapp_access_token: d.mode === 'own' ? d.whatsapp_access_token : '',
-        }));
+        transform((d) => ({ name: d.name, brand_id: Number(d.brand_id) }));
         put(`/stores/${store.id}`, options);
     };
 
@@ -123,88 +110,7 @@ export default function StoreModal({ store, isOpen, onClose, canManage, brands, 
                     )}
                 </fieldset>
 
-                {isEditing && (
-                    <fieldset className="space-y-4">
-                        <legend className="mb-3 text-xs font-semibold tracking-wide text-gray-500 uppercase dark:text-gray-400">Connexion WhatsApp</legend>
-                        <div className="grid gap-3 sm:grid-cols-2">
-                            {(
-                                [
-                                    ['shared', 'Compte partagé', "Envoie depuis le numéro commun de l'organisation (.env)."],
-                                    ['own', 'Numéro propre', 'Numéro WhatsApp Business dédié à cette boutique.'],
-                                ] as const
-                            ).map(([value, title, desc]) => (
-                                <label
-                                    key={value}
-                                    className={`flex cursor-pointer gap-3 rounded-xl border p-3 text-sm transition ${
-                                        data.mode === value
-                                            ? 'border-brand-500 bg-brand-50 dark:border-brand-400 dark:bg-brand-500/10'
-                                            : 'border-gray-200 hover:border-gray-300 dark:border-gray-800 dark:hover:border-gray-700'
-                                    }`}
-                                >
-                                    <input
-                                        type="radio"
-                                        name="mode"
-                                        value={value}
-                                        checked={data.mode === value}
-                                        onChange={() => setData('mode', value)}
-                                        className="mt-0.5 accent-brand-500"
-                                    />
-                                    <span>
-                                        <span className="block font-medium text-gray-800 dark:text-white/90">{title}</span>
-                                        <span className="block text-xs text-gray-500 dark:text-gray-400">{desc}</span>
-                                    </span>
-                                </label>
-                            ))}
-                        </div>
-
-                        {data.mode === 'shared' && !sharedAccountConfigured && (
-                            <p className="rounded-lg bg-warning-50 px-3 py-2 text-xs text-warning-700 dark:bg-warning-500/15 dark:text-warning-400">
-                                Aucun compte partagé n'est configuré (META_WHATSAPP_TOKEN / META_PHONE_NUMBER_ID) : la boutique ne pourra pas envoyer de
-                                messages.
-                            </p>
-                        )}
-
-                        {data.mode === 'own' && (
-                            <div className="grid gap-4 sm:grid-cols-2">
-                                <div>
-                                    <label htmlFor="store_phone_id" className={label}>
-                                        Phone Number ID
-                                    </label>
-                                    <input
-                                        id="store_phone_id"
-                                        type="text"
-                                        inputMode="numeric"
-                                        value={data.whatsapp_phone_number_id}
-                                        onChange={(e) => setData('whatsapp_phone_number_id', e.target.value)}
-                                        placeholder="ex. 1234567890123"
-                                        className={field}
-                                    />
-                                    <p className={hint}>Meta Business › WhatsApp › Numéros de téléphone.</p>
-                                    {errors.whatsapp_phone_number_id && <p className="mt-1.5 text-sm text-error-500">{errors.whatsapp_phone_number_id}</p>}
-                                </div>
-                                <div>
-                                    <label htmlFor="store_token" className={label}>
-                                        Access token
-                                    </label>
-                                    <input
-                                        id="store_token"
-                                        type="password"
-                                        autoComplete="new-password"
-                                        value={data.whatsapp_access_token}
-                                        onChange={(e) => setData('whatsapp_access_token', e.target.value)}
-                                        placeholder={store.has_token ? '•••••••• (inchangé)' : 'Token permanent'}
-                                        className={field}
-                                    />
-                                    <p className={hint}>
-                                        {store.has_token ? 'Laisser vide pour garder le token enregistré.' : 'Sans token, le token partagé est utilisé.'}
-                                    </p>
-                                </div>
-                            </div>
-                        )}
-                    </fieldset>
-                )}
-
-                {!isEditing && <p className={hint}>La connexion WhatsApp se configure ensuite avec « Modifier ».</p>}
+                <p className={hint}>La connexion WhatsApp de la boutique se configure dans Paramètres → WhatsApp.</p>
 
                 <div className="flex justify-end gap-2 border-t border-gray-100 pt-4 dark:border-gray-800">
                     <Button type="button" variant="outline" onClick={onClose}>

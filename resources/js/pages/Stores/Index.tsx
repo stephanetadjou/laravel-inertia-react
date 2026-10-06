@@ -41,7 +41,6 @@ function StoresIndex() {
     const [search, setSearch] = useState('');
     const [filter, setFilter] = useState<Connection | 'all'>('all');
     const [modal, setModal] = useState<{ open: boolean; store: StoreRow | null }>({ open: false, store: null });
-    const [testingId, setTestingId] = useState<number | null>(null);
 
     const counts = useMemo(
         () => ({
@@ -66,11 +65,6 @@ function StoresIndex() {
         });
         return [...byBrand.entries()].sort(([a], [b]) => a.localeCompare(b, 'fr'));
     }, [stores, search, filter]);
-
-    function testConnection(store: StoreRow) {
-        setTestingId(store.id);
-        router.post(`/stores/${store.id}/test-connection`, {}, { preserveScroll: true, onFinish: () => setTestingId(null) });
-    }
 
     function destroy(store: StoreRow) {
         if (confirm(`Supprimer la boutique « ${store.name} » ? Cette action est définitive.`)) {
@@ -211,15 +205,15 @@ function StoresIndex() {
                                                     </td>
                                                     <td className="r">
                                                         <span className="mstore-row-actions">
-                                                            <button
-                                                                type="button"
-                                                                className="mdash-btn ghost sm"
-                                                                disabled={store.connection === 'none' || testingId === store.id}
-                                                                title={store.connection === 'none' ? 'Configurez d’abord la connexion' : undefined}
-                                                                onClick={() => testConnection(store)}
-                                                            >
-                                                                {testingId === store.id ? 'Test…' : 'Tester'}
-                                                            </button>
+                                                            {canManage && (
+                                                                <Link
+                                                                    href="/settings/whatsapp"
+                                                                    className="mdash-btn ghost sm"
+                                                                    title="Identifiants, test et enregistrement du numéro"
+                                                                >
+                                                                    WhatsApp
+                                                                </Link>
+                                                            )}
                                                             <Link
                                                                 href={`/stores/${store.id}/qr`}
                                                                 className="mdash-btn ghost sm"
@@ -227,9 +221,11 @@ function StoresIndex() {
                                                             >
                                                                 QR code
                                                             </Link>
-                                                            <button type="button" className="mdash-btn ghost sm" onClick={() => setModal({ open: true, store })}>
-                                                                Modifier
-                                                            </button>
+                                                            {canManage && (
+                                                                <button type="button" className="mdash-btn ghost sm" onClick={() => setModal({ open: true, store })}>
+                                                                    Modifier
+                                                                </button>
+                                                            )}
                                                             {canManage && (
                                                                 <button
                                                                     type="button"
@@ -263,7 +259,6 @@ function StoresIndex() {
                 onClose={() => setModal({ open: false, store: modal.store })}
                 canManage={canManage}
                 brands={brands}
-                sharedAccountConfigured={sharedAccountConfigured}
             />
         </div>
     );
