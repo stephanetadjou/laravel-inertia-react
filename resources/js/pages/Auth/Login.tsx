@@ -1,4 +1,4 @@
-import { Head, useForm } from '@inertiajs/react';
+import { Head, Link, useForm } from '@inertiajs/react';
 import { FormEventHandler } from 'react';
 
 import Button from '../../components/ui/button/Button';
@@ -61,6 +61,13 @@ export default function Login() {
                         <Button className="w-full justify-center" disabled={processing}>
                             {processing ? 'Connexion...' : 'Se connecter'}
                         </Button>
+
+                        <p className="text-center text-sm text-gray-500 dark:text-gray-400">
+                            Nouvelle entreprise ?{' '}
+                            <Link href="/register" className="font-medium text-brand-500 hover:underline">
+                                Créer un compte
+                            </Link>
+                        </p>
                     </form>
                 </div>
             </div>
