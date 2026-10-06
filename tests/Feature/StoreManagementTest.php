@@ -177,7 +177,7 @@ it('switches a store back to the shared WhatsApp account', function () {
 it('lists stores with their connection mode and the brands for managers', function () {
     config(['services.meta_whatsapp.token' => 'shared', 'services.meta_whatsapp.phone_number_id' => '123']);
 
-    $organization = Organization::factory()->create();
+    $organization = Organization::factory()->sharedWhatsAppAccount()->create();
     $own = Store::factory()->create(['organization_id' => $organization->id, 'name' => 'A propre']);
     $shared = Store::factory()->create(['organization_id' => $organization->id, 'name' => 'B partagé', 'whatsapp_phone_number_id' => null, 'whatsapp_access_token' => null]);
     $user = User::factory()->create(['organization_id' => $organization->id]);

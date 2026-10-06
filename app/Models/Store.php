@@ -50,18 +50,25 @@ class Store extends Model
     }
 
     /**
-     * Client WhatsApp de la boutique. Chaque identifiant non renseigné sur la
-     * boutique retombe sur le compte Meta partagé de l'organisation
-     * (META_WHATSAPP_TOKEN / META_PHONE_NUMBER_ID dans .env) : une boutique
-     * sans configuration propre envoie donc depuis le numéro commun, et une
-     * boutique qui n'a saisi que son phone_number_id utilise le token partagé.
+     * Client WhatsApp de la boutique. Pour une organisation historique
+     * (uses_shared_whatsapp_account), chaque identifiant non renseigné sur la
+     * boutique retombe sur le compte Meta partagé (META_WHATSAPP_TOKEN /
+     * META_PHONE_NUMBER_ID dans .env). Une entreprise inscrite n'a jamais ce
+     * repli : sans identifiants propres, le client lève une exception.
      */
     public function whatsappClient(): WhatsAppClient
     {
+        $fallback = $this->mayUseSharedAccount() ? null : '';
+
         return new WhatsAppClient(
-            $this->whatsapp_access_token ?: null,
-            $this->whatsapp_phone_number_id ?: null,
+            $this->whatsapp_access_token ?: $fallback,
+            $this->whatsapp_phone_number_id ?: $fallback,
         );
+    }
+
+    private function mayUseSharedAccount(): bool
+    {
+        return (bool) $this->organization?->uses_shared_whatsapp_account;
     }
 
     /**
@@ -75,14 +82,16 @@ class Store extends Model
             return true;
         }
 
-        $token = $this->whatsapp_access_token ?: config('services.meta_whatsapp.token');
-        $phoneNumberId = $this->whatsapp_phone_number_id ?: config('services.meta_whatsapp.phone_number_id');
+        $shared = $this->mayUseSharedAccount();
+        $token = $this->whatsapp_access_token ?: ($shared ? config('services.meta_whatsapp.token') : null);
+        $phoneNumberId = $this->whatsapp_phone_number_id ?: ($shared ? config('services.meta_whatsapp.phone_number_id') : null);
 
         return filled($token) && filled($phoneNumberId);
     }
 
     public function usesSharedWhatsAppAccount(): bool
     {
-        return blank($this->whatsapp_access_token) && blank($this->whatsapp_phone_number_id);
+        return $this->mayUseSharedAccount()
+            && blank($this->whatsapp_access_token) && blank($this->whatsapp_phone_number_id);
     }
 }

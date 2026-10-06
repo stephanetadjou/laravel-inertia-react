@@ -12,7 +12,7 @@ class Organization extends Model
     /** @use HasFactory<OrganizationFactory> */
     use HasFactory;
 
-    protected $fillable = ['name', 'lifecycle_settings'];
+    protected $fillable = ['name', 'lifecycle_settings', 'uses_shared_whatsapp_account'];
 
     /**
      * Seuils par défaut du parcours client (modifiables dans Organisation).
@@ -29,7 +29,12 @@ class Organization extends Model
 
     protected function casts(): array
     {
-        return ['lifecycle_settings' => 'array'];
+        return [
+            'lifecycle_settings' => 'array',
+            // Repli autorisé sur le compte Meta partagé (.env) : organisations
+            // historiques uniquement, jamais une entreprise inscrite.
+            'uses_shared_whatsapp_account' => 'boolean',
+        ];
     }
 
     /**

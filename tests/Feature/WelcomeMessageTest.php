@@ -144,7 +144,7 @@ it('sends the welcome template from the shared Meta account when the store has n
     ]);
     Http::fake(['graph.facebook.com/*' => Http::response(['messages' => [['id' => 'wamid.1']]], 200)]);
 
-    $organization = Organization::factory()->create();
+    $organization = Organization::factory()->sharedWhatsAppAccount()->create();
     $store = Store::factory()->create([
         'organization_id' => $organization->id,
         'whatsapp_phone_number_id' => null,
@@ -170,7 +170,7 @@ it('sends welcomes for every store through the same shared account', function ()
     ]);
     Http::fake(['graph.facebook.com/*' => Http::response(['messages' => [['id' => 'wamid.1']]], 200)]);
 
-    $organization = Organization::factory()->create();
+    $organization = Organization::factory()->sharedWhatsAppAccount()->create();
     $contacts = collect(['Adidas', 'Carré', 'Mango', 'Grand Store'])->map(function (string $name) use ($organization) {
         $store = Store::factory()->create([
             'organization_id' => $organization->id,
@@ -282,7 +282,7 @@ it('counts stores relying on the shared account as connected on the dashboard', 
         'services.meta_whatsapp.phone_number_id' => '999000111',
     ]);
 
-    $organization = Organization::factory()->create();
+    $organization = Organization::factory()->sharedWhatsAppAccount()->create();
     $user = User::factory()->create(['organization_id' => $organization->id]);
     Store::factory()->count(2)->create(['organization_id' => $organization->id, 'whatsapp_phone_number_id' => null, 'whatsapp_access_token' => null]);
     Contact::factory()->count(3)->create([
@@ -309,4 +309,25 @@ it('does not mark the contact as welcomed when the whatsapp send fails', functio
     (new SendWelcomeMessageJob($contact, 'bienvenue_opt_in'))->handle();
 
     expect($contact->fresh()->welcome_message_sent_at)->toBeNull();
+});
+
+it('never lets a registered company fall back on the shared Meta account', function () {
+    config([
+        'services.meta_whatsapp.token' => 'shared-token',
+        'services.meta_whatsapp.phone_number_id' => '999',
+    ]);
+    Http::fake();
+
+    $organization = Organization::factory()->create();
+    $store = Store::factory()->create([
+        'organization_id' => $organization->id,
+        'whatsapp_access_token' => null,
+        'whatsapp_phone_number_id' => null,
+    ]);
+
+    expect($store->canSendWhatsApp())->toBeFalse()
+        ->and($store->usesSharedWhatsAppAccount())->toBeFalse()
+        ->and(fn () => $store->whatsappClient())->toThrow(RuntimeException::class);
+
+    Http::assertNothingSent();
 });

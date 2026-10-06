@@ -21,4 +21,12 @@ class OrganizationFactory extends Factory
             'name' => fake()->company(),
         ];
     }
+
+    /**
+     * Organisation historique autorisée à envoyer depuis le compte Meta partagé (.env).
+     */
+    public function sharedWhatsAppAccount(): static
+    {
+        return $this->state(['uses_shared_whatsapp_account' => true]);
+    }
 }
