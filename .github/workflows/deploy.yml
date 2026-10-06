@@ -1,8 +1,10 @@
 name: Deploy
 
+# Déploiement automatique désactivé : l'hébergement cible est désormais
+# Azure App Service, qui remplacera ce workflow SSH/cPanel. En attendant, il ne
+# se lance qu'à la main (onglet Actions → Deploy → Run workflow).
 on:
-  push:
-    branches: [ "main" ]
+  workflow_dispatch:
 
 jobs:
   tests:

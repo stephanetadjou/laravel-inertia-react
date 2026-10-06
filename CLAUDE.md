@@ -75,7 +75,7 @@ Périmètre (cahier des charges §7, élargi au parcours client le 30/09/2026) :
 
 ## Déploiement
 
-Déploiement via SSH/cPanel (`.github/workflows/deploy.yml`), sur le même serveur qu'un projet précédent — le workflow est réutilisé et adapté pour ce projet. Le secret GitHub `DEPLOY_PATH` doit pointer vers le répertoire dédié à **mercure_crm** sur ce serveur ; vérifier/mettre à jour ce secret (ainsi que `SSH_HOST`, `SSH_USER`, `SSH_PRIVATE_KEY`, `SSH_PASSPHRASE`, `SSH_PORT`) dans les paramètres du dépôt GitHub avant le premier déploiement.
+**Hébergement cible : Azure App Service** (workflow à écrire). En attendant, le déploiement automatique est désactivé : `.github/workflows/deploy.yml` (SSH/cPanel) ne se lance plus qu'à la main (`workflow_dispatch`). Ancien déploiement via SSH/cPanel, sur le même serveur qu'un projet précédent — le workflow est réutilisé et adapté pour ce projet. Le secret GitHub `DEPLOY_PATH` doit pointer vers le répertoire dédié à **mercure_crm** sur ce serveur ; vérifier/mettre à jour ce secret (ainsi que `SSH_HOST`, `SSH_USER`, `SSH_PRIVATE_KEY`, `SSH_PASSPHRASE`, `SSH_PORT`) dans les paramètres du dépôt GitHub avant le premier déploiement.
 
 Tâche cron à créer une fois dans cPanel (sinon les étapes du parcours client ne vieillissent pas) : `* * * * * cd <DEPLOY_PATH> && php artisan schedule:run >> /dev/null 2>&1`. Le déploiement lance aussi `crm:refresh-lifecycle` après la migration.
 
@@ -84,4 +84,4 @@ Règle absolue, quel que soit le projet : ne jamais utiliser `migrate:fresh` ou 
 ## CI
 
 - `.github/workflows/tests.yml` : exécute le style de code (Pint) puis les tests (Pest) sur chaque push/PR vers `staging`/`main`. Réutilisable via `workflow_call`.
-- `.github/workflows/deploy.yml` : après succès de `tests.yml`, déploie automatiquement `main` sur le serveur.
+- `.github/workflows/deploy.yml` : lancement manuel uniquement (en attente du workflow Azure App Service) ; rejoue `tests.yml` puis déploie en SSH/cPanel.
