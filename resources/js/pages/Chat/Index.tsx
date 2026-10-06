@@ -53,6 +53,7 @@ interface TimelineItem {
     label: string;
     template: string | null;
     status: 'sent' | 'failed';
+    delivery: 'sent' | 'delivered' | 'read' | 'failed';
     error_message: string | null;
     sent_at: string;
 }
@@ -409,7 +410,7 @@ function ChatIndex() {
                                                 </span>
                                                 <span className="btpl">{m.label}</span>
                                                 <span className="bmeta">
-                                                    <span>{m.status === 'failed' ? `Échec${m.error_message ? ` · ${m.error_message}` : ''}` : 'Envoyé ✓'}</span>
+                                                    <span>{m.status === 'failed' ? `Échec${m.error_message ? ` · ${m.error_message}` : ''}` : m.delivery === 'read' ? 'Lu ✓✓' : m.delivery === 'delivered' ? 'Remis ✓✓' : 'Envoyé ✓'}</span>
                                                     <span>{time(m.sent_at)}</span>
                                                 </span>
                                             </div>

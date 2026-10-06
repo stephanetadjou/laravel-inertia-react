@@ -15,6 +15,8 @@ interface CampaignRow {
     group_names: string[];
     status: 'draft' | 'queued' | 'sending' | 'completed';
     sent_count: number;
+    delivered_count: number;
+    read_count: number;
     failed_count: number;
     total: number;
     created_at: string;
@@ -59,13 +61,17 @@ function Progress({ c }: { c: CampaignRow }) {
     const pct = (n: number) => (c.total > 0 ? `${(n / c.total) * 100}%` : '0%');
 
     return (
-        <div className="mpage-progress" title={`${c.sent_count} envoyés, ${c.failed_count} échecs, ${c.total} destinataires`}>
+        <div
+            className="mpage-progress"
+            title={`${c.sent_count} envoyés (${c.delivered_count} remis, ${c.read_count} lus), ${c.failed_count} échecs, ${c.total} destinataires`}
+        >
             <span className="bar">
                 <i className="ok" style={{ width: pct(c.sent_count) }} />
                 <i className="bad" style={{ width: pct(c.failed_count) }} />
             </span>
             <small>
                 {formatNumber(done)} / {formatNumber(c.total)} traités
+                {c.sent_count > 0 && ` · ${formatNumber(c.delivered_count)} remis · ${formatNumber(c.read_count)} lus`}
             </small>
         </div>
     );
@@ -147,7 +153,7 @@ function CampaignsIndex() {
                 ]}
             />
             <p className="mdash-scope">
-                « Envoyé » = accepté par Meta. Les statuts délivré / lu arriveront avec le webhook.
+                « Envoyé » = accepté par Meta ; « remis » et « lu » viennent des statuts renvoyés par le webhook WhatsApp.
             </p>
 
             <Panel>

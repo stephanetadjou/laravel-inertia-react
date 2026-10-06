@@ -79,6 +79,8 @@ class CampaignController extends Controller
                 'group_names' => collect($campaign->segment_filters['group_ids'] ?? [])->map(fn ($id) => $groupNames[$id] ?? null)->filter()->values(),
                 'status' => $campaign->status,
                 'sent_count' => $campaign->sent_count,
+                'delivered_count' => $campaign->delivered_count,
+                'read_count' => $campaign->read_count,
                 'failed_count' => $campaign->failed_count,
                 'total' => $campaign->total,
                 'created_at' => $campaign->created_at->toIso8601String(),

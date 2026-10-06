@@ -256,6 +256,7 @@ class ChatController extends Controller
                 'label' => $message->campaign ? ($message->campaign->name ?: $message->campaign->template_name) : 'Campagne supprimée',
                 'template' => $message->campaign?->message_type === 'text' ? null : $message->campaign?->template_name,
                 'status' => $message->status,
+                'delivery' => $message->deliveryState(),
                 'error_message' => $message->error_message,
                 'sent_at' => $message->updated_at,
             ]);
@@ -268,6 +269,7 @@ class ChatController extends Controller
                 'label' => 'Message de bienvenue',
                 'template' => null,
                 'status' => 'sent',
+                'delivery' => 'sent',
                 'error_message' => null,
                 'sent_at' => $contact->welcome_message_sent_at,
             ]);

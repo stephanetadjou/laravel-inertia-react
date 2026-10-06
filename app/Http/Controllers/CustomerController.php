@@ -169,6 +169,7 @@ class CustomerController extends Controller
                 'label' => $m->campaign ? ($m->campaign->name ?: $m->campaign->template_name) : 'Campagne supprimée',
                 'store_name' => $m->contact->store->name,
                 'status' => $m->status,
+                'delivery' => $m->deliveryState(),
                 'at' => $m->updated_at->toIso8601String(),
             ])
             ->merge($contacts->filter(fn (Contact $c) => $c->welcome_message_sent_at)->map(fn (Contact $c) => [
@@ -176,6 +177,7 @@ class CustomerController extends Controller
                 'label' => 'Message de bienvenue',
                 'store_name' => $c->store->name,
                 'status' => 'sent',
+                'delivery' => 'sent',
                 'at' => $c->welcome_message_sent_at->toIso8601String(),
             ]))
             ->sortByDesc('at')

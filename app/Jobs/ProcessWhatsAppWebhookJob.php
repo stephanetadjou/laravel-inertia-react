@@ -2,6 +2,8 @@
 
 namespace App\Jobs;
 
+use App\Models\Campaign;
+use App\Models\CampaignMessage;
 use App\Models\Contact;
 use App\Models\Store;
 use App\Models\WhatsAppInboundMessage;
@@ -9,6 +11,7 @@ use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Str;
 
 /**
  * Traite un appel du webhook Meta, déjà authentifié par sa signature.
@@ -29,6 +32,9 @@ class ProcessWhatsAppWebhookJob implements ShouldQueue
 
     /** @var array<int, int> */
     public array $backoff = [10, 60];
+
+    /** @var array<int, Campaign> Campagnes dont les compteurs sont à recalculer. */
+    private array $touchedCampaigns = [];
 
     /**
      * @param  array<string, mixed>  $payload
@@ -64,7 +70,47 @@ class ProcessWhatsAppWebhookJob implements ShouldQueue
                 foreach ($value['messages'] ?? [] as $message) {
                     $this->recordInboundMessage($store, $message);
                 }
+
+                foreach ($value['statuses'] ?? [] as $status) {
+                    $this->applyStatus($store, $status);
+                }
             }
+        }
+
+        foreach ($this->touchedCampaigns as $campaign) {
+            $campaign->refreshDeliveryCounts();
+        }
+    }
+
+    /**
+     * Statut d'un message envoyé (sent / delivered / read / failed), retrouvé
+     * par son wamid parmi les messages de campagne de l'organisation.
+     *
+     * @param  array<string, mixed>  $status
+     */
+    private function applyStatus(Store $store, array $status): void
+    {
+        $id = $status['id'] ?? null;
+
+        if (! $id) {
+            return;
+        }
+
+        $message = CampaignMessage::where('meta_message_id', $id)
+            ->whereHas('contact.store', fn ($q) => $q->where('organization_id', $store->organization_id))
+            ->with('campaign')
+            ->first();
+
+        if (! $message) {
+            return;
+        }
+
+        $at = isset($status['timestamp']) ? Carbon::createFromTimestamp((int) $status['timestamp']) : now();
+        $error = $status['errors'][0] ?? null;
+        $errorText = $error ? trim(($error['code'] ?? '').' '.($error['error_data']['details'] ?? $error['message'] ?? $error['title'] ?? '')) : null;
+
+        if ($message->applyMetaStatus((string) ($status['status'] ?? ''), $at, $errorText) && $message->campaign) {
+            $this->touchedCampaigns[$message->campaign->id] = $message->campaign;
         }
     }
 
@@ -97,19 +143,45 @@ class ProcessWhatsAppWebhookJob implements ShouldQueue
 
         $contactId = Contact::where('store_id', $store->id)->where('phone_e164', $from)->value('id');
 
+        $body = self::bodyOf($message);
+
         // insertOrIgnore : un doublon (même wamid) est ignoré par l'index unique.
-        WhatsAppInboundMessage::insertOrIgnore([
+        $inserted = WhatsAppInboundMessage::insertOrIgnore([
             'store_id' => $store->id,
             'contact_id' => $contactId,
             'wa_message_id' => $id,
             'from_phone' => $from,
             'type' => (string) ($message['type'] ?? 'unknown'),
-            'body' => self::bodyOf($message),
+            'body' => $body,
             'received_at' => isset($message['timestamp']) ? Carbon::createFromTimestamp((int) $message['timestamp']) : now(),
             'payload' => json_encode($message),
             'created_at' => now(),
             'updated_at' => now(),
         ]);
+
+        // « Stop » : le client retire son accord pour ce numéro de boutique.
+        if ($inserted && $contactId && self::isStopRequest($body)) {
+            Contact::find($contactId)?->update(['consent_status' => 'opt_out']);
+        }
+    }
+
+    /**
+     * Réponse de désinscription : le message entier est un mot-clé d'arrêt
+     * (« STOP », « Stop promotions », « arrêt »…), pas une phrase qui le
+     * contient par hasard.
+     */
+    public static function isStopRequest(?string $body): bool
+    {
+        if ($body === null) {
+            return false;
+        }
+
+        $normalized = Str::of($body)->ascii()->lower()->replaceMatches('/[^a-z ]/', ' ')->squish()->value();
+
+        return in_array($normalized, [
+            'stop', 'stop promotions', 'stop promotion', 'arret', 'arreter', 'desabonner', 'se desabonner',
+            'desinscription', 'unsubscribe', 'stop pub', 'stop marketing',
+        ], true);
     }
 
     /**

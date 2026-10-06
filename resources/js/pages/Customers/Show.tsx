@@ -63,6 +63,7 @@ interface MessageRow {
     label: string;
     store_name: string;
     status: 'sent' | 'failed';
+    delivery: 'sent' | 'delivered' | 'read' | 'failed';
     at: string;
 }
 
@@ -475,7 +476,7 @@ function CustomerShow() {
                                     <span>
                                         {m.label}
                                         <span className="sub">
-                                            {m.store_name} · {m.status === 'failed' ? 'échec' : 'envoyé'}
+                                            {m.store_name} · {m.status === 'failed' ? 'échec' : m.delivery === 'read' ? 'lu' : m.delivery === 'delivered' ? 'remis' : 'envoyé'}
                                         </span>
                                     </span>
                                     <span className="when">{formatDate(m.at)}</span>
