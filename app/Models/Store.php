@@ -8,6 +8,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Support\Str;
 
 class Store extends Model
 {
@@ -29,18 +30,21 @@ class Store extends Model
         'whatsapp_messaging_limit_tier',
         'whatsapp_checked_at',
         'whatsapp_registered_at',
+        'webhook_key',
+        'webhook_verify_token',
     ];
 
     /**
      * Les secrets Meta ne quittent jamais le serveur (ni JSON, ni Inertia).
      */
-    protected $hidden = ['whatsapp_access_token', 'whatsapp_app_secret'];
+    protected $hidden = ['whatsapp_access_token', 'whatsapp_app_secret', 'webhook_verify_token'];
 
     protected function casts(): array
     {
         return [
             'whatsapp_access_token' => 'encrypted',
             'whatsapp_app_secret' => 'encrypted',
+            'webhook_verify_token' => 'encrypted',
             'whatsapp_checked_at' => 'datetime',
             'whatsapp_registered_at' => 'datetime',
         ];
@@ -104,6 +108,43 @@ class Store extends Model
         $phoneNumberId = $this->whatsapp_phone_number_id ?: ($shared ? config('services.meta_whatsapp.phone_number_id') : null);
 
         return filled($token) && filled($phoneNumberId);
+    }
+
+    /**
+     * Crée au besoin la clé de l'URL du webhook et le jeton de vérification
+     * que l'administrateur recopie dans la configuration de son app Meta.
+     */
+    public function ensureWebhookCredentials(): void
+    {
+        if (filled($this->webhook_key) && filled($this->webhook_verify_token)) {
+            return;
+        }
+
+        $this->forceFill([
+            'webhook_key' => $this->webhook_key ?: Str::random(40),
+            'webhook_verify_token' => $this->webhook_verify_token ?: Str::random(32),
+        ])->save();
+    }
+
+    public function webhookUrl(): ?string
+    {
+        return $this->webhook_key ? route('webhooks.whatsapp', $this->webhook_key) : null;
+    }
+
+    /**
+     * Vérifie l'en-tête X-Hub-Signature-256 envoyé par Meta : HMAC SHA-256
+     * du corps brut avec l'App Secret de l'établissement. Sans App Secret
+     * enregistré, aucun appel n'est accepté.
+     */
+    public function hasValidWebhookSignature(string $rawBody, ?string $header): bool
+    {
+        if (blank($this->whatsapp_app_secret) || ! is_string($header) || ! str_starts_with($header, 'sha256=')) {
+            return false;
+        }
+
+        $expected = 'sha256='.hash_hmac('sha256', $rawBody, $this->whatsapp_app_secret);
+
+        return hash_equals($expected, $header);
     }
 
     /**

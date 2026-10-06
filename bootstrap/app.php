@@ -18,6 +18,8 @@ return Application::configure(basePath: dirname(__DIR__))
             HandleInertiaRequests::class,
         ]);
 
+        $middleware->validateCsrfTokens(except: ['webhooks/*']);
+
         $middleware->alias([
             'can-manage-organization' => EnsureCanManageOrganization::class,
         ]);

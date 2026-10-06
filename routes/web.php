@@ -18,7 +18,13 @@ use App\Http\Controllers\RoleController;
 use App\Http\Controllers\StoreController;
 use App\Http\Controllers\UserController;
 use App\Http\Controllers\WhatsAppSettingsController;
+use App\Http\Controllers\WhatsAppWebhookController;
 use Illuminate\Support\Facades\Route;
+
+// Webhook Meta par établissement : public, authentifié par la signature
+// X-Hub-Signature-256 (exclu de la vérification CSRF, cf. bootstrap/app.php).
+Route::get('/webhooks/whatsapp/{key}', [WhatsAppWebhookController::class, 'verify'])->name('webhooks.whatsapp');
+Route::post('/webhooks/whatsapp/{key}', [WhatsAppWebhookController::class, 'receive']);
 
 Route::middleware('guest')->group(function () {
     Route::get('/login', [AuthenticatedSessionController::class, 'create'])->name('login');

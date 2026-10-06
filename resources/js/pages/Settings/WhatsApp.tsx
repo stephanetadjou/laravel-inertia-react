@@ -23,6 +23,33 @@ interface StoreSettings {
     daily_limit: number | null;
     checked_at: string | null;
     registered_at: string | null;
+    webhook_url: string | null;
+    webhook_verify_token: string | null;
+}
+
+function CopyField({ label, value }: { label: string; value: string }) {
+    const [copied, setCopied] = useState(false);
+
+    function copy() {
+        navigator.clipboard?.writeText(value).then(() => {
+            setCopied(true);
+            setTimeout(() => setCopied(false), 1500);
+        });
+    }
+
+    return (
+        <div>
+            <span className="mb-1 block text-xs font-medium text-gray-600 dark:text-gray-400">{label}</span>
+            <div className="flex gap-2">
+                <code className="min-w-0 flex-1 truncate rounded-lg bg-gray-50 px-3 py-2 font-mono text-xs text-gray-800 dark:bg-white/[0.04] dark:text-white/90" title={value}>
+                    {value}
+                </code>
+                <button type="button" className="mdash-btn ghost sm" onClick={copy} aria-label={`Copier : ${label}`}>
+                    {copied ? 'Copié' : 'Copier'}
+                </button>
+            </div>
+        </div>
+    );
 }
 
 interface PageProps {
@@ -177,6 +204,19 @@ function StoreCard({ store }: { store: StoreSettings }) {
                         </div>
                     </div>
                     <p className={hint}>Le token et l'App Secret sont chiffrés et ne sont jamais réaffichés. Laissez vide pour conserver la valeur enregistrée.</p>
+
+                    {store.webhook_url && store.webhook_verify_token && (
+                        <div className="space-y-3 rounded-xl border border-gray-200 p-4 dark:border-gray-800">
+                            <h3 className="text-sm font-semibold text-gray-800 dark:text-white/90">Webhook</h3>
+                            <CopyField label="URL de rappel" value={store.webhook_url} />
+                            <CopyField label="Jeton de vérification" value={store.webhook_verify_token} />
+                            <p className={hint}>
+                                À recopier dans votre app Meta › WhatsApp › Configuration, puis abonnez le champ « messages ». Les appels sont acceptés
+                                seulement s'ils sont signés avec l'App Secret enregistré ci-dessus.
+                            </p>
+                            {!store.has_app_secret && <p className="text-sm text-warning-600">Enregistrez l'App Secret : sans lui, le webhook refuse tous les appels.</p>}
+                        </div>
+                    )}
 
                     <div className="flex flex-wrap gap-2">
                         <Button disabled={processing}>{processing ? 'Enregistrement…' : 'Enregistrer'}</Button>

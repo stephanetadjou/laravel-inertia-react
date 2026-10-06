@@ -25,7 +25,8 @@ class WhatsAppSettingsController extends Controller
         $stores = Store::where('organization_id', $request->user()->organization_id)
             ->with('brand')
             ->orderBy('name')
-            ->get();
+            ->get()
+            ->each(fn (Store $store) => $store->ensureWebhookCredentials());
 
         return Inertia::render('Settings/WhatsApp', [
             'stores' => $stores->map(fn (Store $store) => [
@@ -46,6 +47,9 @@ class WhatsAppSettingsController extends Controller
                 'daily_limit' => $store->dailyMessagingLimit(),
                 'checked_at' => $store->whatsapp_checked_at?->toIso8601String(),
                 'registered_at' => $store->whatsapp_registered_at?->toIso8601String(),
+                // À recopier dans l'app Meta (WhatsApp › Configuration › Webhook).
+                'webhook_url' => $store->webhookUrl(),
+                'webhook_verify_token' => $store->webhook_verify_token,
             ]),
         ]);
     }
