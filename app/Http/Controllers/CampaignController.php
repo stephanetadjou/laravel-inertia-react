@@ -6,10 +6,12 @@ use App\Jobs\SendCampaignJob;
 use App\Models\Campaign;
 use App\Models\CampaignMessage;
 use App\Models\Contact;
+use App\Models\Customer;
 use App\Models\Group;
 use App\Models\MessageTemplate;
 use App\Models\Store;
 use App\Services\ContactImporter;
+use App\Services\CustomerSearch;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
@@ -21,57 +23,84 @@ use Inertia\Response;
 
 class CampaignController extends Controller
 {
+    private const STATUSES = ['draft', 'queued', 'sending', 'completed'];
+
+    private const PERIODS = ['7d' => 7, '30d' => 30, '90d' => 90];
+
+    /**
+     * Liste des campagnes du périmètre, filtrable en query string : recherche
+     * (nom, modèle), statut, type de message, boutique et période de création.
+     * Les chiffres en haut de page suivent les mêmes filtres.
+     */
     public function index(Request $request): Response
     {
         $visibleIds = $request->user()->visibleStoreIds();
+        $stores = $this->visibleStoresQuery($request)->orderBy('name')->get(['id', 'name']);
 
-        $organizationCampaigns = Campaign::whereHas(
+        $search = trim((string) $request->query('q', ''));
+        $status = in_array($request->query('status'), self::STATUSES, true) ? (string) $request->query('status') : null;
+        $type = in_array($request->query('type'), ['template', 'text'], true) ? (string) $request->query('type') : null;
+        $storeId = $stores->contains('id', $request->integer('store')) ? $request->integer('store') : null;
+        $period = array_key_exists((string) $request->query('period'), self::PERIODS) ? (string) $request->query('period') : null;
+
+        $filtered = Campaign::whereHas(
             'stores',
             fn ($q) => $q->where('organization_id', $request->user()->organization_id)
-                ->when($visibleIds !== null, fn ($q) => $q->whereIn('stores.id', $visibleIds)),
-        );
+                ->when($visibleIds !== null, fn ($q) => $q->whereIn('stores.id', $visibleIds))
+                ->when($storeId !== null, fn ($q) => $q->where('stores.id', $storeId)),
+        )
+            ->when($search !== '', fn ($q) => $q->where(fn ($q) => $q->where('name', 'like', "%{$search}%")->orWhere('template_name', 'like', "%{$search}%")))
+            ->when($status !== null, fn ($q) => $q->where('status', $status))
+            ->when($type !== null, fn ($q) => $q->where('message_type', $type))
+            ->when($period !== null, fn ($q) => $q->where('created_at', '>=', now()->subDays(self::PERIODS[$period] - 1)->startOfDay()));
 
-        $perPage = (int) $request->integer('per_page', 10);
-        $perPage = in_array($perPage, [10, 25, 50], true) ? $perPage : 10;
+        $perPage = in_array($request->integer('per_page'), [25, 50, 100], true) ? $request->integer('per_page') : 25;
 
-        $campaigns = (clone $organizationCampaigns)
+        $campaigns = (clone $filtered)
             ->with('stores')
             ->withCount('campaignMessages as total')
             ->latest()
+            ->orderByDesc('id')
             ->paginate($perPage)
             ->withQueryString();
 
-        $totalRecipients = CampaignMessage::whereHas(
-            'campaign.stores',
-            fn ($q) => $q->where('organization_id', $request->user()->organization_id)
-                ->when($visibleIds !== null, fn ($q) => $q->whereIn('stores.id', $visibleIds)),
-        )->count();
-        $totalSent = (clone $organizationCampaigns)->sum('sent_count');
-        $totalFailed = (clone $organizationCampaigns)->sum('failed_count');
+        $groupNames = Group::where('organization_id', $request->user()->organization_id)->pluck('name', 'id');
+        $totalRecipients = CampaignMessage::whereIn('campaign_id', (clone $filtered)->select('id'))->count();
+        $totalSent = (int) (clone $filtered)->sum('sent_count');
+        $totalFailed = (int) (clone $filtered)->sum('failed_count');
 
         return Inertia::render('Campaigns/Index', [
             'campaigns' => $campaigns->through(fn (Campaign $campaign) => [
                 'id' => $campaign->id,
                 'name' => $campaign->name ?: $campaign->template_name,
                 'store_names' => $campaign->stores->pluck('name')->implode(', '),
-                'template_name' => $campaign->message_type === 'text' ? 'Message libre' : $campaign->template_name,
+                'message_type' => $campaign->message_type === 'text' ? 'text' : 'template',
+                'template_name' => $campaign->message_type === 'text' ? null : $campaign->template_name,
+                'group_names' => collect($campaign->segment_filters['group_ids'] ?? [])->map(fn ($id) => $groupNames[$id] ?? null)->filter()->values(),
                 'status' => $campaign->status,
                 'sent_count' => $campaign->sent_count,
                 'failed_count' => $campaign->failed_count,
                 'total' => $campaign->total,
-                'created_at' => $campaign->created_at->format('d/m/Y H:i'),
+                'created_at' => $campaign->created_at->toIso8601String(),
             ]),
             'stats' => [
-                'total_campaigns' => (clone $organizationCampaigns)->count(),
-                'active_campaigns' => (clone $organizationCampaigns)->whereIn('status', ['queued', 'sending'])->count(),
+                'total_campaigns' => (clone $filtered)->count(),
+                'active_campaigns' => (clone $filtered)->whereIn('status', ['queued', 'sending'])->count(),
                 'total_recipients' => $totalRecipients,
                 'total_sent' => $totalSent,
                 'total_failed' => $totalFailed,
                 'delivery_rate' => $totalRecipients > 0 ? round($totalSent / $totalRecipients * 100) : 0,
                 'failure_rate' => $totalRecipients > 0 ? round($totalFailed / $totalRecipients * 100) : 0,
             ],
-            'perPage' => $perPage,
-            'stores' => $this->visibleStoresQuery($request)->orderBy('name')->get(['id', 'name']),
+            'filters' => [
+                'q' => $search,
+                'status' => $status,
+                'type' => $type,
+                'store' => $storeId,
+                'period' => $period,
+                'per_page' => $perPage,
+            ],
+            'stores' => $stores,
             'groups' => Group::where('organization_id', $request->user()->organization_id)
                 ->orderBy('name')
                 ->get(['id', 'name']),
@@ -94,6 +123,9 @@ class CampaignController extends Controller
             'group_ids' => ['nullable', 'array'],
             'group_ids.*' => ['integer'],
             'gender' => ['nullable', 'in:H,F'],
+            'lifecycle_stages' => ['nullable', 'array'],
+            'lifecycle_stages.*' => [Rule::in(array_keys(Customer::STAGES))],
+            'vip_only' => ['nullable', 'boolean'],
         ]);
 
         $stores = $this->visibleStoresQuery($request)->whereIn('id', $data['store_ids'])->get();
@@ -110,13 +142,22 @@ class CampaignController extends Controller
         $data = $request->validate([
             'name' => ['required', 'string', 'max:255'],
             'description' => ['nullable', 'string', 'max:2000'],
-            'contact_source' => ['required', 'in:segment,file'],
+            'contact_source' => ['required', 'in:segment,file,customers'],
+
+            // Depuis la page Fiches clients : sélection (ou tout le filtre) + filtres de la page.
+            'all_customers' => ['nullable', 'boolean'],
+            'customer_ids' => ['exclude_unless:contact_source,customers', 'exclude_if:all_customers,1', 'required', 'array', 'min:1'],
+            'customer_ids.*' => ['integer'],
+            'filters' => ['nullable', 'array'],
 
             'store_ids' => ['required_if:contact_source,segment', 'array', 'min:1'],
             'store_ids.*' => ['integer'],
             'group_ids' => ['nullable', 'array'],
             'group_ids.*' => ['integer'],
             'gender' => ['nullable', 'in:H,F'],
+            'lifecycle_stages' => ['nullable', 'array'],
+            'lifecycle_stages.*' => [Rule::in(array_keys(Customer::STAGES))],
+            'vip_only' => ['nullable', 'boolean'],
 
             'import_store_id' => ['required_if:contact_source,file', 'nullable', 'integer'],
             'file' => ['required_if:contact_source,file', 'nullable', 'file', 'mimes:csv,txt,xlsx,xls'],
@@ -134,7 +175,22 @@ class CampaignController extends Controller
 
         $importSummary = null;
 
-        if ($data['contact_source'] === 'file') {
+        if ($data['contact_source'] === 'customers') {
+            // Destinataires = contacts des fiches sélectionnées qui correspondent
+            // aux filtres de la page (boutique, VIP…) ET sont opt-in.
+            $search = new CustomerSearch($request->user(), $data['filters'] ?? []);
+            $customerIds = $request->boolean('all_customers') ? null : array_map('intval', $data['customer_ids']);
+            $recipients = $search->recipients($customerIds)->get(['contacts.id', 'contacts.store_id', 'contacts.customer_id']);
+
+            $contactIds = $recipients->pluck('id');
+            $stores = Store::whereIn('id', $recipients->pluck('store_id')->unique())->get();
+            $filters = [
+                'source' => 'customers',
+                'label' => $search->label(),
+                'customers' => $recipients->pluck('customer_id')->unique()->count(),
+                'filters' => array_filter($data['filters'] ?? [], fn ($v) => $v !== null && $v !== ''),
+            ];
+        } elseif ($data['contact_source'] === 'file') {
             if (! $request->boolean('confirm_consent')) {
                 return back()->with('error', 'Vous devez confirmer le consentement (opt-in) des contacts importés avant de lancer la campagne.');
             }
@@ -168,6 +224,8 @@ class CampaignController extends Controller
             $filters = array_filter([
                 'gender' => $data['gender'] ?? null,
                 'group_ids' => $data['group_ids'] ?? null,
+                'lifecycle_stages' => $data['lifecycle_stages'] ?? null,
+                'vip_only' => (bool) ($data['vip_only'] ?? false),
             ]);
         }
 
@@ -222,7 +280,9 @@ class CampaignController extends Controller
      * de service), jamais un filtre optionnel laissé au choix de l'admin.
      *
      * @param  Collection<int, Store>  $stores
-     * @param  array{gender?: string|null, group_ids?: array<int>|null}  $filters
+     *                                          L'étape du parcours client (fiche client du Groupe) s'ajoute aux autres
+     *                                          critères, jamais à la place de l'opt-in.
+     * @param  array{gender?: string|null, group_ids?: array<int>|null, lifecycle_stages?: array<int, string>|null, vip_only?: bool|null}  $filters
      * @return Builder<Contact>
      */
     private function segmentQuery(Collection $stores, array $filters): Builder
@@ -232,6 +292,15 @@ class CampaignController extends Controller
 
         if (! empty($filters['gender'])) {
             $query->where('gender', $filters['gender']);
+        }
+
+        if (! empty($filters['lifecycle_stages'])) {
+            $query->whereHas('customer', fn ($q) => $q->whereIn('lifecycle_stage', $filters['lifecycle_stages']));
+        }
+
+        // VIP de la boutique du contact (statut propre à chaque boutique).
+        if (! empty($filters['vip_only'])) {
+            $query->where('is_vip', true);
         }
 
         if (! empty($filters['group_ids'])) {

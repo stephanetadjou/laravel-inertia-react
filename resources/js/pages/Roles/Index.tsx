@@ -1,14 +1,10 @@
-import { Head, router, useForm, usePage } from '@inertiajs/react';
+import { Link, router, useForm, usePage } from '@inertiajs/react';
 import { FormEventHandler, useState } from 'react';
 
 import AppLayout from '../../layout/AppLayout';
-import PageBreadcrumb from '../../components/common/PageBreadCrumb';
-import ComponentCard from '../../components/common/ComponentCard';
-import Alert from '../../components/ui/alert/Alert';
-import Badge from '../../components/ui/badge/Badge';
+import { Empty, Page, Panel, PlusIcon } from '../../components/page/Page';
 import Button from '../../components/ui/button/Button';
 import { Modal } from '../../components/ui/modal';
-import { Table, TableBody, TableCell, TableHeader, TableRow } from '../../components/ui/table';
 
 type Scope = 'organization' | 'brand' | 'store';
 
@@ -122,9 +118,7 @@ function RoleFormModal({ isOpen, onClose, role }: { isOpen: boolean; onClose: ()
 }
 
 function RolesIndex() {
-    const { roles, flash } = usePage<PageProps>().props;
-    const success = flash?.success ?? null;
-    const error = flash?.error ?? null;
+    const { roles } = usePage<PageProps>().props;
     const [modalRole, setModalRole] = useState<RoleRow | null | undefined>(undefined);
 
     function destroy(role: RoleRow) {
@@ -134,88 +128,72 @@ function RolesIndex() {
     }
 
     return (
-        <>
-            <Head title="Rôles" />
-
-            <PageBreadcrumb pageTitle="Rôles" />
-
-            <div className="space-y-4">
-                {success && <Alert variant="success" title="Succès" message={success} />}
-                {error && <Alert variant="error" title="Erreur" message={error} />}
-
-                <Alert
-                    variant="info"
-                    title="À quoi servent les rôles ?"
-                    message="Un rôle définit ce qu'un utilisateur peut voir (toute l'organisation, une marque ou une seule boutique) et s'il peut gérer l'organisation (marques, boutiques, utilisateurs, rôles). Modifiez les 4 rôles fournis par défaut ou créez-en de nouveaux, puis attribuez-les depuis Users & Rôles."
-                />
-
-                <div className="flex justify-end">
-                    <Button type="button" onClick={() => setModalRole(null)}>
+        <Page
+            title="Rôles"
+            subtitle="Ce que chaque utilisateur voit (Groupe, marque ou boutique) et s'il peut administrer l'organisation"
+            actions={
+                <>
+                    <Link href="/users" className="mdash-btn ghost">
+                        ← Utilisateurs
+                    </Link>
+                    <button type="button" className="mdash-btn brand" onClick={() => setModalRole(null)}>
+                        <PlusIcon />
                         Nouveau rôle
-                    </Button>
-                </div>
-
-                <ComponentCard title="Rôles" desc="Périmètre de visibilité et droit de gestion de l'organisation, par rôle.">
-                    <div className="overflow-x-auto">
-                        <Table>
-                            <TableHeader className="border-b border-gray-100 dark:border-gray-800">
-                                <TableRow>
-                                    <TableCell isHeader className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase dark:text-gray-400">
-                                        Nom
-                                    </TableCell>
-                                    <TableCell isHeader className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase dark:text-gray-400">
-                                        Périmètre
-                                    </TableCell>
-                                    <TableCell isHeader className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase dark:text-gray-400">
-                                        Gère l'organisation
-                                    </TableCell>
-                                    <TableCell isHeader className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase dark:text-gray-400">
-                                        Utilisateurs
-                                    </TableCell>
-                                    <TableCell isHeader className="px-4 py-3" />
-                                </TableRow>
-                            </TableHeader>
-                            <TableBody className="divide-y divide-gray-100 dark:divide-gray-800">
-                                {roles.map((role) => (
-                                    <TableRow key={role.id}>
-                                        <TableCell className="px-4 py-3 text-sm font-medium text-gray-800 dark:text-white/90">{role.name}</TableCell>
-                                        <TableCell className="px-4 py-3 text-sm text-gray-600 dark:text-gray-400">{scopeLabel[role.scope]}</TableCell>
-                                        <TableCell className="px-4 py-3 text-sm">
-                                            {role.can_manage_organization ? (
-                                                <Badge size="sm" color="success">Oui</Badge>
-                                            ) : (
-                                                <Badge size="sm" color="light">Non</Badge>
-                                            )}
-                                        </TableCell>
-                                        <TableCell className="px-4 py-3 text-sm text-gray-600 dark:text-gray-400">
-                                            {role.users_count} utilisateur{role.users_count > 1 ? 's' : ''}
-                                        </TableCell>
-                                        <TableCell className="px-4 py-3 text-right whitespace-nowrap">
-                                            <button
-                                                type="button"
-                                                onClick={() => setModalRole(role)}
-                                                className="mr-3 text-sm font-medium text-brand-500 hover:text-brand-600"
-                                            >
-                                                Modifier
-                                            </button>
-                                            <button
-                                                type="button"
-                                                onClick={() => destroy(role)}
-                                                className="text-sm font-medium text-error-500 hover:text-error-600"
-                                            >
-                                                Supprimer
-                                            </button>
-                                        </TableCell>
-                                    </TableRow>
-                                ))}
-                            </TableBody>
-                        </Table>
-                    </div>
-                </ComponentCard>
+                    </button>
+                </>
+            }
+        >
+            <div className="mpage-note">
+                Les 4 rôles fournis par défaut peuvent être modifiés. « Administre l'organisation » donne accès aux marques, boutiques, utilisateurs et
+                rôles. Un rôle encore attribué à un utilisateur ne peut pas être supprimé.
             </div>
 
-            {modalRole !== undefined && <RoleFormModal isOpen={true} onClose={() => setModalRole(undefined)} role={modalRole} />}
-        </>
+            <Panel>
+                {roles.length === 0 ? (
+                    <Empty title="Aucun rôle" />
+                ) : (
+                    <div className="mdash-tbl mpage-table">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Rôle</th>
+                                    <th>Périmètre</th>
+                                    <th>Administre l'organisation</th>
+                                    <th className="r">Utilisateurs</th>
+                                    <th className="r">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {roles.map((role) => (
+                                    <tr key={role.id}>
+                                        <td className="cell-main">
+                                            <b>{role.name}</b>
+                                        </td>
+                                        <td>{scopeLabel[role.scope]}</td>
+                                        <td>{role.can_manage_organization ? <span className="mdash-pill ok">Oui</span> : <span className="mdash-pill idle">Non</span>}</td>
+                                        <td className="r num">{role.users_count}</td>
+                                        <td className="r">
+                                            <span className="mpage-rowlinks">
+                                                <button type="button" onClick={() => setModalRole(role)}>
+                                                    Modifier
+                                                </button>
+                                                {role.users_count === 0 && (
+                                                    <button type="button" className="danger" onClick={() => destroy(role)}>
+                                                        Supprimer
+                                                    </button>
+                                                )}
+                                            </span>
+                                        </td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    </div>
+                )}
+            </Panel>
+
+            {modalRole !== undefined && <RoleFormModal key={modalRole?.id ?? 'new'} isOpen={true} onClose={() => setModalRole(undefined)} role={modalRole} />}
+        </Page>
     );
 }
 

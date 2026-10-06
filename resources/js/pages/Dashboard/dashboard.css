@@ -1,0 +1,1000 @@
+/*
+ * Thème du tableau de bord et de l'historique messages (.mdash). Suit le
+ * bouton clair/sombre de l'application (classe .dark sur <html>) : palette
+ * claire par défaut, palette sombre neutre sous .dark. Données en bleu
+ * acier ; le vert WhatsApp est réservé aux actions d'envoi et à l'opt-in.
+ */
+.mdash {
+    --bg: #f9fafb;
+    --surface: #ffffff;
+    --surface-2: #f1f3f5;
+    --line: #e4e7ec;
+    --ink: #1d2126;
+    --muted: #5f6770;
+    --faint: #939aa1;
+    --brand: #2f6fbf;
+    --brand-2: #4d86d6;
+    --brand-soft: #e5eef9;
+    --wa: #25d366;
+    --wa-ink: #05331f;
+    --accent: #c7771c;
+    --accent-soft: #fbf0e1;
+    --ok: #1f8a4f;
+    --ok-soft: #e3f4ea;
+    --warn: #a4680b;
+    --warn-soft: #fbf0d9;
+    --bad: #cf4a1d;
+    --bad-soft: #fce9e1;
+    --idle: #5f6b74;
+    --idle-soft: #eef1f3;
+    --grid: #eceef1;
+    --bubble: #d9fdd3;
+    --bubble-ink: #111b21;
+    --mono: ui-monospace, 'SFMono-Regular', Menlo, Consolas, monospace;
+
+    color-scheme: light;
+    background: var(--bg);
+    color: var(--ink);
+    font-size: 14px;
+    line-height: 1.45;
+    min-height: calc(100vh - 80px);
+    margin: -1rem;
+    padding: 0 1rem 2.5rem;
+}
+@media (min-width: 768px) {
+    .mdash {
+        margin: -1.5rem;
+        padding: 0 1.5rem 2.5rem;
+    }
+}
+.mdash .num,
+.mdash .mono {
+    font-variant-numeric: tabular-nums;
+}
+.mdash .mono {
+    font-family: var(--mono);
+    font-size: 12.5px;
+    white-space: nowrap;
+}
+
+/* Barre de filtres, collante à partir de la tablette (sur téléphone elle
+   occuperait la moitié de l'écran) */
+.mdash-top {
+    position: relative;
+    z-index: 20;
+    background: var(--bg);
+    border-bottom: 1px solid var(--line);
+    margin: 0 -1rem;
+    padding: 14px 1rem 12px;
+}
+@media (min-width: 768px) {
+    .mdash-top {
+        position: sticky;
+        margin: 0 -1.5rem;
+        padding: 14px 1.5rem 12px;
+    }
+}
+.mdash-top-in {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 14px 24px;
+    align-items: center;
+    justify-content: space-between;
+}
+.mdash-top h1 {
+    font-size: 22px;
+    font-weight: 700;
+    margin: 0;
+    letter-spacing: -0.01em;
+    line-height: 1.1;
+}
+.mdash-top small {
+    display: block;
+    color: var(--muted);
+    font-size: 12px;
+}
+.mdash-filters {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    align-items: flex-end;
+}
+.mdash-fgroup {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+.mdash-fgroup > label,
+.mdash-fgroup > span {
+    font-size: 11px;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--muted);
+    font-weight: 600;
+}
+.mdash-seg {
+    display: flex;
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    padding: 3px;
+    gap: 2px;
+    flex-wrap: wrap;
+}
+.mdash-seg button {
+    font: inherit;
+    font-size: 13px;
+    border: 0;
+    background: transparent;
+    color: var(--ink);
+    padding: 6px 10px;
+    border-radius: 7px;
+    cursor: pointer;
+}
+.mdash-seg button[aria-pressed='true'] {
+    background: var(--brand);
+    color: var(--surface);
+}
+.mdash button:focus-visible,
+.mdash select:focus-visible,
+.mdash input:focus-visible,
+.mdash a:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+}
+.mdash-range {
+    display: flex;
+    gap: 6px;
+    align-items: center;
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    padding: 4px 8px;
+}
+.mdash-range input {
+    font: inherit;
+    font-size: 13px;
+    border: 0;
+    background: transparent;
+    color: var(--ink);
+    width: 130px;
+}
+.mdash-range span {
+    color: var(--faint);
+}
+.mdash select {
+    font: inherit;
+    font-size: 13px;
+    background-color: var(--surface);
+    color: var(--ink);
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    padding: 8px 10px;
+    min-width: 190px;
+}
+.mdash select:disabled {
+    opacity: 0.7;
+    cursor: not-allowed;
+}
+.mdash-scope {
+    margin-top: 10px;
+    font-size: 12px;
+    color: var(--muted);
+}
+.mdash-scope b {
+    color: var(--ink);
+    font-weight: 600;
+}
+
+/* Grille */
+.mdash-grid {
+    display: grid;
+    grid-template-columns: repeat(12, minmax(0, 1fr));
+    gap: 16px;
+    margin-top: 18px;
+}
+.mdash .c12 {
+    grid-column: span 12;
+}
+.mdash .c8 {
+    grid-column: span 8;
+}
+.mdash .c7 {
+    grid-column: span 7;
+}
+.mdash .c5 {
+    grid-column: span 5;
+}
+.mdash .c4 {
+    grid-column: span 4;
+}
+@media (max-width: 1100px) {
+    .mdash .c8,
+    .mdash .c7,
+    .mdash .c5,
+    .mdash .c4 {
+        grid-column: span 12;
+    }
+}
+.mdash-panel {
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    padding: 18px 18px 16px;
+    min-width: 0;
+}
+.mdash-ph {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: 10px;
+    flex-wrap: wrap;
+    margin-bottom: 12px;
+}
+.mdash-ph h2 {
+    font-size: 16px;
+    font-weight: 700;
+    margin: 0;
+}
+.mdash-sub {
+    font-size: 12px;
+    color: var(--muted);
+}
+.mdash-empty {
+    padding: 28px 8px;
+    text-align: center;
+    color: var(--muted);
+    font-size: 13px;
+}
+
+/* KPI */
+.mdash-kpis {
+    display: grid;
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    overflow: hidden;
+}
+@media (max-width: 1200px) {
+    .mdash-kpis {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+}
+@media (max-width: 560px) {
+    .mdash-kpis {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+}
+.mdash-kpi {
+    padding: 16px 16px 14px;
+    border-right: 1px solid var(--line);
+    border-bottom: 1px solid var(--line);
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    min-width: 0;
+}
+.mdash-kpi .k-label {
+    font-size: 12px;
+    color: var(--muted);
+    font-weight: 500;
+}
+.mdash-kpi .k-val {
+    font-size: 26px;
+    font-weight: 700;
+    letter-spacing: -0.02em;
+    line-height: 1.1;
+}
+.mdash-kpi .k-val small {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--muted);
+    margin-left: 3px;
+}
+.mdash-kpi .k-foot {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 12px;
+    color: var(--muted);
+    flex-wrap: wrap;
+}
+.mdash-kpi.hero {
+    background: var(--brand);
+    color: var(--surface);
+}
+.mdash-kpi.hero .k-label,
+.mdash-kpi.hero .k-foot,
+.mdash-kpi.hero .k-val small {
+    color: var(--surface-2);
+    opacity: 0.85;
+}
+.mdash-delta {
+    font-family: var(--mono);
+    font-size: 11.5px;
+    padding: 1px 6px;
+    border-radius: 6px;
+}
+.mdash-delta.up {
+    background: var(--ok-soft);
+    color: var(--ok);
+}
+.mdash-delta.down {
+    background: var(--bad-soft);
+    color: var(--bad);
+}
+.mdash-delta.flat {
+    background: var(--idle-soft);
+    color: var(--idle);
+}
+.mdash-kpi.hero .mdash-delta {
+    background: var(--surface);
+}
+.mdash-kpi.hero .mdash-delta.up {
+    color: var(--brand);
+}
+
+/* Graphiques */
+.mdash-chart {
+    width: 100%;
+    height: auto;
+    display: block;
+}
+.mdash-chart text {
+    fill: var(--muted);
+    font-family: var(--mono);
+    font-size: 10.5px;
+}
+.mdash-keys {
+    display: flex;
+    gap: 14px;
+    flex-wrap: wrap;
+    font-size: 12px;
+    color: var(--muted);
+}
+.mdash-keys span {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+}
+.mdash-keys i {
+    width: 14px;
+    height: 3px;
+    border-radius: 2px;
+    display: inline-block;
+}
+.mdash-keys i.dash {
+    background: repeating-linear-gradient(90deg, var(--accent) 0 4px, transparent 4px 7px);
+}
+.mdash-tip {
+    position: absolute;
+    pointer-events: none;
+    background: var(--surface-2);
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    padding: 6px 9px;
+    font-size: 12px;
+    white-space: nowrap;
+    transform: translate(-50%, calc(-100% - 10px));
+    z-index: 2;
+}
+.mdash-tip b {
+    display: block;
+    font-weight: 600;
+    margin-bottom: 2px;
+}
+
+/* Consentement */
+.mdash-consent {
+    display: flex;
+    gap: 18px;
+    align-items: center;
+    flex-wrap: wrap;
+}
+.mdash-consent svg {
+    width: 160px;
+    height: 160px;
+    flex: none;
+}
+.mdash-legend {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    flex: 1;
+    min-width: 150px;
+}
+.mdash-lg {
+    display: grid;
+    grid-template-columns: 10px 1fr auto;
+    gap: 2px 8px;
+    align-items: baseline;
+    font-size: 13px;
+}
+.mdash-lg i {
+    width: 10px;
+    height: 10px;
+    border-radius: 3px;
+    align-self: center;
+}
+.mdash-lg b {
+    font-family: var(--mono);
+    font-weight: 500;
+    font-size: 12.5px;
+}
+.mdash-lg .s {
+    grid-column: 2 / 4;
+    font-size: 11.5px;
+    color: var(--muted);
+}
+.mdash-note {
+    margin-top: 14px;
+    padding: 10px 12px;
+    border-radius: 10px;
+    background: var(--accent-soft);
+    font-size: 12.5px;
+}
+.mdash-note b {
+    color: var(--accent);
+}
+
+/* Top 10 */
+.mdash-top10 {
+    display: flex;
+    flex-direction: column;
+    gap: 7px;
+}
+.mdash-row10 {
+    display: grid;
+    grid-template-columns: 22px minmax(100px, 180px) minmax(0, 1fr) 100px 70px;
+    gap: 10px;
+    align-items: center;
+    font-size: 13px;
+}
+@media (max-width: 560px) {
+    .mdash-row10 {
+        grid-template-columns: 20px minmax(0, 1fr) 90px;
+    }
+    .mdash-row10 .bar,
+    .mdash-row10 .cli {
+        display: none;
+    }
+}
+.mdash-row10 .rank {
+    font-family: var(--mono);
+    font-size: 12px;
+    color: var(--faint);
+    text-align: right;
+}
+.mdash-row10:nth-child(-n + 3) .rank {
+    color: var(--accent);
+    font-weight: 600;
+}
+.mdash-row10 .cat {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.mdash-row10 .bar {
+    height: 14px;
+    background: var(--surface-2);
+    border-radius: 4px;
+    overflow: hidden;
+}
+.mdash-row10 .bar i {
+    display: block;
+    height: 100%;
+    background: var(--brand-2);
+    border-radius: 4px;
+}
+.mdash-row10:nth-child(-n + 3) .bar i {
+    background: var(--brand);
+}
+.mdash-row10 .amt {
+    font-family: var(--mono);
+    font-size: 12.5px;
+    text-align: right;
+}
+.mdash-row10 .cli {
+    font-size: 12px;
+    color: var(--muted);
+    text-align: right;
+}
+.mdash-switch {
+    display: flex;
+    gap: 2px;
+    background: var(--surface-2);
+    border-radius: 8px;
+    padding: 2px;
+}
+.mdash-switch button {
+    font: inherit;
+    font-size: 12px;
+    border: 0;
+    background: transparent;
+    color: var(--muted);
+    padding: 4px 9px;
+    border-radius: 6px;
+    cursor: pointer;
+}
+.mdash-switch button[aria-pressed='true'] {
+    background: var(--surface);
+    color: var(--ink);
+    box-shadow: 0 0 0 1px var(--line);
+}
+
+/* Marques */
+.mdash-brands {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+.mdash-br {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+    font: inherit;
+    font-size: 13px;
+    padding: 6px 8px;
+    border-radius: 8px;
+    border: 0;
+    background: transparent;
+    color: inherit;
+    text-align: left;
+    width: 100%;
+}
+.mdash-br:not(:disabled) {
+    cursor: pointer;
+}
+.mdash-br:not(:disabled):hover {
+    background: var(--surface-2);
+}
+.mdash-br.dim {
+    opacity: 0.4;
+}
+.mdash-br-top {
+    display: flex;
+    justify-content: space-between;
+    gap: 8px;
+}
+.mdash-br-top b {
+    font-weight: 600;
+}
+.mdash-br-top span {
+    font-family: var(--mono);
+    font-size: 12px;
+}
+.mdash-stack {
+    display: flex;
+    height: 8px;
+    border-radius: 4px;
+    overflow: hidden;
+    background: var(--surface-2);
+}
+.mdash-stack i {
+    display: block;
+    height: 100%;
+}
+
+/* Tableaux */
+.mdash-tbl {
+    overflow-x: auto;
+    margin-inline: -4px;
+}
+.mdash table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13px;
+    /* app.blade.php n'a pas de doctype : en mode quirks, les tableaux
+       n'héritent pas de la couleur du texte. */
+    color: var(--ink);
+}
+.mdash th {
+    font-size: 11px;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    color: var(--muted);
+    font-weight: 600;
+    text-align: left;
+    padding: 8px 6px;
+    border-bottom: 1px solid var(--line);
+    white-space: nowrap;
+}
+.mdash td {
+    padding: 8px 6px;
+    border-bottom: 1px solid var(--line);
+    vertical-align: middle;
+    white-space: nowrap;
+}
+.mdash tr:last-child td {
+    border-bottom: 0;
+}
+.mdash td.r,
+.mdash th.r {
+    text-align: right;
+}
+.mdash td.wrap {
+    white-space: normal;
+}
+.mdash .cell-main b {
+    display: block;
+    font-weight: 600;
+}
+.mdash .cell-main a {
+    color: inherit;
+    text-decoration: none;
+}
+.mdash .cell-main a:hover {
+    text-decoration: underline;
+}
+.mdash .cell-main span {
+    font-size: 11.5px;
+    color: var(--muted);
+}
+.mdash-pill {
+    display: inline-block;
+    font-size: 11.5px;
+    font-weight: 600;
+    padding: 2px 8px;
+    border-radius: 999px;
+    white-space: nowrap;
+}
+.mdash-pill.ok {
+    background: var(--ok-soft);
+    color: var(--ok);
+}
+.mdash-pill.warn {
+    background: var(--warn-soft);
+    color: var(--warn);
+}
+.mdash-pill.bad {
+    background: var(--bad-soft);
+    color: var(--bad);
+}
+.mdash-pill.idle {
+    background: var(--idle-soft);
+    color: var(--idle);
+}
+.mdash-pill.accent {
+    background: var(--accent-soft);
+    color: var(--accent);
+}
+.mdash-pill.info {
+    background: var(--brand-soft);
+    color: var(--brand);
+}
+.mdash-stat {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 3px;
+}
+.mdash-src {
+    font-size: 11.5px;
+    color: var(--muted);
+}
+.mdash-minibar {
+    display: inline-block;
+    width: 54px;
+    height: 6px;
+    border-radius: 3px;
+    background: var(--surface-2);
+    vertical-align: middle;
+    margin-right: 6px;
+    overflow: hidden;
+}
+.mdash-minibar i {
+    display: block;
+    height: 100%;
+    background: var(--brand-2);
+}
+.mdash input[type='checkbox'] {
+    width: 16px;
+    height: 16px;
+    accent-color: var(--brand-2);
+    cursor: pointer;
+}
+.mdash input[type='checkbox']:disabled {
+    cursor: not-allowed;
+    opacity: 0.4;
+}
+
+/* Évolution des ventes */
+.mdash-ca-head {
+    display: flex;
+    gap: 16px;
+    flex-wrap: wrap;
+    align-items: baseline;
+    margin-bottom: 6px;
+}
+.mdash-ca-big {
+    font-size: 26px;
+    font-weight: 700;
+    letter-spacing: -0.02em;
+}
+.mdash-ca-big small {
+    font-size: 13px;
+    color: var(--muted);
+    font-weight: 600;
+    margin-left: 3px;
+}
+.mdash-ca-meta {
+    font-size: 12px;
+    color: var(--muted);
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+    align-items: center;
+}
+
+/* Actions */
+.mdash-bar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+    margin-top: 12px;
+    padding-top: 12px;
+    border-top: 1px solid var(--line);
+}
+.mdash-btn {
+    font: inherit;
+    font-size: 13px;
+    font-weight: 600;
+    border-radius: 9px;
+    padding: 8px 14px;
+    cursor: pointer;
+    border: 1px solid transparent;
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    text-decoration: none;
+}
+.mdash-btn svg {
+    width: 15px;
+    height: 15px;
+}
+.mdash-btn.primary {
+    background: var(--wa);
+    color: var(--wa-ink);
+}
+.mdash-btn.primary:hover {
+    filter: brightness(0.95);
+}
+.mdash-btn:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+    filter: none;
+}
+.mdash-btn.ghost {
+    background: transparent;
+    border-color: var(--line);
+    color: var(--ink);
+}
+.mdash-confirm {
+    margin-top: 10px;
+    padding: 12px;
+    border-radius: 10px;
+    background: var(--surface-2);
+    font-size: 13px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+.mdash-confirm .acts {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    align-items: center;
+}
+.mdash-confirm code {
+    font-family: var(--mono);
+    font-size: 12px;
+}
+.mdash-flash {
+    margin-top: 14px;
+    padding: 10px 12px;
+    border-radius: 10px;
+    font-size: 13px;
+    font-weight: 500;
+}
+.mdash-flash.ok {
+    background: var(--ok-soft);
+    color: var(--ok);
+}
+.mdash-flash.bad {
+    background: var(--bad-soft);
+    color: var(--bad);
+}
+.mdash-link {
+    font-size: 12.5px;
+    color: var(--brand);
+    font-weight: 600;
+    text-decoration: none;
+}
+.mdash-link:hover {
+    text-decoration: underline;
+}
+
+/* Palette sombre neutre, active quand l'application est en thème sombre. */
+.dark .mdash {
+    --bg: #101214;
+    --surface: #171a1d;
+    --surface-2: #1f2327;
+    --line: #2a2f34;
+    --ink: #e8eaec;
+    --muted: #9ba2a9;
+    --faint: #6d747b;
+    --brand: #8ab8f0;
+    --brand-2: #5d97e0;
+    --brand-soft: #1b2a3d;
+    --accent: #f0a64b;
+    --accent-soft: #3b2c18;
+    --ok: #4ccb7f;
+    --ok-soft: #173424;
+    --warn: #e4ad4f;
+    --warn-soft: #3a2e15;
+    --bad: #f07a4a;
+    --bad-soft: #3d2016;
+    --idle: #9aa7b0;
+    --idle-soft: #242d33;
+    --grid: #24292e;
+    --bubble: #0f3d2e;
+    --bubble-ink: #e6f4ec;
+
+    color-scheme: dark;
+}
+
+/* Parcours client : barre de répartition + une carte par étape + mouvements. */
+.mdash-journey-bar {
+    display: flex;
+    height: 10px;
+    border-radius: 5px;
+    overflow: hidden;
+    background: var(--surface-2);
+    gap: 2px;
+}
+.mdash-journey-bar i {
+    display: block;
+    height: 100%;
+}
+.mdash-journey {
+    display: grid;
+    grid-template-columns: repeat(7, minmax(0, 1fr));
+    gap: 8px;
+    margin-top: 14px;
+}
+@media (max-width: 1000px) {
+    .mdash-journey {
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+    }
+}
+@media (max-width: 560px) {
+    .mdash-journey {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+}
+.mdash-journey-step {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    padding: 10px 12px;
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    color: var(--ink);
+    text-decoration: none;
+    min-width: 0;
+}
+.mdash-journey-step:hover {
+    border-color: var(--brand-2);
+}
+.mdash-journey-step span {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 12px;
+    color: var(--muted);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.mdash-journey-step span i {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    flex: none;
+}
+.mdash-journey-step b {
+    font-size: 22px;
+    letter-spacing: -0.02em;
+}
+.mdash-journey-step small {
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--faint);
+}
+.mdash-journey-moves {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px 18px;
+    margin-top: 14px;
+    padding-top: 12px;
+    border-top: 1px solid var(--line);
+    font-size: 12.5px;
+    color: var(--muted);
+}
+.mdash-journey-moves b {
+    color: var(--ok);
+    font-weight: 700;
+    margin-right: 3px;
+}
+.mdash-journey-moves .warn b {
+    color: var(--warn);
+}
+.mdash-journey-moves .bad b {
+    color: var(--bad);
+}
+
+/* Encart « À traiter » (notifications, cf. components/notifications). */
+.mnotif {
+    margin-top: 18px;
+}
+.mnotif-list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 10px;
+}
+.mnotif-item {
+    display: flex;
+    gap: 10px;
+    align-items: flex-start;
+    padding: 10px 12px;
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    color: var(--ink);
+    text-decoration: none;
+    height: 100%;
+}
+a.mnotif-item:hover {
+    border-color: var(--brand-2);
+}
+.mnotif-item .dot {
+    width: 9px;
+    height: 9px;
+    border-radius: 50%;
+    margin-top: 5px;
+    flex: none;
+    background: var(--idle);
+}
+.mnotif-item.bad .dot {
+    background: var(--bad);
+}
+.mnotif-item.warn .dot {
+    background: var(--warn);
+}
+.mnotif-item.info .dot {
+    background: var(--brand);
+}
+.mnotif-item .txt {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 0;
+    flex: 1;
+}
+.mnotif-item b {
+    font-size: 13px;
+    font-weight: 600;
+}
+.mnotif-item small {
+    font-size: 12px;
+    color: var(--muted);
+    line-height: 1.4;
+}
+.mnotif-item .go {
+    color: var(--faint);
+}

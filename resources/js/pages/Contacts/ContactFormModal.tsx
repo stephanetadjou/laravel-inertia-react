@@ -65,17 +65,23 @@ export default function ContactFormModal({ isOpen, onClose, contact }: ContactFo
 
                 <div>
                     <label htmlFor="phone_e164" className="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-300">
-                        Téléphone (E.164)
+                        Téléphone
                     </label>
                     <input
                         id="phone_e164"
-                        type="text"
+                        type="tel"
                         value={data.phone_e164}
                         onChange={(e) => setData('phone_e164', e.target.value)}
-                        placeholder="24177000000"
+                        placeholder="62 60 50 54 ou +241 62 60 50 54"
                         className={fieldClasses()}
                     />
-                    {errors.phone_e164 && <p className="mt-1.5 text-sm text-error-500">{errors.phone_e164}</p>}
+                    {errors.phone_e164 ? (
+                        <p className="mt-1.5 text-sm text-error-500">{errors.phone_e164}</p>
+                    ) : (
+                        <p className="mt-1.5 text-xs text-gray-500 dark:text-gray-400">
+                            Mobile gabonais (8 chiffres commençant par 6 ou 7), enregistré au format 241XXXXXXXX.
+                        </p>
+                    )}
                 </div>
 
                 <div className="grid grid-cols-2 gap-4">

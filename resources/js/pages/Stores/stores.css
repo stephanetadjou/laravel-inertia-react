@@ -1,0 +1,112 @@
+/* Page Marques & boutiques : complète dashboard.css (.mdash), suit le thème clair/sombre.
+   Réutilise aussi les cartes chiffres de l'historique messages (.mchat-sum / .mchat-stat). */
+.mchat-sum {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+    margin-top: 18px;
+}
+.mchat-stat {
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    padding: 10px 14px;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 130px;
+    flex: 1;
+}
+.mchat-stat span {
+    font-size: 12px;
+    color: var(--muted);
+}
+.mchat-stat b {
+    font-size: 22px;
+    letter-spacing: -0.02em;
+}
+.mchat-stat.bad b {
+    color: var(--bad);
+}
+/* Pas de filtres collants sur cette page : la barre défile avec le contenu. */
+.mstore .mstore-top {
+    position: relative;
+    top: 0;
+}
+.mstore-actions {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    align-items: center;
+}
+.mdash .mstore-search {
+    font: inherit;
+    font-size: 13px;
+    background: var(--surface);
+    color: var(--ink);
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    padding: 8px 10px;
+    width: 260px;
+}
+.mdash .mdash-btn.brand {
+    background: var(--brand);
+    color: var(--surface);
+}
+.mdash .mdash-btn.brand:hover {
+    filter: brightness(1.05);
+}
+.mdash .mdash-btn.sm {
+    padding: 5px 10px;
+    font-size: 12.5px;
+}
+.mdash .mdash-btn.danger {
+    color: var(--bad);
+}
+.mdash .mdash-btn.danger:disabled {
+    color: var(--faint);
+}
+.mstore-note {
+    margin-top: 14px;
+    padding: 10px 12px;
+    border-radius: 10px;
+    background: var(--brand-soft);
+    font-size: 12.5px;
+}
+.mstore-note b {
+    color: var(--brand);
+}
+.mstore-filter {
+    display: inline-flex;
+    margin-top: 16px;
+}
+.mstore-groups {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    margin-top: 12px;
+}
+.mstore-brand table {
+    min-width: 640px;
+}
+.mstore-brand td:first-child {
+    width: 30%;
+}
+.mstore-row-actions {
+    display: inline-flex;
+    gap: 6px;
+    justify-content: flex-end;
+}
+.mstore-empty {
+    margin-top: 12px;
+    padding: 40px 16px;
+    text-align: center;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    color: var(--muted);
+}
+.mstore-empty b {
+    color: var(--ink);
+    font-size: 15px;
+}

@@ -4,55 +4,44 @@ namespace App\Http\Controllers;
 
 use App\Jobs\SendWelcomeMessageJob;
 use App\Models\Contact;
+use App\Models\Customer;
 use App\Models\Group;
 use App\Models\Store;
 use App\Services\PhoneNormalizer;
 use App\Services\WhatsAppApiException;
-use App\Services\WhatsAppClient;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Response as ResponseFacade;
 use Illuminate\Validation\Rule;
-use Inertia\Inertia;
-use Inertia\Response;
+use Illuminate\Validation\ValidationException;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 use Symfony\Component\HttpKernel\Exception\HttpException;
 
 class ContactController extends Controller
 {
-    public function index(Request $request): Response
+    /**
+     * L'ancienne liste des contacts est fusionnée dans Fiches clients (une
+     * ligne par personne, mêmes filtres, ajout aux groupes depuis la sélection).
+     * L'URL reste valable et redirige en traduisant ses filtres.
+     */
+    public function index(Request $request): RedirectResponse
     {
-        $perPage = (int) $request->integer('per_page', 25);
-        $perPage = in_array($perPage, [25, 50, 100], true) ? $perPage : 25;
-
-        $contacts = $this->filteredQuery($request)
-            ->with(['store', 'groups'])
-            ->orderBy('name')
-            ->paginate($perPage)
-            ->withQueryString();
-
-        return Inertia::render('Contacts/Index', [
-            'contacts' => $contacts->through(fn (Contact $contact) => [
-                'id' => $contact->id,
-                'name' => $contact->name,
-                'phone_e164' => $contact->phone_e164,
-                'gender' => $contact->gender,
-                'birthdate' => $contact->birthdate?->format('Y-m-d'),
-                'consent_status' => $contact->consent_status,
-                'store_name' => $contact->store->name,
-                'group_names' => $contact->groups->pluck('name')->all(),
-            ]),
-            'perPage' => $perPage,
-            'stores' => $this->visibleStoresQuery($request)->orderBy('name')->get(['id', 'name']),
-            'groups' => Group::where('organization_id', $request->user()->organization_id)
-                ->orderBy('name')
-                ->get(['id', 'name']),
-            'filters' => $request->only(['store_id', 'gender', 'consent_status', 'group_id']),
-        ]);
+        return redirect()->route('customers.index', array_filter([
+            'q' => $request->query('q'),
+            'store' => $request->query('store_id'),
+            'consent' => $request->query('consent_status'),
+            'group' => $request->query('group_id'),
+        ]));
     }
 
+    /**
+     * Ajout d'un contact (bouton « Nouveau client » de Fiches clients) : la
+     * fiche client est créée ou complétée automatiquement.
+     */
     public function store(Request $request): RedirectResponse
     {
         $data = $request->validate([
@@ -72,6 +61,10 @@ class ContactController extends Controller
 
         $phone = PhoneNormalizer::normalize($data['phone_e164']);
 
+        if ($phone === null) {
+            return back()->with('error', 'Numéro invalide : attendu '.PhoneNormalizer::EXPECTED_FORMAT.'.')->withInput();
+        }
+
         if (Contact::where('store_id', $store->id)->where('phone_e164', $phone)->exists()) {
             return back()->with('error', "Un contact avec ce numéro existe déjà dans {$store->name}.")->withInput();
         }
@@ -88,62 +81,48 @@ class ContactController extends Controller
         return back()->with('success', "Contact « {$data['name']} » créé.");
     }
 
-    public function show(Request $request, Contact $contact): Response
+    /**
+     * Ancienne fiche contact : fusionnée dans la fiche client (Profil RFM,
+     * boutiques, achats, messages). L'URL reste valable et redirige.
+     */
+    public function show(Request $request, Contact $contact): RedirectResponse
     {
         $this->authorizeVisible($request, $contact);
 
-        $contact->load(['store', 'groups', 'purchases' => fn ($q) => $q->orderByDesc('purchased_at')]);
-        $contact->load(['campaignMessages.campaign']);
-
-        $lastPurchase = $contact->purchases->first();
-
-        return Inertia::render('Contacts/Show', [
-            'contact' => [
-                'id' => $contact->id,
-                'name' => $contact->name,
-                'phone_e164' => $contact->phone_e164,
-                'gender' => $contact->gender,
-                'birthdate' => $contact->birthdate?->format('Y-m-d'),
-                'consent_status' => $contact->consent_status,
-                'store_name' => $contact->store->name,
-                'group_names' => $contact->groups->pluck('name')->all(),
-            ],
-            'rfm' => [
-                'recency_days' => $lastPurchase ? (int) abs(now()->diffInDays($lastPurchase->purchased_at)) : null,
-                'frequency' => $contact->purchases->count(),
-                'monetary' => $contact->purchases->sum('amount'),
-            ],
-            'purchases' => $contact->purchases->map(fn ($purchase) => [
-                'id' => $purchase->id,
-                'product_category' => $purchase->product_category,
-                'amount' => $purchase->amount,
-                'purchased_at' => $purchase->purchased_at->format('d/m/Y'),
-            ]),
-            'campaignMessages' => $contact->campaignMessages->map(fn ($message) => [
-                'id' => $message->id,
-                'campaign_name' => $message->campaign->name ?: $message->campaign->template_name,
-                'status' => $message->status,
-                'sent_at' => $message->updated_at->format('d/m/Y H:i'),
-            ]),
-        ]);
+        return $contact->customer_id
+            ? redirect()->route('customers.show', $contact->customer_id)
+            : redirect()->route('customers.index');
     }
 
     public function update(Request $request, Contact $contact): RedirectResponse
     {
-        $this->authorizeVisible($request, $contact);
+        Gate::authorize('update', $contact);
 
         $data = $request->validate([
             'name' => ['required', 'string', 'max:255'],
-            'phone_e164' => [
-                'required', 'string', 'max:20',
-                Rule::unique('contacts', 'phone_e164')
-                    ->where(fn ($q) => $q->where('store_id', $contact->store_id))
-                    ->ignore($contact->id),
-            ],
+            'phone_e164' => ['required', 'string', 'max:20'],
             'gender' => ['nullable', 'in:H,F'],
             'birthdate' => ['nullable', 'date'],
             'consent_status' => ['required', 'in:opt_in,opt_out,unknown'],
         ]);
+
+        // Même normalisation qu'à la création et à l'import : la saisie peut
+        // être "062 60 50 54" ou "+241 62605054", on stocke toujours 24162605054.
+        $data['phone_e164'] = PhoneNormalizer::normalize($data['phone_e164'])
+            ?? throw ValidationException::withMessages([
+                'phone_e164' => 'Numéro invalide : attendu '.PhoneNormalizer::EXPECTED_FORMAT.'.',
+            ]);
+
+        $duplicate = Contact::where('store_id', $contact->store_id)
+            ->where('phone_e164', $data['phone_e164'])
+            ->whereKeyNot($contact->id)
+            ->exists();
+
+        if ($duplicate) {
+            throw ValidationException::withMessages([
+                'phone_e164' => "Un autre contact de {$contact->store->name} a déjà ce numéro.",
+            ]);
+        }
 
         $contact->update($data);
 
@@ -155,9 +134,15 @@ class ContactController extends Controller
         $this->authorizeVisible($request, $contact);
 
         $name = $contact->name;
+        $customerId = $contact->customer_id;
         $contact->delete();
 
-        return redirect()->route('contacts.index')->with('success', "Contact « {$name} » supprimé.");
+        // Retour à la fiche client, sauf si elle a disparu avec son dernier contact.
+        $redirect = $customerId && Customer::whereKey($customerId)->exists()
+            ? redirect()->route('customers.show', $customerId)
+            : redirect()->route('customers.index');
+
+        return $redirect->with('success', "Contact « {$name} » supprimé.");
     }
 
     public function export(Request $request): StreamedResponse
@@ -227,11 +212,19 @@ class ContactController extends Controller
      * (ex. cochés depuis le tableau de bord) : silencieusement ignore tout
      * contact qui n'est pas "unknown" ou déjà accueilli, plutôt que d'échouer
      * l'envoi groupé pour les autres.
+     *
+     * Avec all_pending, cible tous les nouveaux clients en attente de bienvenue
+     * du périmètre de l'utilisateur (toutes boutiques visibles), éventuellement
+     * limités à ceux ajoutés entre from et to — pas seulement les 10 affichés
+     * sur le tableau de bord.
      */
     public function sendWelcomeBulk(Request $request): RedirectResponse
     {
         $data = $request->validate([
-            'contact_ids' => ['required', 'array', 'min:1'],
+            'all_pending' => ['sometimes', 'boolean'],
+            'from' => ['nullable', 'date'],
+            'to' => ['nullable', 'date'],
+            'contact_ids' => ['exclude_if:all_pending,true', 'required', 'array', 'min:1'],
             'contact_ids.*' => ['integer'],
             'template_name' => [
                 'required', 'string', 'max:255',
@@ -243,27 +236,39 @@ class ContactController extends Controller
             ],
         ]);
 
-        $contacts = $this->visibleContactsQuery($request)
-            ->whereIn('id', $data['contact_ids'])
+        $query = $this->visibleContactsQuery($request)
             ->where('consent_status', 'unknown')
-            ->whereNull('welcome_message_sent_at')
-            ->get();
+            ->whereNull('welcome_message_sent_at');
 
-        foreach ($contacts as $contact) {
-            SendWelcomeMessageJob::dispatch($contact, $data['template_name']);
+        if ($request->boolean('all_pending')) {
+            $query
+                ->when($data['from'] ?? null, fn ($q, $from) => $q->where('created_at', '>=', Carbon::parse($from)->startOfDay()))
+                ->when($data['to'] ?? null, fn ($q, $to) => $q->where('created_at', '<=', Carbon::parse($to)->endOfDay()));
+        } else {
+            $query->whereIn('id', $data['contact_ids']);
         }
 
-        return back()->with('success', "{$contacts->count()} message(s) de bienvenue en cours d'envoi.");
+        $count = 0;
+
+        $query->chunkById(200, function ($contacts) use ($data, &$count) {
+            foreach ($contacts as $contact) {
+                SendWelcomeMessageJob::dispatch($contact, $data['template_name']);
+                $count++;
+            }
+        });
+
+        return back()->with('success', "{$count} message(s) de bienvenue en cours d'envoi.");
     }
 
     public function sendTest(Request $request, Contact $contact): RedirectResponse
     {
         $this->authorizeVisible($request, $contact);
 
-        $client = new WhatsAppClient(
-            $contact->store->whatsapp_access_token,
-            $contact->store->whatsapp_phone_number_id,
-        );
+        if (! $contact->store->canSendWhatsApp()) {
+            return back()->with('error', "Aucun compte WhatsApp configuré pour {$contact->store->name}.");
+        }
+
+        $client = $contact->store->whatsappClient();
 
         try {
             $client->sendTemplate($contact->phone_e164, 'hello_world', 'en_US');
@@ -315,6 +320,20 @@ class ContactController extends Controller
 
         if ($request->filled('consent_status')) {
             $query->where('consent_status', $request->string('consent_status'));
+        }
+
+        if ($request->filled('q')) {
+            $search = trim((string) $request->string('q'));
+            // « 077 11… » (format local) doit trouver 24177 11… : le 0 initial est ignoré.
+            $digits = ltrim(preg_replace('/\D+/', '', $search), '0');
+
+            $query->where(function ($q) use ($search, $digits) {
+                $q->where('name', 'like', "%{$search}%");
+
+                if ($digits !== '') {
+                    $q->orWhere('phone_e164', 'like', "%{$digits}%");
+                }
+            });
         }
 
         if ($request->filled('group_id')) {

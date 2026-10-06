@@ -12,6 +12,7 @@ use Illuminate\Foundation\Queue\Queueable;
 use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
+use RuntimeException;
 
 class SendCampaignJob implements ShouldQueue
 {
@@ -52,7 +53,9 @@ class SendCampaignJob implements ShouldQueue
                             'meta_message_id' => $result['messages'][0]['id'] ?? null,
                         ]);
                         $this->campaign->increment('sent_count');
-                    } catch (WhatsAppApiException|ConnectionException $e) {
+                    } catch (WhatsAppApiException|ConnectionException|RuntimeException $e) {
+                        // RuntimeException : boutique sans identifiants et pas de
+                        // compte partagé — le message échoue, la campagne continue.
                         $message->update([
                             'status' => 'failed',
                             'error_message' => $e->getMessage(),
@@ -69,16 +72,13 @@ class SendCampaignJob implements ShouldQueue
     }
 
     /**
-     * Chaque boutique a son propre numéro WhatsApp Business : un message doit
-     * toujours partir via le client de la boutique du contact destinataire,
-     * jamais un client unique partagé par toute la campagne.
+     * Un message part toujours via le client de la boutique du contact
+     * destinataire : son propre numéro WhatsApp Business s'il est configuré,
+     * sinon le compte Meta partagé (cf. Store::whatsappClient()).
      */
     private function clientFor(Store $store): WhatsAppClient
     {
-        return $this->clientsByStoreId[$store->id] ??= new WhatsAppClient(
-            $store->whatsapp_access_token,
-            $store->whatsapp_phone_number_id,
-        );
+        return $this->clientsByStoreId[$store->id] ??= $store->whatsappClient();
     }
 
     private function templateLanguageFor(Store $store): string

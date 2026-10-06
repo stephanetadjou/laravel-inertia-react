@@ -1,13 +1,10 @@
-import { Head, Link, router, useForm, usePage } from '@inertiajs/react';
+import { Link, router, useForm, usePage } from '@inertiajs/react';
 import { FormEventHandler, useState } from 'react';
 
 import AppLayout from '../../layout/AppLayout';
-import PageBreadcrumb from '../../components/common/PageBreadCrumb';
-import ComponentCard from '../../components/common/ComponentCard';
-import Alert from '../../components/ui/alert/Alert';
+import { Empty, Page, Panel, PlusIcon, SearchFilter, StatStrip } from '../../components/page/Page';
 import Button from '../../components/ui/button/Button';
 import { Modal } from '../../components/ui/modal';
-import { Table, TableBody, TableCell, TableHeader, TableRow } from '../../components/ui/table';
 
 interface CategoryRow {
     id: number;
@@ -67,18 +64,20 @@ function CategoryFormModal({ isOpen, onClose, category }: { isOpen: boolean; onC
                     <Button type="button" variant="outline" onClick={onClose}>
                         Annuler
                     </Button>
-                    <Button disabled={processing}>{processing ? 'Enregistrement...' : isEditing ? 'Renommer' : 'Créer la catégorie'}</Button>
+                    <Button disabled={processing}>{processing ? 'Enregistrement…' : isEditing ? 'Renommer' : 'Créer la catégorie'}</Button>
                 </div>
             </form>
         </Modal>
     );
 }
-
 function CategoriesIndex() {
-    const { categories, flash } = usePage<PageProps>().props;
-    const success = flash?.success ?? null;
-    const error = flash?.error ?? null;
+    const { categories } = usePage<PageProps>().props;
     const [modalCategory, setModalCategory] = useState<CategoryRow | null | undefined>(undefined);
+    const [search, setSearch] = useState('');
+
+    const q = search.trim().toLowerCase();
+    const visible = categories.filter((c) => !q || c.name.toLowerCase().includes(q));
+    const today = new Date().toISOString().slice(0, 10);
 
     function destroy(category: CategoryRow) {
         if (confirm(`Supprimer la catégorie « ${category.name} » ? Les achats déjà enregistrés ne seront pas modifiés.`)) {
@@ -87,86 +86,79 @@ function CategoriesIndex() {
     }
 
     return (
-        <>
-            <Head title="Catégories" />
-
-            <PageBreadcrumb pageTitle="Catégories" />
-
-            <div className="space-y-4">
-                {success && <Alert variant="success" title="Succès" message={success} />}
-                {error && <Alert variant="error" title="Erreur" message={error} />}
-
-                <Alert
-                    variant="info"
-                    title="À quoi servent les catégories ?"
-                    message="Une catégorie classe les articles achetés (ex. Chaussures, Vestes, Accessoires). Elle est renseignée lors de l'import d'un historique d'achats et sert à filtrer/segmenter les clients par type de produit acheté."
-                />
-
-                <div className="flex justify-end">
-                    <Button type="button" onClick={() => setModalCategory(null)}>
-                        Ajouter une catégorie
-                    </Button>
-                </div>
-
-                <ComponentCard
-                    title="Catégories de produits"
-                    desc="Liste des catégories utilisables lors de l'import d'un historique d'achats."
-                >
-                    <div className="overflow-x-auto">
-                        <Table>
-                            <TableHeader className="border-b border-gray-100 dark:border-gray-800">
-                                <TableRow>
-                                    <TableCell isHeader className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase dark:text-gray-400">
-                                        Nom
-                                    </TableCell>
-                                    <TableCell isHeader className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase dark:text-gray-400">
-                                        Achats
-                                    </TableCell>
-                                    <TableCell isHeader className="px-4 py-3" />
-                                </TableRow>
-                            </TableHeader>
-                            <TableBody className="divide-y divide-gray-100 dark:divide-gray-800">
-                                {categories.length === 0 && (
-                                    <TableRow>
-                                        <TableCell className="px-4 py-6 text-center text-sm text-gray-500 dark:text-gray-400" colSpan={3}>
-                                            Aucune catégorie. Créez-en une (ex. « Chaussures ») pour classer les achats importés.
-                                        </TableCell>
-                                    </TableRow>
-                                )}
-                                {categories.map((category) => (
-                                    <TableRow key={category.id}>
-                                        <TableCell className="px-4 py-3 text-sm font-medium text-gray-800 dark:text-white/90">{category.name}</TableCell>
-                                        <TableCell className="px-4 py-3 text-sm text-gray-600 dark:text-gray-400">
-                                            <Link href={`/purchases?category=${encodeURIComponent(category.name)}`} className="hover:text-brand-500 hover:underline">
-                                                {category.purchases_count} achat{category.purchases_count > 1 ? 's' : ''}
-                                            </Link>
-                                        </TableCell>
-                                        <TableCell className="px-4 py-3 text-right whitespace-nowrap">
-                                            <button
-                                                type="button"
-                                                onClick={() => setModalCategory(category)}
-                                                className="mr-3 text-sm font-medium text-brand-500 hover:text-brand-600"
-                                            >
-                                                Renommer
-                                            </button>
-                                            <button
-                                                type="button"
-                                                onClick={() => destroy(category)}
-                                                className="text-sm font-medium text-error-500 hover:text-error-600"
-                                            >
-                                                Supprimer
-                                            </button>
-                                        </TableCell>
-                                    </TableRow>
-                                ))}
-                            </TableBody>
-                        </Table>
-                    </div>
-                </ComponentCard>
+        <Page
+            title="Catégories"
+            subtitle="Types d'articles achetés (Chaussures, Vestes…), renseignés à l'import de l'historique d'achats"
+            actions={
+                <button type="button" className="mdash-btn brand" onClick={() => setModalCategory(null)}>
+                    <PlusIcon />
+                    Nouvelle catégorie
+                </button>
+            }
+            filters={categories.length > 5 ? <SearchFilter value={search} placeholder="Nom de la catégorie" onSearch={setSearch} /> : undefined}
+        >
+            <StatStrip
+                items={[
+                    { label: 'Catégories', value: categories.length },
+                    { label: 'Utilisées dans des achats', value: categories.filter((c) => c.purchases_count > 0).length },
+                    { label: 'Achats classés', value: categories.reduce((n, c) => n + c.purchases_count, 0) },
+                ]}
+            />
+            <div className="mpage-note">
+                La liste sert de référence pour l'import d'achats et le filtre « Catégorie » de l'<Link href="/purchases">Historique d'achat</Link>. Un
+                achat importé avec une catégorie inconnue est conservé tel quel.
             </div>
 
-            {modalCategory !== undefined && <CategoryFormModal isOpen={true} onClose={() => setModalCategory(undefined)} category={modalCategory} />}
-        </>
+            <Panel>
+                {visible.length === 0 ? (
+                    <Empty title={categories.length === 0 ? 'Aucune catégorie pour l’instant' : 'Aucune catégorie ne correspond à la recherche'} />
+                ) : (
+                    <div className="mdash-tbl mpage-table">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Catégorie</th>
+                                    <th className="r">Achats</th>
+                                    <th className="r">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {visible.map((c) => (
+                                    <tr key={c.id}>
+                                        <td className="cell-main">
+                                            <b>{c.name}</b>
+                                        </td>
+                                        <td className="r num">
+                                            {c.purchases_count > 0 ? (
+                                                <Link href={`/purchases?${new URLSearchParams({ category: c.name, from: '2000-01-01', to: today })}`} className="mdash-link">
+                                                    {c.purchases_count}
+                                                </Link>
+                                            ) : (
+                                                <span className="mpage-muted">0</span>
+                                            )}
+                                        </td>
+                                        <td className="r">
+                                            <span className="mpage-rowlinks">
+                                                <button type="button" onClick={() => setModalCategory(c)}>
+                                                    Renommer
+                                                </button>
+                                                <button type="button" className="danger" onClick={() => destroy(c)}>
+                                                    Supprimer
+                                                </button>
+                                            </span>
+                                        </td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    </div>
+                )}
+            </Panel>
+
+            {modalCategory !== undefined && (
+                <CategoryFormModal key={modalCategory?.id ?? 'new'} isOpen={true} onClose={() => setModalCategory(undefined)} category={modalCategory} />
+            )}
+        </Page>
     );
 }
 

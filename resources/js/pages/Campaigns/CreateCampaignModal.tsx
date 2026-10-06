@@ -4,6 +4,7 @@ import { FormEventHandler, useEffect, useState } from 'react';
 import { Modal } from '../../components/ui/modal';
 import Button from '../../components/ui/button/Button';
 import TagMultiSelect from '../../components/ui/TagMultiSelect';
+import { STAGES, STAGE_ORDER } from '../../components/dashboard/stages';
 
 interface StoreOption {
     id: number;
@@ -27,6 +28,8 @@ interface CreateCampaignModalProps {
     stores: StoreOption[];
     groups: GroupOption[];
     templates: TemplateOption[];
+    /** Groupes présélectionnés (ex. « Créer une campagne » depuis la page Groupes). */
+    initialGroupIds?: string[];
 }
 
 function fieldClasses() {
@@ -41,7 +44,7 @@ function toggleButtonClasses(active: boolean) {
     }`;
 }
 
-export default function CreateCampaignModal({ isOpen, onClose, stores, groups, templates }: CreateCampaignModalProps) {
+export default function CreateCampaignModal({ isOpen, onClose, stores, groups, templates, initialGroupIds = [] }: CreateCampaignModalProps) {
     const { data, setData, post, processing, errors, reset } = useForm<{
         name: string;
         description: string;
@@ -55,12 +58,14 @@ export default function CreateCampaignModal({ isOpen, onClose, stores, groups, t
         template_name: string;
         text_body: string;
         gender: string;
+        lifecycle_stages: string[];
+        vip_only: boolean;
     }>({
         name: '',
         description: '',
         contact_source: 'segment',
         store_ids: stores[0] ? [stores[0].id.toString()] : [],
-        group_ids: [],
+        group_ids: initialGroupIds,
         import_store_id: stores[0] ? stores[0].id.toString() : '',
         file: null,
         confirm_consent: false,
@@ -68,6 +73,8 @@ export default function CreateCampaignModal({ isOpen, onClose, stores, groups, t
         template_name: templates[0]?.name ?? '',
         text_body: '',
         gender: '',
+        lifecycle_stages: [],
+        vip_only: false,
     });
 
     const [segmentCount, setSegmentCount] = useState<number | null>(null);
@@ -84,6 +91,8 @@ export default function CreateCampaignModal({ isOpen, onClose, stores, groups, t
         data.store_ids.forEach((id) => params.append('store_ids[]', id));
         data.group_ids.forEach((id) => params.append('group_ids[]', id));
         if (data.gender) params.set('gender', data.gender);
+        data.lifecycle_stages.forEach((stage) => params.append('lifecycle_stages[]', stage));
+        if (data.vip_only) params.set('vip_only', '1');
 
         const controller = new AbortController();
         const timeout = setTimeout(() => {
@@ -98,7 +107,7 @@ export default function CreateCampaignModal({ isOpen, onClose, stores, groups, t
             clearTimeout(timeout);
             controller.abort();
         };
-    }, [isOpen, data.contact_source, data.store_ids, data.group_ids, data.gender]);
+    }, [isOpen, data.contact_source, data.store_ids, data.group_ids, data.gender, data.lifecycle_stages, data.vip_only]);
 
     const submit: FormEventHandler = (e) => {
         e.preventDefault();
@@ -223,6 +232,37 @@ export default function CreateCampaignModal({ isOpen, onClose, stores, groups, t
                                     </>
                                 )}
                             </div>
+
+                            <div>
+                                <label htmlFor="lifecycle_stages" className="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-300">
+                                    Étape(s) du parcours client — optionnel
+                                </label>
+                                <TagMultiSelect
+                                    id="lifecycle_stages"
+                                    options={STAGE_ORDER.map((stage) => ({ value: stage, label: STAGES[stage].label }))}
+                                    value={data.lifecycle_stages}
+                                    onChange={(selected) => setData('lifecycle_stages', selected)}
+                                    placeholder="Toutes les étapes"
+                                />
+                                <p className="mt-1.5 text-xs text-gray-500 dark:text-gray-400">
+                                    Ex. « À risque » pour une relance. Seuls les contacts opt-in reçoivent la campagne.
+                                </p>
+                            </div>
+
+                            <label className="flex cursor-pointer items-start gap-3 text-sm text-gray-700 dark:text-gray-300">
+                                <input
+                                    type="checkbox"
+                                    checked={data.vip_only}
+                                    onChange={(e) => setData('vip_only', e.target.checked)}
+                                    className="mt-0.5 h-4 w-4 accent-brand-500"
+                                />
+                                <span>
+                                    <span className="font-medium">Uniquement les clients VIP de la boutique</span>
+                                    <span className="block text-xs text-gray-500 dark:text-gray-400">
+                                        Le statut VIP est propre à chaque boutique : un client VIP chez Mango ne l'est pas forcément chez Adidas.
+                                    </span>
+                                </span>
+                            </label>
                         </>
                     ) : (
                         <>

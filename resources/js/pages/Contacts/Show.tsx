@@ -12,6 +12,7 @@ import ContactFormModal from './ContactFormModal';
 
 interface ContactDetail {
     id: number;
+    customer_id: number | null;
     name: string;
     phone_e164: string;
     gender: string | null;
@@ -23,8 +24,14 @@ interface ContactDetail {
 
 interface Rfm {
     recency_days: number | null;
+    last_purchase_at: string | null;
     frequency: number;
+    frequency_12m: number;
     monetary: number;
+    average_basket: number;
+    scores: { r: number; f: number; m: number } | null;
+    buyers: number;
+    segment: { key: string; label: string; action: string };
 }
 
 interface PurchaseRow {
@@ -43,6 +50,7 @@ interface CampaignMessageRow {
 
 interface PageProps {
     contact: ContactDetail;
+    canEdit: boolean;
     rfm: Rfm;
     purchases: PurchaseRow[];
     campaignMessages: CampaignMessageRow[];
@@ -80,8 +88,110 @@ function InfoField({ label, value }: { label: string; value: React.ReactNode }) 
     );
 }
 
+const segmentColor: Record<string, 'success' | 'primary' | 'info' | 'warning' | 'error' | 'light' | 'dark'> = {
+    champions: 'success',
+    loyal: 'success',
+    new: 'info',
+    potential: 'primary',
+    at_risk: 'warning',
+    cant_lose: 'error',
+    hibernating: 'light',
+    lost: 'dark',
+    none: 'light',
+};
+
+const scoreBarColor = ['bg-error-500', 'bg-warning-500', 'bg-gray-400', 'bg-success-400', 'bg-success-600'];
+
+function ScoreGauge({ letter, score }: { letter: string; score: number }) {
+    return (
+        <div className="flex items-center gap-2" aria-label={`Score ${letter} : ${score} sur 5`}>
+            <span className="w-6 text-sm font-semibold text-gray-800 dark:text-white/90">
+                {letter}
+                {score}
+            </span>
+            <div className="flex gap-0.5">
+                {[1, 2, 3, 4, 5].map((step) => (
+                    <span
+                        key={step}
+                        className={`h-2 w-4 rounded-sm ${step <= score ? scoreBarColor[score - 1] : 'bg-gray-200 dark:bg-gray-700'}`}
+                    />
+                ))}
+            </div>
+        </div>
+    );
+}
+
+function RfmMetric({ title, value, detail, letter, score }: { title: string; value: string; detail: string; letter: string; score: number | null }) {
+    return (
+        <div className="rounded-xl border border-gray-100 p-4 dark:border-gray-800">
+            <p className="text-sm text-gray-500 dark:text-gray-400">{title}</p>
+            <p className="mt-1 text-xl font-bold text-gray-800 dark:text-white/90">{value}</p>
+            <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">{detail}</p>
+            {score !== null && (
+                <div className="mt-3">
+                    <ScoreGauge letter={letter} score={score} />
+                </div>
+            )}
+        </div>
+    );
+}
+
+function RfmProfile({ rfm }: { rfm: Rfm }) {
+    const { scores } = rfm;
+
+    return (
+        <div className="rounded-2xl border border-gray-200 bg-white p-5 md:p-6 dark:border-gray-800 dark:bg-white/[0.03]">
+            <div className="flex flex-wrap items-start justify-between gap-4">
+                <div>
+                    <h3 className="text-base font-medium text-gray-800 dark:text-white/90">Profil RFM</h3>
+                    <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
+                        Récence, fréquence et montant des achats dans cette boutique
+                        {scores && ` · scores 1 à 5 comparés aux ${rfm.buyers} clients acheteurs de l'organisation`}
+                    </p>
+                </div>
+                <div className="flex flex-col items-end gap-1">
+                    <Badge size="md" color={segmentColor[rfm.segment.key] ?? 'light'}>
+                        {rfm.segment.label}
+                    </Badge>
+                    {scores && (
+                        <span className="text-sm font-semibold text-gray-700 dark:text-gray-300">
+                            R{scores.r} · F{scores.f} · M{scores.m}
+                        </span>
+                    )}
+                </div>
+            </div>
+
+            <p className="mt-3 text-sm text-gray-700 dark:text-gray-300">{rfm.segment.action}</p>
+
+            <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-3">
+                <RfmMetric
+                    title="Récence"
+                    value={rfm.recency_days === null ? '—' : `${rfm.recency_days} j`}
+                    detail={rfm.last_purchase_at ? `Dernier achat le ${rfm.last_purchase_at}` : 'Aucun achat'}
+                    letter="R"
+                    score={scores?.r ?? null}
+                />
+                <RfmMetric
+                    title="Fréquence"
+                    value={`${rfm.frequency} achat${rfm.frequency > 1 ? 's' : ''}`}
+                    detail={`${rfm.frequency_12m} sur les 12 derniers mois`}
+                    letter="F"
+                    score={scores?.f ?? null}
+                />
+                <RfmMetric
+                    title="Montant"
+                    value={formatFcfa(rfm.monetary)}
+                    detail={rfm.frequency > 0 ? `Panier moyen ${formatFcfa(rfm.average_basket)}` : 'Panier moyen —'}
+                    letter="M"
+                    score={scores?.m ?? null}
+                />
+            </div>
+        </div>
+    );
+}
+
 function ContactsShow() {
-    const { contact, rfm, purchases, campaignMessages, flash } = usePage<PageProps>().props;
+    const { contact, canEdit, rfm, purchases, campaignMessages, flash } = usePage<PageProps>().props;
     const success = flash?.success ?? null;
     const error = flash?.error ?? null;
     const [sending, setSending] = useState(false);
@@ -108,8 +218,11 @@ function ContactsShow() {
                 {success && <Alert variant="success" title="Succès" message={success} />}
                 {error && <Alert variant="error" title="Erreur" message={error} />}
 
-                <Link href="/contacts" className="text-sm text-gray-500 hover:text-gray-800 dark:text-gray-400 dark:hover:text-white">
-                    ← Retour aux contacts
+                <Link
+                    href={contact.customer_id ? `/customers/${contact.customer_id}` : '/customers'}
+                    className="text-sm text-gray-500 hover:text-gray-800 dark:text-gray-400 dark:hover:text-white"
+                >
+                    {contact.customer_id ? '← Retour à la fiche client' : '← Fiches clients'}
                 </Link>
 
                 <div className="flex flex-wrap items-start justify-between gap-4">
@@ -118,6 +231,14 @@ function ContactsShow() {
                         <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">{contact.phone_e164}</p>
                     </div>
                     <div className="flex items-center gap-4">
+                        {contact.customer_id && (
+                            <Link
+                                href={`/customers/${contact.customer_id}`}
+                                className="text-sm font-medium text-brand-500 hover:text-brand-600 dark:text-brand-400"
+                            >
+                                Fiche client (toutes boutiques)
+                            </Link>
+                        )}
                         <Link
                             href={`/chat/${contact.id}`}
                             className="text-sm font-medium text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
@@ -130,11 +251,15 @@ function ContactsShow() {
                         <Button variant="outline" size="sm" disabled={sending} onClick={sendTest}>
                             {sending ? 'Envoi...' : 'Envoyer un message test'}
                         </Button>
-                        <Button size="sm" onClick={() => setIsEditing(true)}>
-                            Modifier
-                        </Button>
+                        {canEdit && (
+                            <Button size="sm" onClick={() => setIsEditing(true)}>
+                                Modifier
+                            </Button>
+                        )}
                     </div>
                 </div>
+
+                <RfmProfile rfm={rfm} />
 
                 <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
                     <div className="lg:col-span-1">
@@ -171,39 +296,6 @@ function ContactsShow() {
                     </div>
 
                     <div className="space-y-4 lg:col-span-2">
-                        <ComponentCard title="Indicateurs RFM">
-                            <div className="overflow-x-auto">
-                                <Table>
-                                    <TableHeader className="border-b border-gray-100 dark:border-gray-800">
-                                        <TableRow>
-                                            <TableCell isHeader className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase dark:text-gray-400">
-                                                Récence
-                                            </TableCell>
-                                            <TableCell isHeader className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase dark:text-gray-400">
-                                                Fréquence
-                                            </TableCell>
-                                            <TableCell isHeader className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase dark:text-gray-400">
-                                                Montant
-                                            </TableCell>
-                                        </TableRow>
-                                    </TableHeader>
-                                    <TableBody className="divide-y divide-gray-100 dark:divide-gray-800">
-                                        <TableRow>
-                                            <TableCell className="px-4 py-3 text-sm font-medium text-gray-800 dark:text-white/90">
-                                                {rfm.recency_days === null ? '—' : `${rfm.recency_days} j`}
-                                            </TableCell>
-                                            <TableCell className="px-4 py-3 text-sm font-medium text-gray-800 dark:text-white/90">
-                                                {rfm.frequency}
-                                            </TableCell>
-                                            <TableCell className="px-4 py-3 text-sm font-medium text-gray-800 dark:text-white/90">
-                                                {formatFcfa(rfm.monetary)}
-                                            </TableCell>
-                                        </TableRow>
-                                    </TableBody>
-                                </Table>
-                            </div>
-                        </ComponentCard>
-
                         <ComponentCard title="Historique d'achats" desc="Le plus récent en premier">
                             <div className="overflow-x-auto">
                                 <Table>
@@ -289,7 +381,7 @@ function ContactsShow() {
                 </div>
             </div>
 
-            {isEditing && <ContactFormModal isOpen={true} onClose={() => setIsEditing(false)} contact={contact} />}
+            {canEdit && isEditing && <ContactFormModal isOpen={true} onClose={() => setIsEditing(false)} contact={contact} />}
         </>
     );
 }

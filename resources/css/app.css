@@ -147,8 +147,33 @@
         cursor: pointer;
     }
     body {
-        @apply relative z-1 bg-gray-50 font-normal;
+        @apply relative z-1 bg-gray-50 font-normal dark:bg-gray-900;
     }
+}
+
+/*
+ * Thème sombre de toute l'application (classe .dark posée sur <html> par
+ * ThemeContext, clair par défaut). Plutôt que de retoucher chaque page, on
+ * redéfinit l'échelle de gris en mode sombre sur la palette neutre du
+ * tableau de bord : fond #101214, cartes ≈ #171a1d (white/[0.03] sur le
+ * fond), bordures #2a2f34, texte #e8eaec. Toutes les classes dark:*-gray-*
+ * existantes (barre du haut, pages, modales, formulaires) la suivent.
+ */
+.dark {
+    color-scheme: dark;
+    --color-gray-25: #f5f6f7;
+    --color-gray-50: #eff1f2;
+    --color-gray-100: #e8eaec;
+    --color-gray-200: #d3d7db;
+    --color-gray-300: #bcc2c7;
+    --color-gray-400: #9ba2a9;
+    --color-gray-500: #6d747b;
+    --color-gray-600: #50575e;
+    --color-gray-700: #353a40;
+    --color-gray-800: #2a2f34;
+    --color-gray-900: #101214;
+    --color-gray-950: #0b0c0e;
+    --color-gray-dark: #171a1d;
 }
 
 @utility menu-item {

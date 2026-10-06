@@ -1,37 +1,87 @@
 import { Head, Link, router, usePage } from '@inertiajs/react';
-import { useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 
 import AppLayout from '../../layout/AppLayout';
-import PageBreadcrumb from '../../components/common/PageBreadCrumb';
-import ComponentCard from '../../components/common/ComponentCard';
-import DateRangeFilter from '../../components/common/DateRangeFilter';
-import Alert from '../../components/ui/alert/Alert';
-import Badge from '../../components/ui/badge/Badge';
-import Button from '../../components/ui/button/Button';
-import { Table, TableBody, TableCell, TableHeader, TableRow } from '../../components/ui/table';
-import { AlertIcon, BoxCubeIcon, ChatIcon, CheckCircleIcon, DollarLineIcon, GroupIcon } from '../../icons';
+import { ConsentDonut, MessagesChart, SalesChart, bucketLabel, formatCompact, formatNumber } from '../../components/dashboard/Charts';
+import type { Bucket } from '../../components/dashboard/Charts';
+import { useHeaderHeight } from '../../components/dashboard/useHeaderHeight';
+import { Delta, Kpi, percentChange } from '../../components/dashboard/Kpi';
+import { VIP_PILL, stageInfo } from '../../components/dashboard/stages';
+import './dashboard.css';
+import { customerUrl } from '../../components/common/customerUrl';
+import { NotificationPanel } from '../../components/notifications/Notifications';
 
-interface Stats {
-    total_contacts: number;
-    opt_in_contacts: number;
-    opt_out_contacts: number;
-    unknown_contacts: number;
-    total_stores: number;
-    connected_stores: number;
-    total_campaigns: number;
-    active_campaigns: number;
-    total_sent: number;
-    total_failed: number;
-    delivery_rate: number;
-    period_purchases_count: number;
-    period_purchases_amount: number;
+/** Couleur de chaque étape du parcours, selon sa pastille (cf. stages.ts). */
+const STAGE_COLORS: Record<string, string> = {
+    idle: 'var(--faint)',
+    info: 'var(--brand)',
+    ok: 'var(--ok)',
+    accent: 'var(--accent)',
+    warn: 'var(--warn)',
+    bad: 'var(--bad)',
+};
+
+type Preset = 'today' | '7d' | '30d' | '90d';
+
+interface Filters {
+    from: string;
+    to: string;
+    preset: Preset | null;
+    days: number;
+    brand: number | null;
+    brand_locked: boolean;
+    brand_hidden: boolean;
+    brands: { id: number; name: string }[];
+    store_count: number;
+}
+
+interface Kpis {
+    revenue: { current: number; previous: number };
+    contacts: { current: number; previous: number; new: number };
+    opt_in: { opt_in: number; opt_out: number; unknown: number; total: number };
+    messages: { current: number; previous: number; campaigns: number };
+    failure: { failed: number; attempted: number; previous_failed: number; previous_attempted: number };
+    buyers: { current: number; previous: number; purchases: number };
+}
+
+interface CategoryRow {
+    name: string;
+    revenue: number;
+    clients: number;
+    purchases: number;
+}
+
+interface NewClient {
+    id: number;
+    customer_id: number | null;
+    name: string;
+    phone_e164: string;
+    store_name: string;
+    consent_status: 'unknown' | 'opt_in' | 'opt_out';
+    welcomed: boolean;
+    created_at: string;
+}
+
+interface BrandContacts {
+    id: number;
+    name: string;
+    opt_in: number;
+    unknown: number;
+    opt_out: number;
+    total: number;
 }
 
 interface StoreRow {
     id: number;
     name: string;
-    contacts_count: number;
+    brand_name: string | null;
     connected: boolean;
+    shared_account: boolean;
+    contacts: number;
+    opt_in: number;
+    vip: number;
+    messages: number;
+    revenue: number;
 }
 
 interface CampaignRow {
@@ -45,414 +95,824 @@ interface CampaignRow {
     created_at: string;
 }
 
-interface ClientRow {
-    id: number;
-    name: string;
-    phone_e164: string;
-    store_name: string;
-    created_at: string;
-}
-
-interface TemplateOption {
-    id: number;
-    name: string;
-    language: string;
-}
-
-interface Period {
-    from: string;
-    to: string;
-}
-
 interface PageProps {
-    period: Period;
-    stats: Stats;
+    filters: Filters;
+    kpis: Kpis;
+    messagesSeries: (Bucket & { sent: number; failed: number })[];
+    salesSeries: (Bucket & { revenue: number; previous: number })[];
+    pendingWelcome: number;
+    topCategories: CategoryRow[];
+    newClients: NewClient[];
+    brandContacts: BrandContacts[];
+    lifecycle: {
+        stages: { key: string; label: string; count: number }[];
+        total: number;
+        vip: number;
+        moves: { new_buyers: number; new_prospects: number; at_risk: number; churned: number; reactivated: number };
+    };
     stores: StoreRow[];
     recentCampaigns: CampaignRow[];
-    recentClients: ClientRow[];
-    welcomeTemplates: TemplateOption[];
-    flash?: {
-        success: string | null;
-        error: string | null;
-    };
+    welcomeTemplates: { id: number; name: string; language: string }[];
+    flash?: { success: string | null; error: string | null };
     [key: string]: unknown;
 }
 
-const statusColor: Record<string, 'success' | 'warning' | 'info' | 'light'> = {
-    queued: 'info',
-    sending: 'warning',
-    completed: 'success',
+type Metric = 'revenue' | 'clients' | 'purchases';
+
+const PRESETS: { key: Preset; label: string }[] = [
+    { key: 'today', label: "Aujourd'hui" },
+    { key: '7d', label: '7 j' },
+    { key: '30d', label: '30 j' },
+    { key: '90d', label: '90 j' },
+];
+
+const CAMPAIGN_STATUS: Record<string, [string, string]> = {
+    draft: ['Brouillon', 'idle'],
+    queued: ['En file', 'info'],
+    sending: ['En cours', 'warn'],
+    completed: ['Terminée', 'ok'],
 };
 
-function formatFcfa(amount: number) {
-    return new Intl.NumberFormat('fr-FR').format(amount) + ' FCFA';
+const CONSENT: Record<NewClient['consent_status'], [string, string]> = {
+    unknown: ['Inconnu', 'idle'],
+    opt_in: ['Opt-in', 'ok'],
+    opt_out: ['Opt-out', 'bad'],
+};
+
+function formatDate(day: string): string {
+    const [y, m, d] = day.split('-');
+    return `${d}/${m}/${y}`;
 }
 
-function selectClasses() {
-    return 'w-full rounded-lg border border-gray-300 px-3 py-2.5 text-sm text-gray-800 focus:border-brand-300 focus:outline-hidden dark:border-gray-700 dark:bg-white/[0.03] dark:text-white/90';
+function formatPercent(value: number): string {
+    return value.toLocaleString('fr-FR', { maximumFractionDigits: 1 }) + ' %';
 }
 
-function StatCard({
-    label,
-    value,
-    hint,
-    icon,
-    iconClassName,
-}: {
-    label: string;
-    value: string;
-    hint?: string;
-    icon: React.ReactNode;
-    iconClassName: string;
-}) {
-    return (
-        <div className="rounded-2xl border border-gray-200 bg-white p-3.5 dark:border-gray-800 dark:bg-white/[0.03]">
-            <div className="flex items-start justify-between gap-2">
-                <div className="min-w-0">
-                    <p className="truncate text-xs text-gray-500 dark:text-gray-400">{label}</p>
-                    <p className="mt-1 text-lg font-semibold text-gray-800 dark:text-white/90">{value}</p>
-                </div>
-                <span className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full ${iconClassName}`}>{icon}</span>
-            </div>
-            {hint && <p className="mt-1 truncate text-xs text-gray-400 dark:text-gray-500">{hint}</p>}
-        </div>
-    );
+function plural(n: number, word: string, pluralWord = word + 's'): string {
+    return `${formatNumber(n)} ${n > 1 ? pluralWord : word}`;
+}
+
+function agoLabel(iso: string): string {
+    const hours = Math.floor((Date.now() - new Date(iso).getTime()) / 36e5);
+    if (hours < 1) return "à l'instant";
+    if (hours < 24) return `il y a ${hours} h`;
+    const days = Math.floor(hours / 24);
+    return days === 1 ? 'hier' : `il y a ${days} j`;
 }
 
 function DashboardIndex() {
-    const { period, stats, stores, recentCampaigns, recentClients, welcomeTemplates, flash } = usePage<PageProps>().props;
-    const success = flash?.success ?? null;
-    const error = flash?.error ?? null;
-    const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
+    const {
+        filters,
+        kpis,
+        messagesSeries,
+        salesSeries,
+        pendingWelcome,
+        topCategories,
+        newClients,
+        brandContacts,
+        lifecycle,
+        stores,
+        recentCampaigns,
+        welcomeTemplates,
+        flash,
+    } = usePage<PageProps>().props;
+
+    const headerHeight = useHeaderHeight();
+    const [customFrom, setCustomFrom] = useState(filters.from);
+    const [customTo, setCustomTo] = useState(filters.to);
+    const [metric, setMetric] = useState<Metric>('revenue');
+
+    useEffect(() => {
+        setCustomFrom(filters.from);
+        setCustomTo(filters.to);
+    }, [filters.from, filters.to]);
+
+    function visit(params: { period?: Preset; from?: string; to?: string; brand?: number | null }) {
+        const brand = params.brand !== undefined ? params.brand : filters.brand;
+        const query: Record<string, string | number> = {};
+        if (params.period) {
+            query.period = params.period;
+        } else if (params.from && params.to) {
+            query.from = params.from;
+            query.to = params.to;
+        } else if (filters.preset) {
+            query.period = filters.preset;
+        } else {
+            query.from = filters.from;
+            query.to = filters.to;
+        }
+        if (brand !== null && !filters.brand_locked) {
+            query.brand = brand;
+        }
+        router.get('/dashboard', query, { preserveState: true, preserveScroll: true, replace: true });
+    }
+
+    function applyCustomRange(from: string, to: string) {
+        setCustomFrom(from);
+        setCustomTo(to);
+        if (from && to && from <= to) {
+            visit({ from, to });
+        }
+    }
+
+    function selectBrand(id: number | null) {
+        if (filters.brand_locked || filters.brand_hidden) return;
+        visit({ brand: id });
+    }
+
+    const selectedBrandName = filters.brands.find((b) => b.id === filters.brand)?.name;
+
+    // --- KPI ---
+    const optInRate = kpis.opt_in.total > 0 ? (kpis.opt_in.opt_in / kpis.opt_in.total) * 100 : 0;
+    const optOutRate = kpis.opt_in.total > 0 ? (kpis.opt_in.opt_out / kpis.opt_in.total) * 100 : 0;
+    const failureRate = kpis.failure.attempted > 0 ? (kpis.failure.failed / kpis.failure.attempted) * 100 : 0;
+    const previousFailureRate = kpis.failure.previous_attempted > 0 ? (kpis.failure.previous_failed / kpis.failure.previous_attempted) * 100 : null;
+    const averageBasket = kpis.buyers.purchases > 0 ? kpis.revenue.current / kpis.buyers.purchases : 0;
+
+    // --- Top 10 ---
+    const top10 = useMemo(() => [...topCategories].sort((a, b) => b[metric] - a[metric]).slice(0, 10), [topCategories, metric]);
+    const topMax = top10[0]?.[metric] || 1;
+
+    // --- Ventes ---
+    const salesTotal = salesSeries.reduce((sum, d) => sum + d.revenue, 0);
+    const salesPrevious = salesSeries.reduce((sum, d) => sum + d.previous, 0);
+    const bestBucket = salesSeries.reduce<(typeof salesSeries)[number] | null>((best, d) => (d.revenue > (best?.revenue ?? 0) ? d : best), null);
+    const weekly = filters.days > 31;
+
+    // --- Nouveaux clients & bienvenue ---
+    const selectable = newClients.filter((c) => c.consent_status === 'unknown' && !c.welcomed);
+    const [selectedIds, setSelectedIds] = useState<Set<number>>(() => new Set(selectable.map((c) => c.id)));
+    const [confirming, setConfirming] = useState<'selection' | 'all' | null>(null);
     const [welcomeTemplate, setWelcomeTemplate] = useState(welcomeTemplates[0]?.name ?? '');
     const [sending, setSending] = useState(false);
 
-    const optInRate = stats.total_contacts > 0 ? Math.round((stats.opt_in_contacts / stats.total_contacts) * 100) : 0;
+    useEffect(() => {
+        setSelectedIds(new Set(newClients.filter((c) => c.consent_status === 'unknown' && !c.welcomed).map((c) => c.id)));
+        setConfirming(null);
+    }, [newClients]);
 
-    function applyDateRange(from: string, to: string) {
-        router.get('/dashboard', { from, to }, { preserveState: true, preserveScroll: true, replace: true });
-    }
+    // « Tous les nouveaux en attente » s'appuie sur le périmètre du rôle et la
+    // période : proposé seulement si aucune marque n'est choisie à la main.
+    const canSendAllPending = pendingWelcome > selectable.length && (filters.brand === null || filters.brand_locked);
 
-    function clearDateRange() {
-        router.get('/dashboard', {}, { preserveState: true, preserveScroll: true, replace: true });
-    }
-
-    function toggleSelected(id: number) {
+    function toggleClient(id: number) {
         setSelectedIds((prev) => {
             const next = new Set(prev);
-            if (next.has(id)) {
-                next.delete(id);
-            } else {
-                next.add(id);
-            }
+            if (next.has(id)) next.delete(id);
+            else next.add(id);
             return next;
         });
     }
 
-    function toggleSelectAll() {
-        setSelectedIds((prev) => (prev.size === recentClients.length ? new Set() : new Set(recentClients.map((c) => c.id))));
+    function toggleAllClients() {
+        setSelectedIds((prev) => (selectable.every((c) => prev.has(c.id)) ? new Set() : new Set(selectable.map((c) => c.id))));
     }
 
-    function sendWelcomeBulk() {
-        if (!welcomeTemplate || selectedIds.size === 0) {
-            return;
-        }
+    function sendWelcome() {
+        if (!welcomeTemplate || !confirming) return;
         setSending(true);
-        router.post(
-            '/contacts/send-welcome-bulk',
-            { contact_ids: Array.from(selectedIds), template_name: welcomeTemplate },
-            {
-                preserveScroll: true,
-                onSuccess: () => setSelectedIds(new Set()),
-                onFinish: () => setSending(false),
-            },
-        );
+        const payload =
+            confirming === 'all'
+                ? { all_pending: true, from: filters.from, to: filters.to, template_name: welcomeTemplate }
+                : { contact_ids: Array.from(selectedIds), template_name: welcomeTemplate };
+        router.post('/contacts/send-welcome-bulk', payload, {
+            preserveScroll: true,
+            onSuccess: () => setConfirming(null),
+            onFinish: () => setSending(false),
+        });
     }
+
+    const allSelected = selectable.length > 0 && selectable.every((c) => selectedIds.has(c.id));
+    const someSelected = selectedIds.size > 0 && !allSelected;
+    const confirmCount = confirming === 'all' ? pendingWelcome : selectedIds.size;
 
     return (
-        <>
+        <div className="mdash">
             <Head title="Tableau de bord" />
 
-            <PageBreadcrumb pageTitle="Tableau de bord" />
-
-            <div className="space-y-4">
-                {success && <Alert variant="success" title="Succès" message={success} />}
-                {error && <Alert variant="error" title="Erreur" message={error} />}
-
-                <div className="flex flex-wrap items-center gap-3">
-                    <DateRangeFilter from={period.from} to={period.to} onApply={applyDateRange} onClear={clearDateRange} />
-                    <p className="text-sm text-gray-500 dark:text-gray-400">
-                        Les compteurs globaux sont à jour en temps réel. Campagnes, achats et clients récents suivent la plage sélectionnée.
-                    </p>
+            <header className="mdash-top" style={{ top: headerHeight }}>
+                <div className="mdash-top-in">
+                    <div>
+                        <h1>Tableau de bord</h1>
+                        <small>Vue d'ensemble clients, ventes et WhatsApp</small>
+                    </div>
+                    <div className="mdash-filters">
+                        <div className="mdash-fgroup">
+                            <span>Période</span>
+                            <div className="mdash-seg" role="group" aria-label="Période">
+                                {PRESETS.map((p) => (
+                                    <button key={p.key} type="button" aria-pressed={filters.preset === p.key} onClick={() => visit({ period: p.key })}>
+                                        {p.label}
+                                    </button>
+                                ))}
+                            </div>
+                        </div>
+                        <div className="mdash-fgroup">
+                            <span>Du / au</span>
+                            <div className="mdash-range">
+                                <input type="date" aria-label="Date de début" value={customFrom} max={customTo} onChange={(e) => applyCustomRange(e.target.value, customTo)} />
+                                <span>→</span>
+                                <input type="date" aria-label="Date de fin" value={customTo} min={customFrom} onChange={(e) => applyCustomRange(customFrom, e.target.value)} />
+                            </div>
+                        </div>
+                        {!filters.brand_hidden && (
+                            <div className="mdash-fgroup">
+                                <label htmlFor="mdash-brand">Marque</label>
+                                <select
+                                    id="mdash-brand"
+                                    value={filters.brand ?? ''}
+                                    disabled={filters.brand_locked}
+                                    title={filters.brand_locked ? 'Votre rôle est limité à cette marque' : undefined}
+                                    onChange={(e) => selectBrand(e.target.value ? Number(e.target.value) : null)}
+                                >
+                                    {!filters.brand_locked && <option value="">Toutes les marques</option>}
+                                    {filters.brands.map((b) => (
+                                        <option key={b.id} value={b.id}>
+                                            {b.name}
+                                        </option>
+                                    ))}
+                                </select>
+                            </div>
+                        )}
+                    </div>
                 </div>
+                <div className="mdash-scope">
+                    Vous regardez <b>{selectedBrandName ?? (filters.brand_hidden ? 'votre boutique' : 'toutes les marques')}</b> ·{' '}
+                    <b>{plural(filters.store_count, 'boutique')}</b> · du <b>{formatDate(filters.from)}</b> au <b>{formatDate(filters.to)}</b>
+                </div>
+            </header>
 
-                <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
-                    <StatCard
+            {flash?.success && <div className="mdash-flash ok">{flash.success}</div>}
+            {flash?.error && <div className="mdash-flash bad">{flash.error}</div>}
+
+            <NotificationPanel />
+
+            <section className="mdash-grid" aria-label="Indicateurs">
+                <div className="c12 mdash-kpis">
+                    <Kpi
+                        hero
+                        label="CA achats clients"
+                        value={formatCompact(kpis.revenue.current)}
+                        unit="FCFA"
+                        delta={<Delta value={percentChange(kpis.revenue.current, kpis.revenue.previous)} />}
+                    />
+                    <Kpi
                         label="Contacts"
-                        value={String(stats.total_contacts)}
-                        hint={`${stats.opt_in_contacts} opt_in (${optInRate}%)`}
-                        icon={<GroupIcon className="h-4 w-4" />}
-                        iconClassName="bg-blue-light-50 text-blue-light-500 dark:bg-blue-light-500/15"
+                        value={formatNumber(kpis.contacts.current)}
+                        delta={<Delta value={percentChange(kpis.contacts.current, kpis.contacts.previous)} />}
+                        foot={`+${plural(kpis.contacts.new, 'nouveau', 'nouveaux')}`}
                     />
-                    <StatCard
-                        label="Boutiques connectées"
-                        value={`${stats.connected_stores} / ${stats.total_stores}`}
-                        icon={<BoxCubeIcon className="h-4 w-4" />}
-                        iconClassName="bg-brand-50 text-brand-500 dark:bg-brand-500/15"
+                    <Kpi
+                        label="Taux d'opt-in"
+                        value={optInRate.toLocaleString('fr-FR', { maximumFractionDigits: 1 })}
+                        unit="%"
+                        delta={<Delta value={null} missing="Pas d'historique du consentement : variation indisponible" />}
+                        foot={`${formatPercent(optOutRate)} opt-out`}
                     />
-                    <StatCard
-                        label="Campagnes"
-                        value={String(stats.total_campaigns)}
-                        hint={`${stats.active_campaigns} en cours`}
-                        icon={<ChatIcon className="h-4 w-4" />}
-                        iconClassName="bg-success-50 text-success-500 dark:bg-success-500/15"
+                    <Kpi
+                        label="Messages envoyés"
+                        value={formatNumber(kpis.messages.current)}
+                        delta={<Delta value={percentChange(kpis.messages.current, kpis.messages.previous)} />}
+                        foot={plural(kpis.messages.campaigns, 'campagne')}
                     />
-                    <StatCard
-                        label="Taux d'envoi réussi"
-                        value={`${stats.delivery_rate}%`}
-                        hint={`${stats.total_sent} / ${stats.total_failed} éch.`}
-                        icon={stats.total_failed > 0 ? <AlertIcon className="h-4 w-4" /> : <CheckCircleIcon className="h-4 w-4" />}
-                        iconClassName={
-                            stats.total_failed > 0
-                                ? 'bg-warning-50 text-warning-500 dark:bg-warning-500/15'
-                                : 'bg-success-50 text-success-500 dark:bg-success-500/15'
-                        }
+                    <Kpi
+                        label="Taux d'échec d'envoi"
+                        value={failureRate.toLocaleString('fr-FR', { maximumFractionDigits: 1 })}
+                        unit="%"
+                        delta={<Delta value={previousFailureRate === null ? null : failureRate - previousFailureRate} unit="pt" inverted />}
+                        foot={`${formatNumber(kpis.failure.failed)} / ${formatNumber(kpis.failure.attempted)} msg de campagne`}
                     />
-                    <StatCard
-                        label="Achats (période)"
-                        value={String(stats.period_purchases_count)}
-                        hint={formatFcfa(stats.period_purchases_amount)}
-                        icon={<DollarLineIcon className="h-4 w-4" />}
-                        iconClassName="bg-blue-light-50 text-blue-light-500 dark:bg-blue-light-500/15"
-                    />
-                    <StatCard
-                        label="En attente de bienvenue"
-                        value={String(recentClients.length)}
-                        hint="Ajoutés sur la période"
-                        icon={<GroupIcon className="h-4 w-4" />}
-                        iconClassName="bg-warning-50 text-warning-500 dark:bg-warning-500/15"
+                    <Kpi
+                        label="Clients acheteurs"
+                        value={formatNumber(kpis.buyers.current)}
+                        delta={<Delta value={percentChange(kpis.buyers.current, kpis.buyers.previous)} />}
+                        foot={`panier moy. ${formatNumber(averageBasket)} F`}
                     />
                 </div>
 
-                <ComponentCard
-                    title="Clients récents"
-                    desc="Ajoutés sur la période, consentement encore inconnu et jamais contactés — cochez-les pour leur demander l'opt-in."
-                >
-                    {selectedIds.size > 0 && (
-                        <div className="mb-5 flex flex-wrap items-center gap-3 rounded-lg border border-brand-200 bg-brand-50 px-4 py-3 dark:border-brand-500/30 dark:bg-brand-500/10">
-                            <span className="text-sm font-medium text-brand-700 dark:text-brand-400">
-                                {selectedIds.size} client{selectedIds.size > 1 ? 's' : ''} sélectionné{selectedIds.size > 1 ? 's' : ''}
+                <article className="mdash-panel c8">
+                    <div className="mdash-ph">
+                        <div>
+                            <h2>Messages WhatsApp envoyés</h2>
+                            <div className="mdash-sub">Campagnes et messages de bienvenue, {weekly ? 'par semaine' : 'par jour'}</div>
+                        </div>
+                        <div className="mdash-keys">
+                            <span>
+                                <i style={{ background: 'var(--brand-2)' }} />
+                                Envoyés
                             </span>
+                            <span>
+                                <i style={{ background: 'var(--bad)' }} />
+                                Échecs
+                            </span>
+                        </div>
+                    </div>
+                    <MessagesChart series={messagesSeries} />
+                </article>
+
+                <article className="mdash-panel c4">
+                    <div className="mdash-ph">
+                        <h2>Consentement WhatsApp</h2>
+                        <span className="mdash-sub">{plural(kpis.opt_in.total, 'contact')}</span>
+                    </div>
+                    <div className="mdash-consent">
+                        <ConsentDonut optIn={kpis.opt_in.opt_in} unknown={kpis.opt_in.unknown} optOut={kpis.opt_in.opt_out} />
+                        <div className="mdash-legend">
+                            {(
+                                [
+                                    ['Opt-in', kpis.opt_in.opt_in, 'var(--ok)', 'Joignables par campagne'],
+                                    ['Inconnu', kpis.opt_in.unknown, 'var(--faint)', 'Exclus des campagnes marketing'],
+                                    ['Opt-out', kpis.opt_in.opt_out, 'var(--bad)', 'Ne plus contacter'],
+                                ] as const
+                            ).map(([name, value, color, hint]) => (
+                                <div key={name} className="mdash-lg">
+                                    <i style={{ background: color }} />
+                                    <span>{name}</span>
+                                    <b className="num">
+                                        {formatNumber(value)} · {kpis.opt_in.total ? Math.round((value / kpis.opt_in.total) * 100) : 0} %
+                                    </b>
+                                    <span className="s">{hint}</span>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                    {kpis.opt_in.unknown > 0 && (
+                        <div className="mdash-note">
+                            <b>{plural(kpis.opt_in.unknown, 'contact')}</b> au statut inconnu
+                            {pendingWelcome > 0 && <> (dont {formatNumber(pendingWelcome)} nouveaux sur la période jamais accueillis)</>} : envoyez-leur le
+                            message de bienvenue pour obtenir leur opt-in.
+                        </div>
+                    )}
+                </article>
+
+                <article className="mdash-panel c7" id="bienvenue">
+                    <div className="mdash-ph">
+                        <div>
+                            <h2>Nouveaux clients</h2>
+                            <div className="mdash-sub">
+                                {plural(kpis.contacts.new, 'nouveau contact', 'nouveaux contacts')} sur la période
+                                {newClients.length > 0 && ` · les ${newClients.length} plus récents`}
+                            </div>
+                        </div>
+                        <Link href="/customers" className="mdash-link">
+                            Tout voir
+                        </Link>
+                    </div>
+                    {newClients.length === 0 ? (
+                        <div className="mdash-empty">Aucun nouveau contact sur la période.</div>
+                    ) : (
+                        <div className="mdash-tbl">
+                            <table>
+                                <thead>
+                                    <tr>
+                                        <th>
+                                            <input
+                                                type="checkbox"
+                                                aria-label="Tout sélectionner"
+                                                checked={allSelected}
+                                                disabled={selectable.length === 0}
+                                                ref={(el) => {
+                                                    if (el) el.indeterminate = someSelected;
+                                                }}
+                                                onChange={toggleAllClients}
+                                            />
+                                        </th>
+                                        <th>Client</th>
+                                        <th>Ajouté</th>
+                                        <th>Statut</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {newClients.map((c) => {
+                                        const canSelect = c.consent_status === 'unknown' && !c.welcomed;
+                                        const [consentLabel, consentClass] = CONSENT[c.consent_status];
+                                        return (
+                                            <tr key={c.id}>
+                                                <td>
+                                                    <input
+                                                        type="checkbox"
+                                                        aria-label={`Sélectionner ${c.name}`}
+                                                        checked={canSelect && selectedIds.has(c.id)}
+                                                        disabled={!canSelect}
+                                                        onChange={() => toggleClient(c.id)}
+                                                    />
+                                                </td>
+                                                <td className="cell-main wrap">
+                                                    <b>
+                                                        <Link href={customerUrl(c)}>{c.name}</Link>
+                                                    </b>
+                                                    <span className="mono">{c.phone_e164}</span>
+                                                </td>
+                                                <td>
+                                                    <span className="mdash-src">
+                                                        {agoLabel(c.created_at)}
+                                                        <br />
+                                                        {c.store_name}
+                                                    </span>
+                                                </td>
+                                                <td>
+                                                    <span className="mdash-stat">
+                                                        <span className={`mdash-pill ${consentClass}`}>{consentLabel}</span>
+                                                        {c.welcomed ? (
+                                                            <span className="mdash-pill ok">Bienvenue ✓</span>
+                                                        ) : c.consent_status === 'opt_out' ? (
+                                                            <span className="mdash-src">Exclu</span>
+                                                        ) : c.consent_status === 'opt_in' ? (
+                                                            <span className="mdash-src">Déjà opt-in</span>
+                                                        ) : (
+                                                            <span className="mdash-src">À accueillir</span>
+                                                        )}
+                                                    </span>
+                                                </td>
+                                            </tr>
+                                        );
+                                    })}
+                                </tbody>
+                            </table>
+                        </div>
+                    )}
+                    <div className="mdash-bar">
+                        <span className="mdash-sub">
+                            {selectedIds.size ? `${plural(selectedIds.size, 'client')} sélectionné${selectedIds.size > 1 ? 's' : ''}` : 'Aucun client sélectionné'}
+                        </span>
+                        <span style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                            {canSendAllPending && (
+                                <button type="button" className="mdash-btn ghost" onClick={() => setConfirming('all')}>
+                                    Tous en attente ({formatNumber(pendingWelcome)})
+                                </button>
+                            )}
+                            <button type="button" className="mdash-btn primary" disabled={selectedIds.size === 0} onClick={() => setConfirming('selection')}>
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                                    <path d="M22 2L11 13" />
+                                    <path d="M22 2l-7 20-4-9-9-4z" />
+                                </svg>
+                                Campagne de bienvenue
+                            </button>
+                        </span>
+                    </div>
+                    {confirming && (
+                        <div className="mdash-confirm" role="alertdialog" aria-label="Confirmer l'envoi du message de bienvenue">
                             {welcomeTemplates.length === 0 ? (
-                                <span className="text-xs text-gray-500 dark:text-gray-400">
-                                    Aucun template actif de catégorie « utility » —{' '}
-                                    <Link href="/templates" className="underline">
-                                        créez-en un
-                                    </Link>{' '}
-                                    d'abord.
-                                </span>
+                                <>
+                                    <span>
+                                        Aucun modèle actif de catégorie « utility » :{' '}
+                                        <Link href="/templates" className="mdash-link">
+                                            créez-en un
+                                        </Link>{' '}
+                                        avant d'envoyer le message de bienvenue.
+                                    </span>
+                                    <div className="acts">
+                                        <button type="button" className="mdash-btn ghost" onClick={() => setConfirming(null)}>
+                                            Fermer
+                                        </button>
+                                    </div>
+                                </>
                             ) : (
                                 <>
-                                    <select
-                                        value={welcomeTemplate}
-                                        onChange={(e) => setWelcomeTemplate(e.target.value)}
-                                        className={selectClasses() + ' w-auto'}
-                                    >
-                                        {welcomeTemplates.map((template) => (
-                                            <option key={template.id} value={template.name}>
-                                                {template.name} ({template.language})
-                                            </option>
-                                        ))}
-                                    </select>
-                                    <Button size="sm" type="button" disabled={sending} onClick={sendWelcomeBulk}>
-                                        {sending ? 'Envoi...' : `Envoyer bienvenue (${selectedIds.size})`}
-                                    </Button>
+                                    <span>
+                                        Envoyer le message de bienvenue à <b>{plural(confirmCount, 'client')}</b>
+                                        {confirming === 'all' && ` ajoutés du ${formatDate(filters.from)} au ${formatDate(filters.to)}`} depuis le numéro WhatsApp de leur
+                                        boutique. Seuls les contacts au consentement inconnu et jamais accueillis le recevront ; les opt-out sont exclus.
+                                    </span>
+                                    <div className="acts">
+                                        <select aria-label="Modèle de message" value={welcomeTemplate} onChange={(e) => setWelcomeTemplate(e.target.value)}>
+                                            {welcomeTemplates.map((t) => (
+                                                <option key={t.id} value={t.name}>
+                                                    {t.name} ({t.language})
+                                                </option>
+                                            ))}
+                                        </select>
+                                        <button type="button" className="mdash-btn primary" disabled={sending || !welcomeTemplate} onClick={sendWelcome}>
+                                            {sending ? 'Envoi…' : 'Envoyer maintenant'}
+                                        </button>
+                                        <button type="button" className="mdash-btn ghost" disabled={sending} onClick={() => setConfirming(null)}>
+                                            Annuler
+                                        </button>
+                                    </div>
                                 </>
                             )}
                         </div>
                     )}
+                </article>
 
-                    <div className="overflow-x-auto">
-                        <Table>
-                            <TableHeader className="border-b border-gray-100 dark:border-gray-800">
-                                <TableRow>
-                                    <TableCell isHeader className="px-4 py-2">
-                                        <input
-                                            type="checkbox"
-                                            checked={recentClients.length > 0 && selectedIds.size === recentClients.length}
-                                            onChange={toggleSelectAll}
-                                        />
-                                    </TableCell>
-                                    <TableCell isHeader className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase dark:text-gray-400">
-                                        Nom
-                                    </TableCell>
-                                    <TableCell isHeader className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase dark:text-gray-400">
-                                        Téléphone
-                                    </TableCell>
-                                    <TableCell isHeader className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase dark:text-gray-400">
-                                        Boutique
-                                    </TableCell>
-                                    <TableCell isHeader className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase dark:text-gray-400">
-                                        Ajouté le
-                                    </TableCell>
-                                </TableRow>
-                            </TableHeader>
-                            <TableBody className="divide-y divide-gray-100 dark:divide-gray-800">
-                                {recentClients.length === 0 && (
-                                    <TableRow>
-                                        <TableCell className="px-4 py-6 text-center text-sm text-gray-500 dark:text-gray-400" colSpan={5}>
-                                            Aucun client en attente de message de bienvenue sur cette période.
-                                        </TableCell>
-                                    </TableRow>
-                                )}
-                                {recentClients.map((client) => (
-                                    <TableRow key={client.id}>
-                                        <TableCell className="px-4 py-2.5">
-                                            <input
-                                                type="checkbox"
-                                                checked={selectedIds.has(client.id)}
-                                                onChange={() => toggleSelected(client.id)}
-                                            />
-                                        </TableCell>
-                                        <TableCell className="px-4 py-2.5 text-sm font-medium">
-                                            <Link
-                                                href={`/contacts/${client.id}`}
-                                                className="text-gray-800 hover:text-brand-500 hover:underline dark:text-white/90"
-                                            >
-                                                {client.name}
-                                            </Link>
-                                        </TableCell>
-                                        <TableCell className="px-4 py-2.5 text-sm text-gray-600 dark:text-gray-400">{client.phone_e164}</TableCell>
-                                        <TableCell className="px-4 py-2.5 text-sm text-gray-600 dark:text-gray-400">{client.store_name}</TableCell>
-                                        <TableCell className="px-4 py-2.5 text-sm text-gray-600 dark:text-gray-400">{client.created_at}</TableCell>
-                                    </TableRow>
-                                ))}
-                            </TableBody>
-                        </Table>
-                    </div>
-                </ComponentCard>
-
-                <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
-                    <ComponentCard title="Boutiques" className="lg:col-span-1" desc="Statut de connexion WhatsApp">
-                        <div className="overflow-x-auto">
-                            <Table>
-                                <TableHeader className="border-b border-gray-100 dark:border-gray-800">
-                                    <TableRow>
-                                        <TableCell isHeader className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase dark:text-gray-400">
-                                            Boutique
-                                        </TableCell>
-                                        <TableCell isHeader className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase dark:text-gray-400">
-                                            Contacts
-                                        </TableCell>
-                                        <TableCell isHeader className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase dark:text-gray-400">
-                                            Statut
-                                        </TableCell>
-                                    </TableRow>
-                                </TableHeader>
-                                <TableBody className="divide-y divide-gray-100 dark:divide-gray-800">
-                                    {stores.map((store) => (
-                                        <TableRow key={store.id}>
-                                            <TableCell className="px-4 py-2.5 text-sm font-medium text-gray-800 dark:text-white/90">{store.name}</TableCell>
-                                            <TableCell className="px-4 py-2.5 text-sm text-gray-600 dark:text-gray-400">{store.contacts_count}</TableCell>
-                                            <TableCell className="px-4 py-2.5 text-sm">
-                                                <Badge size="sm" color={store.connected ? 'success' : 'light'}>
-                                                    {store.connected ? 'Connectée' : 'Non connectée'}
-                                                </Badge>
-                                            </TableCell>
-                                        </TableRow>
-                                    ))}
-                                </TableBody>
-                            </Table>
+                <article className="mdash-panel c5">
+                    <div className="mdash-ph">
+                        <div>
+                            <h2>Contacts par marque</h2>
+                            <div className="mdash-sub">
+                                {filters.brand_locked || filters.brand_hidden ? 'Répartition du consentement' : 'Cliquer une marque pour filtrer'}
+                            </div>
                         </div>
-                        <Link href="/stores" className="mt-4 inline-block text-sm font-medium text-brand-500 hover:text-brand-600">
+                    </div>
+                    {brandContacts.length === 0 ? (
+                        <div className="mdash-empty">Aucune marque dans votre périmètre.</div>
+                    ) : (
+                        <div className="mdash-brands">
+                            {brandContacts.map((b) => {
+                                const pct = (v: number) => (b.total ? (v / b.total) * 100 : 0);
+                                return (
+                                    <button
+                                        key={b.id}
+                                        type="button"
+                                        className={`mdash-br ${filters.brand !== null && filters.brand !== b.id ? 'dim' : ''}`}
+                                        aria-pressed={filters.brand === b.id}
+                                        disabled={filters.brand_locked || filters.brand_hidden}
+                                        onClick={() => selectBrand(filters.brand === b.id ? null : b.id)}
+                                    >
+                                        <span className="mdash-br-top">
+                                            <b>{b.name}</b>
+                                            <span className="num">{formatNumber(b.total)}</span>
+                                        </span>
+                                        <span
+                                            className="mdash-stack"
+                                            title={`Opt-in ${formatNumber(b.opt_in)} · Inconnu ${formatNumber(b.unknown)} · Opt-out ${formatNumber(b.opt_out)}`}
+                                        >
+                                            <i style={{ width: `${pct(b.opt_in)}%`, background: 'var(--ok)' }} />
+                                            <i style={{ width: `${pct(b.unknown)}%`, background: 'var(--faint)' }} />
+                                            <i style={{ width: `${pct(b.opt_out)}%`, background: 'var(--bad)' }} />
+                                        </span>
+                                    </button>
+                                );
+                            })}
+                        </div>
+                    )}
+                    <div className="mdash-keys" style={{ marginTop: 14 }}>
+                        <span>
+                            <i style={{ background: 'var(--ok)' }} />
+                            Opt-in
+                        </span>
+                        <span>
+                            <i style={{ background: 'var(--faint)' }} />
+                            Inconnu
+                        </span>
+                        <span>
+                            <i style={{ background: 'var(--bad)' }} />
+                            Opt-out
+                        </span>
+                    </div>
+                </article>
+
+                <article className="mdash-panel c12">
+                    <div className="mdash-ph">
+                        <div>
+                            <h2>Parcours client</h2>
+                            <div className="mdash-sub">
+                                {formatNumber(lifecycle.total)} fiches clients par étape · mouvements du {formatDate(filters.from)} au {formatDate(filters.to)}
+                            </div>
+                        </div>
+                        <Link href="/customers" className="mdash-link">
+                            Voir les fiches clients
+                        </Link>
+                    </div>
+                    <div className="mdash-journey-bar" aria-hidden="true">
+                        {lifecycle.stages
+                            .filter((s) => s.count > 0)
+                            .map((s) => (
+                                <i key={s.key} style={{ width: `${(s.count / Math.max(1, lifecycle.total)) * 100}%`, background: STAGE_COLORS[stageInfo(s.key).pill] }} />
+                            ))}
+                    </div>
+                    <div className="mdash-journey">
+                        {lifecycle.stages.map((s) => (
+                            <Link key={s.key} href={`/customers?stage=${s.key}`} className="mdash-journey-step" title={stageInfo(s.key).hint}>
+                                <span>
+                                    <i style={{ background: STAGE_COLORS[stageInfo(s.key).pill] }} />
+                                    {s.label}
+                                </span>
+                                <b className="num">{formatNumber(s.count)}</b>
+                                <small>{lifecycle.total ? Math.round((s.count / lifecycle.total) * 100) : 0} %</small>
+                            </Link>
+                        ))}
+                        <Link href="/customers?vip=1" className="mdash-journey-step" title={`${VIP_PILL.hint} — statut propre à chaque boutique`}>
+                            <span>
+                                <i style={{ background: STAGE_COLORS.accent }} />
+                                VIP (par boutique)
+                            </span>
+                            <b className="num">{formatNumber(lifecycle.vip)}</b>
+                            <small>VIP dans au moins 1 boutique</small>
+                        </Link>
+                    </div>
+                    <div className="mdash-journey-moves">
+                        <span>
+                            <b className="num">+{formatNumber(lifecycle.moves.new_buyers)}</b> nouveaux acheteurs
+                        </span>
+                        <span>
+                            <b className="num">+{formatNumber(lifecycle.moves.new_prospects)}</b> nouveaux prospects
+                        </span>
+                        <span>
+                            <b className="num">{formatNumber(lifecycle.moves.reactivated)}</b> réactivés
+                        </span>
+                        <span className="warn">
+                            <b className="num">{formatNumber(lifecycle.moves.at_risk)}</b> passés « à risque »
+                        </span>
+                        <span className="bad">
+                            <b className="num">{formatNumber(lifecycle.moves.churned)}</b> devenus inactifs
+                        </span>
+                    </div>
+                </article>
+
+                <article className="mdash-panel c12">
+                    <div className="mdash-ph">
+                        <div>
+                            <h2>Évolution des ventes (CA)</h2>
+                            <div className="mdash-sub">Chiffre d'affaires des achats clients, {weekly ? 'par semaine' : 'par jour'}</div>
+                        </div>
+                        <div className="mdash-keys">
+                            <span>
+                                <i style={{ background: 'var(--brand)' }} />
+                                Période
+                            </span>
+                            <span>
+                                <i className="dash" />
+                                Période précédente
+                            </span>
+                        </div>
+                    </div>
+                    <div className="mdash-ca-head">
+                        <span className="mdash-ca-big num">
+                            {formatCompact(salesTotal)}
+                            <small>FCFA</small>
+                        </span>
+                        <span className="mdash-ca-meta">
+                            <Delta value={percentChange(salesTotal, salesPrevious)} />
+                            <span>vs {formatCompact(salesPrevious)} F la période précédente</span>
+                            {bestBucket && (
+                                <span>
+                                    · meilleur{weekly ? 'e semaine' : ' jour'} : {bucketLabel(bestBucket)} ({formatCompact(bestBucket.revenue)} F)
+                                </span>
+                            )}
+                        </span>
+                    </div>
+                    <SalesChart series={salesSeries} height={200} />
+                </article>
+
+                <article className="mdash-panel c7">
+                    <div className="mdash-ph">
+                        <h2>Performance par boutique</h2>
+                        <span className="mdash-sub">
+                            {plural(stores.length, 'boutique')} · messages et CA sur la période
+                        </span>
+                    </div>
+                    {stores.length === 0 ? (
+                        <div className="mdash-empty">Aucune boutique dans ce périmètre.</div>
+                    ) : (
+                        <div className="mdash-tbl">
+                            <table>
+                                <thead>
+                                    <tr>
+                                        <th>Boutique</th>
+                                        <th>WhatsApp</th>
+                                        <th className="r">Contacts</th>
+                                        <th>Opt-in</th>
+                                        <th className="r" title="Clients VIP de la boutique (top acheteurs de la boutique)">VIP</th>
+                                        <th className="r">Messages</th>
+                                        <th className="r">CA achats</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {stores.map((s) => {
+                                        const rate = s.contacts ? (s.opt_in / s.contacts) * 100 : 0;
+                                        return (
+                                            <tr key={s.id}>
+                                                <td className="cell-main wrap">
+                                                    <b>{s.name}</b>
+                                                    {s.brand_name && <span>{s.brand_name}</span>}
+                                                </td>
+                                                <td>
+                                                    <span className="mdash-stat">
+                                                        <span className={`mdash-pill ${s.connected ? 'ok' : 'bad'}`}>{s.connected ? 'Connectée' : 'Non connectée'}</span>
+                                                        {s.connected && <span className="mdash-src">{s.shared_account ? 'Compte partagé' : 'Numéro propre'}</span>}
+                                                    </span>
+                                                </td>
+                                                <td className="r mono">{formatNumber(s.contacts)}</td>
+                                                <td>
+                                                    <span className="mdash-minibar">
+                                                        <i style={{ width: `${rate}%` }} />
+                                                    </span>
+                                                    <span className="mono">{Math.round(rate)} %</span>
+                                                </td>
+                                                <td className="r mono">{formatNumber(s.vip)}</td>
+                                                <td className="r mono">{formatNumber(s.messages)}</td>
+                                                <td className="r mono">{formatCompact(s.revenue)} F</td>
+                                            </tr>
+                                        );
+                                    })}
+                                </tbody>
+                            </table>
+                        </div>
+                    )}
+                    <div style={{ marginTop: 10 }}>
+                        <Link href="/stores" className="mdash-link">
                             Configurer les boutiques →
                         </Link>
-                    </ComponentCard>
+                    </div>
+                </article>
 
-                    <ComponentCard title="Dernières campagnes" className="lg:col-span-2" desc="Sur la période sélectionnée">
-                        <div className="overflow-x-auto">
-                            <Table>
-                                <TableHeader className="border-b border-gray-100 dark:border-gray-800">
-                                    <TableRow>
-                                        <TableCell isHeader className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase dark:text-gray-400">
-                                            Campagne
-                                        </TableCell>
-                                        <TableCell isHeader className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase dark:text-gray-400">
-                                            Boutique(s)
-                                        </TableCell>
-                                        <TableCell isHeader className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase dark:text-gray-400">
-                                            Statut
-                                        </TableCell>
-                                        <TableCell isHeader className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase dark:text-gray-400">
-                                            Envoyés / Échecs / Total
-                                        </TableCell>
-                                        <TableCell isHeader className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase dark:text-gray-400">
-                                            Créée le
-                                        </TableCell>
-                                    </TableRow>
-                                </TableHeader>
-                                <TableBody className="divide-y divide-gray-100 dark:divide-gray-800">
-                                    {recentCampaigns.length === 0 && (
-                                        <TableRow>
-                                            <TableCell className="px-4 py-6 text-center text-sm text-gray-500 dark:text-gray-400" colSpan={5}>
-                                                Aucune campagne sur cette période.
-                                            </TableCell>
-                                        </TableRow>
-                                    )}
-                                    {recentCampaigns.map((campaign) => (
-                                        <TableRow key={campaign.id}>
-                                            <TableCell className="px-4 py-2.5 text-sm font-medium text-gray-800 dark:text-white/90">{campaign.name}</TableCell>
-                                            <TableCell className="px-4 py-2.5 text-sm text-gray-600 dark:text-gray-400">{campaign.store_names}</TableCell>
-                                            <TableCell className="px-4 py-2.5 text-sm">
-                                                <Badge size="sm" color={statusColor[campaign.status] ?? 'light'}>
-                                                    {campaign.status}
-                                                </Badge>
-                                            </TableCell>
-                                            <TableCell className="px-4 py-2.5 text-sm text-gray-600 dark:text-gray-400">
-                                                {campaign.sent_count} / {campaign.failed_count} / {campaign.total}
-                                            </TableCell>
-                                            <TableCell className="px-4 py-2.5 text-sm text-gray-600 dark:text-gray-400">{campaign.created_at}</TableCell>
-                                        </TableRow>
-                                    ))}
-                                </TableBody>
-                            </Table>
-                        </div>
-                        <Link href="/campaigns" className="mt-4 inline-block text-sm font-medium text-brand-500 hover:text-brand-600">
-                            Voir toutes les campagnes →
-                        </Link>
-                    </ComponentCard>
-                </div>
-
-                <ComponentCard title="Actions rapides">
-                    <div className="flex flex-wrap gap-3">
-                        <Link
-                            href="/contacts"
-                            className="inline-flex items-center justify-center gap-2 rounded-lg bg-brand-500 px-4 py-3 text-sm text-white shadow-theme-xs transition hover:bg-brand-600"
-                        >
-                            Nouveau contact
-                        </Link>
-                        <Link
-                            href="/purchases"
-                            className="inline-flex items-center justify-center gap-2 rounded-lg border border-gray-300 px-4 py-3 text-sm text-gray-700 transition hover:bg-gray-50 dark:border-gray-700 dark:text-gray-300 dark:hover:bg-white/5"
-                        >
-                            Importer un historique d'achats
-                        </Link>
-                        <Link
-                            href="/campaigns"
-                            className="inline-flex items-center justify-center gap-2 rounded-lg border border-gray-300 px-4 py-3 text-sm text-gray-700 transition hover:bg-gray-50 dark:border-gray-700 dark:text-gray-300 dark:hover:bg-white/5"
-                        >
-                            Nouvelle campagne
-                        </Link>
-                        <Link
-                            href="/stores"
-                            className="inline-flex items-center justify-center gap-2 rounded-lg border border-gray-300 px-4 py-3 text-sm text-gray-700 transition hover:bg-gray-50 dark:border-gray-700 dark:text-gray-300 dark:hover:bg-white/5"
-                        >
-                            Connecter une boutique
+                <article className="mdash-panel c5">
+                    <div className="mdash-ph">
+                        <h2>Dernières campagnes</h2>
+                        <Link href="/campaigns" className="mdash-link">
+                            Toutes les campagnes
                         </Link>
                     </div>
-                </ComponentCard>
-            </div>
-        </>
+                    {recentCampaigns.length === 0 ? (
+                        <div className="mdash-empty">Aucune campagne sur la période.</div>
+                    ) : (
+                        <div className="mdash-tbl">
+                            <table>
+                                <thead>
+                                    <tr>
+                                        <th>Campagne</th>
+                                        <th>Statut</th>
+                                        <th>Envoi</th>
+                                        <th className="r">Échecs</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {recentCampaigns.map((c) => {
+                                        const [statusLabel, statusClass] = CAMPAIGN_STATUS[c.status] ?? [c.status, 'idle'];
+                                        const done = c.sent_count + c.failed_count;
+                                        const progress = c.total ? (done / c.total) * 100 : 0;
+                                        return (
+                                            <tr key={c.id}>
+                                                <td className="cell-main wrap">
+                                                    <b>{c.name}</b>
+                                                    <span>
+                                                        {c.store_names} · {c.created_at}
+                                                    </span>
+                                                </td>
+                                                <td>
+                                                    <span className={`mdash-pill ${statusClass}`}>{statusLabel}</span>
+                                                </td>
+                                                <td>
+                                                    <span className="mdash-minibar">
+                                                        <i style={{ width: `${progress}%` }} />
+                                                    </span>
+                                                    <span className="mono">
+                                                        {formatNumber(done)}/{formatNumber(c.total)}
+                                                    </span>
+                                                </td>
+                                                <td className="r mono" style={c.failed_count ? { color: 'var(--bad)' } : undefined}>
+                                                    {formatNumber(c.failed_count)}
+                                                </td>
+                                            </tr>
+                                        );
+                                    })}
+                                </tbody>
+                            </table>
+                        </div>
+                    )}
+                </article>
+
+                <article className="mdash-panel c12">
+                    <div className="mdash-ph">
+                        <div>
+                            <h2>Top 10 des meilleures catégories</h2>
+                            <div className="mdash-sub">
+                                {metric === 'revenue'
+                                    ? "Classées par chiffre d'affaires des achats clients"
+                                    : metric === 'clients'
+                                      ? 'Classées par nombre de clients distincts'
+                                      : "Classées par nombre d'achats enregistrés"}
+                            </div>
+                        </div>
+                        <div className="mdash-switch" role="group" aria-label="Classer par">
+                            {(
+                                [
+                                    ['revenue', 'CA'],
+                                    ['clients', 'Clients'],
+                                    ['purchases', 'Achats'],
+                                ] as const
+                            ).map(([key, label]) => (
+                                <button key={key} type="button" aria-pressed={metric === key} onClick={() => setMetric(key)}>
+                                    {label}
+                                </button>
+                            ))}
+                        </div>
+                    </div>
+                    {top10.length === 0 ? (
+                        <div className="mdash-empty">
+                            Aucun achat sur la période. <Link href="/purchases" className="mdash-link">Importer un historique d'achats</Link>
+                        </div>
+                    ) : (
+                        <div className="mdash-top10">
+                            {top10.map((c, i) => (
+                                <div key={c.name} className="mdash-row10">
+                                    <span className="rank">{i + 1}</span>
+                                    <span className="cat" title={c.name}>
+                                        {c.name}
+                                    </span>
+                                    <span className="bar">
+                                        <i style={{ width: `${(c[metric] / topMax) * 100}%` }} />
+                                    </span>
+                                    <span className="amt num">{metric === 'revenue' ? `${formatCompact(c.revenue)} F` : formatNumber(c[metric])}</span>
+                                    <span className="cli num">{metric === 'revenue' ? `${formatNumber(c.clients)} cl.` : `${formatCompact(c.revenue)} F`}</span>
+                                </div>
+                            ))}
+                        </div>
+                    )}
+                </article>
+            </section>
+        </div>
     );
 }
 

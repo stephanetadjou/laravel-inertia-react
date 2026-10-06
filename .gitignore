@@ -34,3 +34,9 @@ Thumbs.db
 /free-react-tailwind-admin-dashboard-main/
 # Fichiers verrous Office (~$Document.docx)
 ~$*
+# Sauvegardes locales de la base SQLite (données clients) : jamais versionnées.
+/storage/backups/
+# Fichiers temporaires de l'éditeur (LSP) générés dans storage/framework.
+/storage/framework/lsp-*.php
+# Anciennes pages conservées localement pour référence.
+/_archive_pages/

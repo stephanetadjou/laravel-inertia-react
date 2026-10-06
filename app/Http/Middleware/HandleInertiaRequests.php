@@ -2,6 +2,7 @@
 
 namespace App\Http\Middleware;
 
+use App\Services\NotificationService;
 use Illuminate\Http\Request;
 use Inertia\Middleware;
 
@@ -45,6 +46,7 @@ class HandleInertiaRequests extends Middleware
             ],
             'auth' => [
                 'user' => $user ? [
+                    'id' => $user->id,
                     'name' => $user->name,
                     'email' => $user->email,
                     'role_name' => $user->role?->name,
@@ -52,6 +54,8 @@ class HandleInertiaRequests extends Middleware
                 ] : null,
                 'organization' => $user?->organization ? ['name' => $user->organization->name] : null,
             ],
+            // Cloche « À traiter » (cf. NotificationService), calculée seulement si la page la demande.
+            'notifications' => fn () => $user ? app(NotificationService::class)->forUser($user) : null,
         ];
     }
 }

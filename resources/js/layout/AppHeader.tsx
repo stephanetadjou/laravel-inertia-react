@@ -3,6 +3,7 @@ import { Link, router, usePage } from '@inertiajs/react';
 
 import { useSidebar } from '../context/SidebarContext';
 import { ThemeToggleButton } from '../components/common/ThemeToggleButton';
+import { NotificationBell } from '../components/notifications/Notifications';
 
 interface SharedAuthProps {
     auth?: {
@@ -55,8 +56,8 @@ const AppHeader: React.FC = () => {
                         )}
                     </button>
 
-                    <Link href="/contacts" className="text-lg font-bold text-gray-900 lg:hidden dark:text-white">
-                        RETAIL <span className="text-brand-500">GROUP</span>
+                    <Link href="/dashboard" className="text-lg font-bold text-gray-900 lg:hidden dark:text-white">
+                        MERCURE <span className="text-brand-500">CRM</span>
                     </Link>
 
                     {auth?.organization && (
@@ -66,6 +67,7 @@ const AppHeader: React.FC = () => {
 
                 <div className="flex w-full items-center justify-end gap-4 px-5 py-4 lg:flex lg:px-0 lg:shadow-none">
                     <ThemeToggleButton />
+                    <NotificationBell />
 
                     {auth?.user && (
                         <div className="relative">

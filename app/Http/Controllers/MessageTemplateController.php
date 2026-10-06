@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Campaign;
 use App\Models\MessageTemplate;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -16,12 +17,31 @@ class MessageTemplateController extends Controller
 
     public function index(Request $request): Response
     {
-        $templates = MessageTemplate::where('organization_id', $request->user()->organization_id)
+        $organizationId = $request->user()->organization_id;
+
+        $templates = MessageTemplate::where('organization_id', $organizationId)
             ->orderBy('name')
             ->get();
 
+        // Utilisation dans les campagnes de l'organisation (par nom de modèle).
+        $usage = Campaign::where('message_type', 'template')
+            ->whereHas('stores', fn ($q) => $q->where('organization_id', $organizationId))
+            ->selectRaw('template_name, COUNT(*) as campaigns, MAX(created_at) as last_used_at')
+            ->groupBy('template_name')
+            ->get()
+            ->keyBy('template_name');
+
         return Inertia::render('Templates/Index', [
-            'templates' => $templates,
+            'templates' => $templates->map(fn (MessageTemplate $t) => [
+                'id' => $t->id,
+                'name' => $t->name,
+                'language' => $t->language,
+                'category' => $t->category,
+                'description' => $t->description,
+                'is_active' => (bool) $t->is_active,
+                'campaigns_count' => (int) ($usage[$t->name]->campaigns ?? 0),
+                'last_used_at' => isset($usage[$t->name]) ? substr((string) $usage[$t->name]->last_used_at, 0, 10) : null,
+            ]),
         ]);
     }
 
@@ -31,7 +51,7 @@ class MessageTemplateController extends Controller
 
         $request->user()->organization->messageTemplates()->create($data);
 
-        return back()->with('success', "Template « {$data['name']} » enregistré.");
+        return back()->with('success', "Modèle « {$data['name']} » enregistré.");
     }
 
     public function update(Request $request, MessageTemplate $template): RedirectResponse
@@ -42,7 +62,7 @@ class MessageTemplateController extends Controller
 
         $template->update($data);
 
-        return back()->with('success', "Template « {$template->name} » mis à jour.");
+        return back()->with('success', "Modèle « {$template->name} » mis à jour.");
     }
 
     public function destroy(Request $request, MessageTemplate $template): RedirectResponse
@@ -51,7 +71,7 @@ class MessageTemplateController extends Controller
 
         $template->delete();
 
-        return back()->with('success', 'Template supprimé.');
+        return back()->with('success', 'Modèle supprimé.');
     }
 
     private function validated(Request $request, ?int $ignoreId = null): array

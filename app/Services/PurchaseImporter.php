@@ -15,12 +15,15 @@ use Illuminate\Http\UploadedFile;
  * (boutique + téléphone) n'existe pas encore, il est créé à la volée avec un
  * consentement "unknown" : le numéro WhatsApp est l'identifiant du client,
  * l'achat n'est jamais traité comme une preuve de consentement marketing.
+ * Seule la colonne « consentement » (oui / non, accord recueilli en caisse)
+ * fixe le consentement, cf. ImportedConsent.
  *
  * Colonnes attendues (en-tête, insensible à la casse) :
  *   telephone, boutique, date_achat   -> obligatoires
  *   nom                                -> optionnelle (sert si le contact est créé)
  *   categorie                          -> optionnelle
  *   quantite                           -> optionnelle (défaut 1)
+ *   consentement                       -> optionnelle : oui / non (vide = inchangé)
  *   prix (prix unitaire) et/ou montant -> l'un des deux obligatoire
  *                                          (montant, si présent, prime sur quantite × prix)
  */
@@ -68,6 +71,7 @@ class PurchaseImporter
             'purchases_to_record' => count($valid),
             'contacts_to_create' => $contactsToCreate,
             'total_amount' => array_sum(array_column($valid, 'amount')),
+            'consents' => ContactImporter::consentCounts(array_column($valid, 'consent')),
             'skipped' => $skipped,
             'sample' => $sample,
         ];
@@ -83,6 +87,23 @@ class PurchaseImporter
         $recorded = 0;
         $contactsCreated = 0;
 
+        // Fiches clients recalculées une seule fois, en fin d'import.
+        CustomerLifecycle::batch(function () use ($valid, &$recorded, &$contactsCreated) {
+            $this->recordRows($valid, $recorded, $contactsCreated);
+        });
+
+        return [
+            'purchases_recorded' => $recorded,
+            'contacts_created' => $contactsCreated,
+            'skipped' => $skipped,
+        ];
+    }
+
+    /**
+     * @param  array<int, array<string, mixed>>  $valid
+     */
+    private function recordRows(array $valid, int &$recorded, int &$contactsCreated): void
+    {
         foreach ($valid as $row) {
             $contact = Contact::where('store_id', $row['store']->id)
                 ->where('phone_e164', $row['phone'])
@@ -93,9 +114,12 @@ class PurchaseImporter
                     'store_id' => $row['store']->id,
                     'phone_e164' => $row['phone'],
                     'name' => $row['name'] ?? "Client {$row['phone']}",
-                    'consent_status' => 'unknown',
+                    'consent_status' => $row['consent'] ?? 'unknown',
                 ]);
                 $contactsCreated++;
+            } elseif ($row['consent'] !== null && $row['consent'] !== $contact->consent_status) {
+                // Réponse explicite en caisse : elle remplace le statut enregistré.
+                $contact->update(['consent_status' => $row['consent']]);
             }
 
             Purchase::create([
@@ -108,12 +132,6 @@ class PurchaseImporter
             ]);
             $recorded++;
         }
-
-        return [
-            'purchases_recorded' => $recorded,
-            'contacts_created' => $contactsCreated,
-            'skipped' => $skipped,
-        ];
     }
 
     /**
@@ -157,6 +175,14 @@ class PurchaseImporter
                 continue;
             }
 
+            $purchasedAt = ImportedDate::parse($dateAchat);
+
+            if ($purchasedAt === null) {
+                $skipped[] = "Ligne {$rowNumber} : date d'achat invalide ({$dateAchat}), attendu JJ/MM/AAAA ou AAAA-MM-JJ";
+
+                continue;
+            }
+
             $store = $stores->get(strtolower($storeName));
 
             if (! $store) {
@@ -167,8 +193,8 @@ class PurchaseImporter
 
             $phone = PhoneNormalizer::normalize($phoneRaw);
 
-            if (strlen($phone) < 10) {
-                $skipped[] = "Ligne {$rowNumber} : numéro invalide ({$phoneRaw})";
+            if ($phone === null) {
+                $skipped[] = "Ligne {$rowNumber} : numéro invalide ({$phoneRaw}), attendu ".PhoneNormalizer::EXPECTED_FORMAT;
 
                 continue;
             }
@@ -187,14 +213,24 @@ class PurchaseImporter
                 continue;
             }
 
+            // Accord WhatsApp recueilli en caisse ; vide = statut inchangé.
+            $consentRaw = ImportedConsent::valueFrom($data);
+            $consent = ImportedConsent::parse($consentRaw);
+
+            if ($consent === false) {
+                $skipped[] = "Ligne {$rowNumber} : consentement non reconnu ({$consentRaw}), attendu oui ou non ; laissé inchangé";
+                $consent = null;
+            }
+
             $valid[] = [
+                'consent' => $consent,
                 'phone' => $phone,
                 'name' => ! empty($data['nom']) ? trim((string) $data['nom']) : null,
                 'store' => $store,
                 'quantity' => $quantity,
                 'amount' => $amount,
                 'product_category' => ! empty($data['categorie']) ? trim((string) $data['categorie']) : null,
-                'purchased_at' => $dateAchat,
+                'purchased_at' => $purchasedAt,
             ];
         }
 

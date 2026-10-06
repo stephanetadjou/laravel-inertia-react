@@ -60,6 +60,8 @@ jobs:
             # données clients, conversations et campagnes de RETAIL GROUP
             # ne doivent jamais être perdues).
             $PHP artisan migrate --force
+            # Fiches clients : compteurs et étapes du parcours (idempotent).
+            $PHP artisan crm:refresh-lifecycle
             $PHP artisan storage:link || true
             $PHP artisan config:clear
             $PHP artisan route:clear

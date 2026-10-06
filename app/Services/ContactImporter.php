@@ -15,6 +15,8 @@ use Illuminate\Http\UploadedFile;
  *   nom, telephone                        -> obligatoires
  *   categorie, montant, date_achat        -> optionnelles, ensemble (créent un achat)
  *   naissance, sexe                       -> optionnelles (profil client)
+ *   consentement                          -> optionnelle : oui / non, accord WhatsApp
+ *                                            recueilli en caisse (cf. ImportedConsent)
  */
 class ContactImporter
 {
@@ -49,6 +51,7 @@ class ContactImporter
             'contacts_to_create' => $toCreate,
             'contacts_to_update' => $toUpdate,
             'purchases_to_record' => count(array_filter($valid, fn (array $row) => $row['purchase'] !== null)),
+            'consents' => self::consentCounts(array_map(fn (array $row) => $row['attributes']['consent_status'] ?? null, $valid)),
             'total_valid' => count($valid),
             'skipped' => $skipped,
             'sample' => $sample,
@@ -64,6 +67,26 @@ class ContactImporter
         $purchasesRecorded = 0;
         $contactIds = [];
 
+        // Fiches clients recalculées une seule fois, en fin d'import.
+        CustomerLifecycle::batch(function () use ($valid, $store, &$contactsCreated, &$contactsUpdated, &$purchasesRecorded, &$contactIds) {
+            $this->recordRows($valid, $store, $contactsCreated, $contactsUpdated, $purchasesRecorded, $contactIds);
+        });
+
+        return [
+            'contacts_created' => $contactsCreated,
+            'contacts_updated' => $contactsUpdated,
+            'purchases_recorded' => $purchasesRecorded,
+            'contact_ids' => $contactIds,
+            'skipped' => $skipped,
+        ];
+    }
+
+    /**
+     * @param  array<int, array<string, mixed>>  $valid
+     * @param  array<int, int>  $contactIds
+     */
+    private function recordRows(array $valid, Store $store, int &$contactsCreated, int &$contactsUpdated, int &$purchasesRecorded, array &$contactIds): void
+    {
         foreach ($valid as $row) {
             $contact = Contact::where('store_id', $store->id)
                 ->where('phone_e164', $row['phone'])
@@ -93,14 +116,19 @@ class ContactImporter
                 $purchasesRecorded++;
             }
         }
+    }
 
-        return [
-            'contacts_created' => $contactsCreated,
-            'contacts_updated' => $contactsUpdated,
-            'purchases_recorded' => $purchasesRecorded,
-            'contact_ids' => $contactIds,
-            'skipped' => $skipped,
-        ];
+    /**
+     * Nombre d'accords et de refus déclarés dans le fichier (aperçu).
+     *
+     * @param  array<int, string|null>  $consents
+     * @return array{opt_in: int, opt_out: int}
+     */
+    public static function consentCounts(array $consents): array
+    {
+        $counts = array_count_values(array_filter($consents));
+
+        return ['opt_in' => $counts['opt_in'] ?? 0, 'opt_out' => $counts['opt_out'] ?? 0];
     }
 
     /**
@@ -140,29 +168,47 @@ class ContactImporter
 
             $phone = PhoneNormalizer::normalize($phoneRaw);
 
-            if (strlen($phone) < 10) {
-                $skipped[] = "Ligne {$rowNumber} : numéro invalide ({$phoneRaw})";
+            if ($phone === null) {
+                $skipped[] = "Ligne {$rowNumber} : numéro invalide ({$phoneRaw}), attendu ".PhoneNormalizer::EXPECTED_FORMAT;
 
                 continue;
             }
 
             $attributes = ['name' => $name];
 
-            if (! empty($data['naissance'])) {
-                $attributes['birthdate'] = $data['naissance'];
+            // Date illisible : le contact est importé sans date de naissance.
+            if (! empty($data['naissance']) && ($birthdate = ImportedDate::parse($data['naissance'], 1900)) !== null) {
+                $attributes['birthdate'] = $birthdate;
             }
             if (! empty($data['sexe'])) {
                 $attributes['gender'] = $data['sexe'];
             }
 
+            // Accord WhatsApp recueilli en caisse ; vide = statut inchangé.
+            $consentRaw = ImportedConsent::valueFrom($data);
+            $consent = ImportedConsent::parse($consentRaw);
+
+            if ($consent === false) {
+                $skipped[] = "Ligne {$rowNumber} : consentement non reconnu ({$consentRaw}), attendu oui ou non ; laissé inchangé";
+            } elseif ($consent !== null) {
+                $attributes['consent_status'] = $consent;
+            }
+
             $purchase = null;
 
             if (! empty($data['categorie']) && ! empty($data['montant']) && ! empty($data['date_achat'])) {
-                $purchase = [
-                    'amount' => (int) preg_replace('/[^0-9]/', '', (string) $data['montant']),
-                    'product_category' => trim((string) $data['categorie']),
-                    'purchased_at' => $data['date_achat'],
-                ];
+                $purchasedAt = ImportedDate::parse($data['date_achat']);
+
+                if ($purchasedAt === null) {
+                    // Le contact est importé, seul l'achat est écarté.
+                    $skipped[] = "Ligne {$rowNumber} : achat non enregistré, date d'achat invalide ({$data['date_achat']})";
+                } else {
+                    $purchase = [
+                        'amount' => (int) preg_replace('/[^0-9]/', '', (string) $data['montant']),
+                        'product_category' => trim((string) $data['categorie']),
+                        'purchased_at' => $purchasedAt,
+                    ];
+                }
             }
 
             $valid[] = ['phone' => $phone, 'name' => $name, 'attributes' => $attributes, 'purchase' => $purchase];

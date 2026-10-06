@@ -1,13 +1,11 @@
-import { Head, Link, router, useForm, usePage } from '@inertiajs/react';
+import { Link, router, useForm, usePage } from '@inertiajs/react';
 import { FormEventHandler, useState } from 'react';
 
 import AppLayout from '../../layout/AppLayout';
-import PageBreadcrumb from '../../components/common/PageBreadCrumb';
-import ComponentCard from '../../components/common/ComponentCard';
-import Alert from '../../components/ui/alert/Alert';
-import Button from '../../components/ui/button/Button';
+import { Empty, Page, Panel, PlusIcon, StatStrip } from '../../components/page/Page';
 import BrandFormModal, { BrandFormValues } from './BrandFormModal';
 import StoreFormModal from './StoreFormModal';
+import LifecycleSettingsCard, { LifecycleSettings } from './LifecycleSettingsCard';
 
 interface StoreRow {
     id: number;
@@ -24,25 +22,17 @@ interface BrandRow {
 interface PageProps {
     organization: { id: number; name: string };
     brands: BrandRow[];
-    flash?: {
-        success: string | null;
-        error: string | null;
-    };
+    lifecycleSettings: LifecycleSettings;
+    lifecycleDefaults: LifecycleSettings;
     [key: string]: unknown;
 }
 
-function fieldClasses() {
-    return 'w-full rounded-lg border border-gray-300 px-3 py-2.5 text-sm text-gray-800 focus:border-brand-300 focus:outline-hidden dark:border-gray-700 dark:bg-white/[0.03] dark:text-white/90';
-}
-
 function OrganisationIndex() {
-    const { organization, brands, flash } = usePage<PageProps>().props;
-    const success = flash?.success ?? null;
-    const error = flash?.error ?? null;
+    const { organization, brands, lifecycleSettings, lifecycleDefaults } = usePage<PageProps>().props;
     const [modalBrand, setModalBrand] = useState<BrandFormValues | null | undefined>(undefined);
     const [newStoreBrand, setNewStoreBrand] = useState<{ id: number; name: string } | null>(null);
 
-    const { data, setData, put, processing } = useForm({ name: organization.name });
+    const { data, setData, put, processing, errors } = useForm({ name: organization.name });
 
     const submitOrganization: FormEventHandler = (e) => {
         e.preventDefault();
@@ -62,115 +52,119 @@ function OrganisationIndex() {
     }
 
     return (
-        <>
-            <Head title="Organisation" />
-
-            <PageBreadcrumb pageTitle="Organisation" />
-
-            <div className="space-y-4">
-                {success && <Alert variant="success" title="Succès" message={success} />}
-                {error && <Alert variant="error" title="Erreur" message={error} />}
-
-                <ComponentCard title="Entreprise">
-                    <form onSubmit={submitOrganization} className="flex flex-wrap items-end gap-3">
-                        <div className="min-w-64">
-                            <label htmlFor="org_name" className="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-300">
-                                Nom de l'organisation
-                            </label>
-                            <input
-                                id="org_name"
-                                type="text"
-                                value={data.name}
-                                onChange={(e) => setData('name', e.target.value)}
-                                className={fieldClasses()}
-                            />
-                        </div>
-                        <Button disabled={processing}>{processing ? 'Enregistrement...' : 'Enregistrer'}</Button>
-                    </form>
-                </ComponentCard>
-
-                <div className="flex justify-end">
-                    <Button type="button" onClick={() => setModalBrand(null)}>
+        <Page
+            title="Organisation"
+            subtitle="Nom du Groupe, marques et boutiques, règles du parcours client"
+            actions={
+                <>
+                    <Link href="/stores" className="mdash-btn ghost">
+                        Connexions WhatsApp
+                    </Link>
+                    <button type="button" className="mdash-btn brand" onClick={() => setModalBrand(null)}>
+                        <PlusIcon />
                         Nouvelle marque
-                    </Button>
-                </div>
+                    </button>
+                </>
+            }
+        >
+            <StatStrip
+                items={[
+                    { label: 'Marques', value: brands.length },
+                    { label: 'Boutiques', value: brands.reduce((n, b) => n + b.stores_count, 0) },
+                ]}
+            />
 
-                <div className="space-y-4">
-                    {brands.length === 0 && (
-                        <ComponentCard title="Marques">
-                            <p className="text-sm text-gray-500 dark:text-gray-400">
-                                Aucune marque. Créez-en une pour commencer à organiser vos boutiques.
-                            </p>
-                        </ComponentCard>
+            <div className="mdash-grid">
+                <Panel title="Entreprise" className="c4">
+                    <form onSubmit={submitOrganization} className="mpage-form">
+                        <div className="mpage-field">
+                            <label htmlFor="org_name">Nom de l'organisation</label>
+                            <input id="org_name" type="text" value={data.name} onChange={(e) => setData('name', e.target.value)} />
+                            {errors.name && <span className="err">{errors.name}</span>}
+                        </div>
+                        <div className="mpage-form-actions">
+                            <button type="submit" className="mdash-btn brand" disabled={processing || !data.name.trim()}>
+                                {processing ? 'Enregistrement…' : 'Enregistrer'}
+                            </button>
+                        </div>
+                    </form>
+                </Panel>
+
+                <Panel title="Marques et boutiques" sub="La connexion WhatsApp de chaque boutique se règle dans Marques & boutiques" className="c8">
+                    {brands.length === 0 ? (
+                        <Empty title="Aucune marque">Créez une marque, puis ajoutez-lui des boutiques.</Empty>
+                    ) : (
+                        <div className="mdash-tbl mpage-table">
+                            <table>
+                                <thead>
+                                    <tr>
+                                        <th>Marque</th>
+                                        <th>Boutiques</th>
+                                        <th className="r">Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {brands.map((brand) => (
+                                        <tr key={brand.id}>
+                                            <td className="cell-main">
+                                                <b>{brand.name}</b>
+                                                <span>
+                                                    {brand.stores_count} boutique{brand.stores_count > 1 ? 's' : ''}
+                                                </span>
+                                            </td>
+                                            <td className="wrap">
+                                                {brand.stores.length === 0 ? (
+                                                    <span className="mpage-muted">Aucune boutique</span>
+                                                ) : (
+                                                    <span className="mpage-chips">
+                                                        {brand.stores.map((store) => (
+                                                            <span key={store.id} className="mpage-chip">
+                                                                {store.name}{' '}
+                                                                <button
+                                                                    type="button"
+                                                                    className="morg-x"
+                                                                    title={`Supprimer ${store.name}`}
+                                                                    aria-label={`Supprimer la boutique ${store.name}`}
+                                                                    onClick={() => destroyStore(store)}
+                                                                >
+                                                                    ×
+                                                                </button>
+                                                            </span>
+                                                        ))}
+                                                    </span>
+                                                )}
+                                            </td>
+                                            <td className="r">
+                                                <span className="mpage-rowlinks">
+                                                    <button type="button" onClick={() => setNewStoreBrand({ id: brand.id, name: brand.name })}>
+                                                        + Boutique
+                                                    </button>
+                                                    <button type="button" onClick={() => setModalBrand({ id: brand.id, name: brand.name })}>
+                                                        Renommer
+                                                    </button>
+                                                    {brand.stores_count === 0 && (
+                                                        <button type="button" className="danger" onClick={() => destroyBrand(brand)}>
+                                                            Supprimer
+                                                        </button>
+                                                    )}
+                                                </span>
+                                            </td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        </div>
                     )}
+                </Panel>
 
-                    {brands.map((brand) => (
-                        <ComponentCard
-                            key={brand.id}
-                            title={brand.name}
-                            desc={`${brand.stores_count} boutique${brand.stores_count > 1 ? 's' : ''}`}
-                        >
-                            <div className="mb-4 flex flex-wrap gap-3">
-                                <button
-                                    type="button"
-                                    onClick={() => setModalBrand({ id: brand.id, name: brand.name })}
-                                    className="text-sm font-medium text-brand-500 hover:text-brand-600"
-                                >
-                                    Renommer
-                                </button>
-                                <button
-                                    type="button"
-                                    onClick={() => destroyBrand(brand)}
-                                    className="text-sm font-medium text-error-500 hover:text-error-600"
-                                >
-                                    Supprimer
-                                </button>
-                                <button
-                                    type="button"
-                                    onClick={() => setNewStoreBrand({ id: brand.id, name: brand.name })}
-                                    className="ml-auto text-sm font-medium text-brand-500 hover:text-brand-600"
-                                >
-                                    + Ajouter une boutique
-                                </button>
-                            </div>
-
-                            <ul className="divide-y divide-gray-100 dark:divide-gray-800">
-                                {brand.stores.length === 0 && (
-                                    <li className="py-3 text-sm text-gray-400 dark:text-gray-500">Aucune boutique pour l'instant.</li>
-                                )}
-                                {brand.stores.map((store) => (
-                                    <li key={store.id} className="flex items-center justify-between py-2.5">
-                                        <span className="text-sm text-gray-700 dark:text-gray-300">{store.name}</span>
-                                        <div className="flex items-center gap-3">
-                                            <Link href="/stores" className="text-xs font-medium text-brand-500 hover:text-brand-600">
-                                                Config. WhatsApp →
-                                            </Link>
-                                            <button
-                                                type="button"
-                                                onClick={() => destroyStore(store)}
-                                                className="text-xs font-medium text-error-500 hover:text-error-600"
-                                            >
-                                                Supprimer
-                                            </button>
-                                        </div>
-                                    </li>
-                                ))}
-                            </ul>
-                        </ComponentCard>
-                    ))}
+                <div className="c12">
+                    <LifecycleSettingsCard settings={lifecycleSettings} defaults={lifecycleDefaults} />
                 </div>
             </div>
 
             {modalBrand !== undefined && <BrandFormModal isOpen={true} onClose={() => setModalBrand(undefined)} brand={modalBrand} />}
-            {newStoreBrand && (
-                <StoreFormModal
-                    isOpen={true}
-                    onClose={() => setNewStoreBrand(null)}
-                    brandId={newStoreBrand.id}
-                    brandName={newStoreBrand.name}
-                />
-            )}
-        </>
+            {newStoreBrand && <StoreFormModal isOpen={true} onClose={() => setNewStoreBrand(null)} brandId={newStoreBrand.id} brandName={newStoreBrand.name} />}
+        </Page>
     );
 }
 

@@ -9,6 +9,8 @@ use App\Services\WhatsAppClient;
 use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Cache;
+use Illuminate\Validation\Rule;
 use Inertia\Inertia;
 use Inertia\Response;
 use Symfony\Component\HttpKernel\Exception\HttpException;
@@ -27,14 +29,28 @@ class StoreController extends Controller
             $query->whereIn('id', $visibleIds);
         }
 
+        $canManage = $user->canManageOrganization();
+
         return Inertia::render('Stores/Index', [
-            'stores' => $query->orderBy('name')->get()->map(fn (Store $store) => [
+            'stores' => $query->withCount('contacts')->orderBy('name')->get()->map(fn (Store $store) => [
                 'id' => $store->id,
                 'name' => $store->name,
-                'brand_name' => $store->brand->name,
+                'brand_id' => $store->brand_id,
+                'brand_name' => $store->brand?->name,
+                'contacts_count' => $store->contacts_count,
                 'whatsapp_phone_number_id' => $store->whatsapp_phone_number_id,
-                'has_token' => $store->whatsapp_access_token !== null,
+                'has_token' => filled($store->whatsapp_access_token),
+                // own : identifiants propres à la boutique ; shared : repli sur le
+                // compte Meta partagé (.env) ; none : aucun envoi possible.
+                'connection' => ! $store->canSendWhatsApp() ? 'none' : ($store->usesSharedWhatsAppAccount() ? 'shared' : 'own'),
             ]),
+            // Marques proposées dans la fenêtre de modification / création
+            // (seuls les rôles qui gèrent l'organisation peuvent changer la marque).
+            'brands' => $canManage
+                ? Brand::where('organization_id', $user->organization_id)->orderBy('name')->get(['id', 'name'])
+                : [],
+            'canManage' => $canManage,
+            'sharedAccountConfigured' => filled(config('services.meta_whatsapp.token')) && filled(config('services.meta_whatsapp.phone_number_id')),
         ]);
     }
 
@@ -64,22 +80,47 @@ class StoreController extends Controller
         return back()->with('success', "Boutique « {$data['name']} » créée sous « {$brand->name} ».");
     }
 
+    /**
+     * Modification d'une boutique :
+     * - nom et marque : réservés aux rôles qui gèrent l'organisation (ignorés
+     *   sinon, comme la création et la suppression) ;
+     * - connexion WhatsApp : tout utilisateur dont le périmètre inclut la
+     *   boutique. `use_shared_account` efface les identifiants propres pour
+     *   revenir au compte Meta partagé de l'organisation.
+     */
     public function update(Request $request, Store $store): RedirectResponse
     {
         $this->authorizeVisible($request, $store);
 
+        $canManage = $request->user()->canManageOrganization();
+
         $data = $request->validate([
+            'name' => ['sometimes', 'required', 'string', 'max:255'],
+            'brand_id' => [
+                'sometimes', 'required', 'integer',
+                Rule::exists('brands', 'id')->where('organization_id', $store->organization_id),
+            ],
+            'use_shared_account' => ['sometimes', 'boolean'],
             'whatsapp_phone_number_id' => ['nullable', 'string', 'max:255'],
             'whatsapp_access_token' => ['nullable', 'string'],
         ]);
 
-        $store->whatsapp_phone_number_id = $data['whatsapp_phone_number_id'] ?? null;
+        if ($canManage) {
+            $store->fill(array_intersect_key($data, array_flip(['name', 'brand_id'])));
+        }
 
-        // On ne touche au token que si un nouveau a été saisi : le champ arrive
-        // toujours vide depuis le frontend (le token existant n'est jamais renvoyé
-        // au navigateur), donc une valeur vide ne doit pas effacer le token en place.
-        if (! empty($data['whatsapp_access_token'])) {
-            $store->whatsapp_access_token = $data['whatsapp_access_token'];
+        if ($request->boolean('use_shared_account')) {
+            $store->whatsapp_phone_number_id = null;
+            $store->whatsapp_access_token = null;
+        } else {
+            $store->whatsapp_phone_number_id = $data['whatsapp_phone_number_id'] ?? null;
+
+            // On ne touche au token que si un nouveau a été saisi : le champ arrive
+            // toujours vide depuis le frontend (le token existant n'est jamais renvoyé
+            // au navigateur), donc une valeur vide ne doit pas effacer le token en place.
+            if (! empty($data['whatsapp_access_token'])) {
+                $store->whatsapp_access_token = $data['whatsapp_access_token'];
+            }
         }
 
         $store->save();
@@ -105,7 +146,11 @@ class StoreController extends Controller
     {
         $this->authorizeVisible($request, $store);
 
-        $client = new WhatsAppClient($store->whatsapp_access_token, $store->whatsapp_phone_number_id);
+        if (! $store->canSendWhatsApp()) {
+            return back()->with('error', "{$store->name} : aucun identifiant WhatsApp, ni propre à la boutique ni compte partagé (.env).");
+        }
+
+        $client = $store->whatsappClient();
 
         try {
             $info = $client->verifyConnection();
@@ -117,6 +162,66 @@ class StoreController extends Controller
         $phoneNumber = $info['display_phone_number'] ?? '?';
 
         return back()->with('success', "{$store->name} connectée : {$verifiedName} ({$phoneNumber}).");
+    }
+
+    /**
+     * Page « QR code » d'une boutique : lien WhatsApp avec le message
+     * « OUI <boutique> » pré-rempli et affiche A5 à imprimer pour recueillir
+     * l'accord des clients en caisse. Le message nomme la boutique : avec le
+     * compte partagé, toutes les boutiques ont le même numéro.
+     */
+    public function qr(Request $request, Store $store): Response
+    {
+        $this->authorizeVisible($request, $store);
+
+        $store->loadMissing('brand');
+
+        return Inertia::render('Stores/Qr', [
+            'store' => [
+                'id' => $store->id,
+                'name' => $store->name,
+                'brand_name' => $store->brand?->name,
+                'shared_account' => $store->usesSharedWhatsAppAccount(),
+            ],
+            'whatsappNumber' => $this->whatsappNumber($store),
+            'message' => "OUI {$store->name}",
+            'simulated' => WhatsAppClient::simulated(),
+        ]);
+    }
+
+    /**
+     * Numéro WhatsApp affiché de la boutique (chiffres seuls, ex. 24177000000),
+     * lu chez Meta et mis en cache un jour. Null en simulation, sans
+     * identifiants ou si Meta ne répond pas : la page le fait alors saisir.
+     */
+    private function whatsappNumber(Store $store): ?string
+    {
+        if (WhatsAppClient::simulated() || ! $store->canSendWhatsApp()) {
+            return null;
+        }
+
+        $phoneNumberId = $store->whatsapp_phone_number_id ?: config('services.meta_whatsapp.phone_number_id');
+        $key = "whatsapp-display-number:{$phoneNumberId}";
+
+        if ($number = Cache::get($key)) {
+            return $number;
+        }
+
+        try {
+            $display = $store->whatsappClient()->verifyConnection()['display_phone_number'] ?? '';
+        } catch (WhatsAppApiException|ConnectionException) {
+            return null;
+        }
+
+        $number = preg_replace('/\D/', '', (string) $display);
+
+        if (strlen($number) < 8) {
+            return null;
+        }
+
+        Cache::put($key, $number, now()->addDay());
+
+        return $number;
     }
 
     private function authorizeSameOrganization(Request $request, Store $store): void

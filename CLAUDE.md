@@ -48,16 +48,20 @@ composer dev              # serveur + queue worker + logs (pail) + Vite, en para
 php artisan test          # suite Pest/PHPUnit
 vendor/bin/pint           # formatage du code PHP
 php artisan whatsapp:test-send {numero}   # vérifie la connexion API WhatsApp et envoie un template de test
+php artisan crm:refresh-lifecycle         # recalcule toutes les fiches clients (compteurs + étape du parcours)
 ```
+
+**Développer sans compte Meta** : `WHATSAPP_DRIVER=log` dans `.env` active la simulation de `WhatsAppClient` (aucun appel externe, envois écrits dans les logs, numéros finissant par `000` = échec simulé). Ignoré en production ; les tests forcent `cloud` (`phpunit.xml`).
 
 ## MVP en cours
 
-Périmètre strict de la semaine (cahier des charges §7) :
+Périmètre (cahier des charges §7, élargi au parcours client le 30/09/2026) :
 1. Connexion à l'API WhatsApp par boutique (formulaire admin, test de connexion).
 2. Import de contacts par boutique (CSV/Excel, mapping, normalisation E.164, détection de doublons).
 3. Envoi de campagne à une liste de contacts importés (template Meta approuvé, envoi par lot en file d'attente).
+4. **Fiche client unique et parcours client** : une fiche par personne pour tout le Groupe, étape calculée automatiquement (Contact → Prospect → Nouveau client → Client actif → À risque → Inactif) et **statut VIP par boutique** (top X % des acheteurs de chaque boutique : un client peut être VIP chez Mango et pas chez Adidas), seuils modifiables par organisation, historique des changements d'étape, ciblage des campagnes par étape, entonnoir dans le tableau de bord.
 
-**Explicitement hors scope pour l'instant** : chatbot, calcul RFM automatique et segmentation dynamique, automatisations/workflows, analytics avancés, store/e-commerce, Embedded Signup Meta. Ne pas anticiper ces fonctionnalités dans le code tant qu'elles ne sont pas explicitement demandées.
+**Explicitement hors scope pour l'instant** : chatbot, score RFM complet, automatisations/workflows (relances automatiques, anniversaires), CA attribué aux campagnes, étape du parcours par marque, store/e-commerce, Embedded Signup Meta, webhook Meta (statuts délivré/lu, réponses et opt-in automatique). Ne pas anticiper ces fonctionnalités dans le code tant qu'elles ne sont pas explicitement demandées.
 
 ## Décisions d'architecture à respecter
 
@@ -66,10 +70,14 @@ Périmètre strict de la semaine (cahier des charges §7) :
 - **Le module WhatsApp est un service applicatif, pas un script.** Toute la logique d'appel à l'API Graph passe par `App\Services\WhatsAppClient` (basé sur `Illuminate\Support\Facades\Http`, donc Guzzle) et son exception dédiée `App\Services\WhatsAppApiException`. Les scripts de `whatsapp_service/` sont des prototypes de référence, pas du code destiné à s'exécuter en production.
 - **Envoi de messages toujours asynchrone.** Tout envoi de campagne doit passer par un Job Laravel en file d'attente (jamais un appel direct dans le contrôleur HTTP), pour ne jamais bloquer une requête sur un appel réseau externe.
 - **Consentement WhatsApp obligatoire avant toute campagne marketing.** Un contact sans statut `opt-in` documenté ne doit jamais recevoir de template de catégorie Marketing.
+- **Fiche client unique (`customers`) + contacts par boutique.** Une personne = une fiche par organisation et numéro E.164 ; chaque `contact` reste sa relation avec une boutique (consentement propre au numéro WhatsApp de la boutique, statut VIP de la boutique `is_vip`, bienvenue, groupes) et porte `customer_id`. Le rattachement, les compteurs d'achats et l'étape sont gérés uniquement par `App\Services\CustomerLifecycle` (déclenché par les événements des modèles `Contact` et `Purchase`, regroupé en fin d'import avec `CustomerLifecycle::batch()`). Le nom du contact le plus récent l'emporte sauf identité confirmée à la main ; un changement de numéro conserve l'ancien dans `previous_phones`. L'étape n'est jamais saisie à la main.
+- **Tâche planifiée.** `crm:refresh-lifecycle` tourne chaque nuit (`routes/console.php`) car les passages « À risque » / « Inactif » dépendent du temps : le serveur doit exécuter `php artisan schedule:run` chaque minute (cron cPanel).
 
 ## Déploiement
 
 Déploiement via SSH/cPanel (`.github/workflows/deploy.yml`), sur le même serveur qu'un projet précédent — le workflow est réutilisé et adapté pour ce projet. Le secret GitHub `DEPLOY_PATH` doit pointer vers le répertoire dédié à **mercure_crm** sur ce serveur ; vérifier/mettre à jour ce secret (ainsi que `SSH_HOST`, `SSH_USER`, `SSH_PRIVATE_KEY`, `SSH_PASSPHRASE`, `SSH_PORT`) dans les paramètres du dépôt GitHub avant le premier déploiement.
+
+Tâche cron à créer une fois dans cPanel (sinon les étapes du parcours client ne vieillissent pas) : `* * * * * cd <DEPLOY_PATH> && php artisan schedule:run >> /dev/null 2>&1`. Le déploiement lance aussi `crm:refresh-lifecycle` après la migration.
 
 Règle absolue, quel que soit le projet : ne jamais utiliser `migrate:fresh` ou `migrate:refresh` en déploiement — uniquement `migrate --force`, pour ne jamais perdre de données clients, de conversations ou de campagnes en production.
 

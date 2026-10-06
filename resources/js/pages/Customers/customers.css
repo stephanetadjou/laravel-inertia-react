@@ -1,0 +1,593 @@
+/* Fiches clients (liste + fiche) : complète dashboard.css (.mdash), suit le thème clair/sombre. */
+.mcust .mcust-top {
+    position: relative;
+    top: 0;
+}
+/* Titre + actions sur une ligne, filtres sur toute la largeur en dessous. */
+.mcust .mdash-top-in {
+    flex-direction: column;
+    align-items: stretch;
+}
+.mcust-title {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: wrap;
+}
+.mdash .mdash-btn.brand {
+    background: var(--brand);
+    color: var(--surface);
+}
+.mcust-actions {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    align-items: center;
+}
+.mdash .mcust-search {
+    font: inherit;
+    font-size: 13px;
+    background: var(--surface);
+    color: var(--ink);
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    padding: 8px 10px;
+    width: 240px;
+}
+.mdash .mcust-actions select {
+    min-width: 150px;
+}
+
+/* Entonnoir : une carte par étape, cliquable pour filtrer. */
+.mcust-funnel {
+    display: grid;
+    grid-template-columns: repeat(8, minmax(0, 1fr));
+    gap: 8px;
+    margin-top: 18px;
+}
+@media (max-width: 1100px) {
+    .mcust-funnel {
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+    }
+}
+@media (max-width: 560px) {
+    .mcust-funnel {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+}
+.mcust-step {
+    font: inherit;
+    text-align: left;
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    padding: 10px 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    cursor: pointer;
+    color: var(--ink);
+    min-width: 0;
+}
+.mcust-step:hover {
+    border-color: var(--brand-2);
+}
+.mcust-step[aria-pressed='true'] {
+    border-color: var(--brand);
+    box-shadow: 0 0 0 1px var(--brand);
+}
+.mcust-step span {
+    font-size: 12px;
+    color: var(--muted);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.mcust-step b {
+    font-size: 22px;
+    letter-spacing: -0.02em;
+}
+.mcust-step i {
+    display: block;
+    width: 22px;
+    height: 4px;
+    border-radius: 2px;
+}
+
+.mcust-table table {
+    min-width: 820px;
+}
+.mcust-table tbody tr:hover td {
+    background: var(--surface-2);
+}
+.mcust-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+    white-space: normal;
+}
+.mcust-chip {
+    font-size: 11.5px;
+    padding: 1px 7px;
+    border-radius: 6px;
+    background: var(--surface-2);
+    color: var(--ink);
+    white-space: nowrap;
+}
+.mcust-chip.vip {
+    background: var(--accent-soft);
+    color: var(--accent);
+    font-weight: 600;
+}
+.mcust-amount {
+    font-family: var(--mono);
+    font-variant-numeric: tabular-nums;
+    font-weight: 600;
+    text-align: right;
+    white-space: nowrap;
+}
+.mcust-pager {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+    margin-top: 12px;
+    font-size: 12.5px;
+    color: var(--muted);
+}
+.mcust-pager .btns {
+    display: flex;
+    gap: 6px;
+    align-items: center;
+}
+.mcust-empty {
+    padding: 40px 16px;
+    text-align: center;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    color: var(--muted);
+}
+.mcust-empty b {
+    color: var(--ink);
+    font-size: 15px;
+}
+
+/* Fiche client */
+.mcust-back {
+    display: inline-block;
+    margin-top: 16px;
+    font-size: 13px;
+    color: var(--muted);
+    text-decoration: none;
+}
+.mcust-back:hover {
+    color: var(--ink);
+}
+.mcust-head {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    flex-wrap: wrap;
+}
+.mcust-avatar {
+    width: 56px;
+    height: 56px;
+    border-radius: 50%;
+    background: var(--brand-soft);
+    color: var(--brand);
+    display: grid;
+    place-items: center;
+    font-weight: 700;
+    font-size: 20px;
+    flex: none;
+}
+.mcust-head h1 {
+    font-size: 22px;
+    font-weight: 700;
+    margin: 0;
+    letter-spacing: -0.01em;
+}
+.mcust-head .meta {
+    display: flex;
+    gap: 8px 14px;
+    flex-wrap: wrap;
+    align-items: center;
+    font-size: 12.5px;
+    color: var(--muted);
+    margin-top: 4px;
+}
+.mcust-head .grow {
+    flex: 1;
+    min-width: 220px;
+}
+.mcust-note {
+    margin-top: 14px;
+    padding: 10px 12px;
+    border-radius: 10px;
+    background: var(--brand-soft);
+    font-size: 12.5px;
+}
+.mcust-timeline {
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+    list-style: none;
+    margin: 0;
+    padding: 0;
+}
+.mcust-timeline li {
+    display: grid;
+    grid-template-columns: 14px 1fr auto;
+    gap: 10px;
+    align-items: start;
+    padding: 8px 0;
+    border-bottom: 1px solid var(--line);
+    font-size: 13px;
+}
+.mcust-timeline li:last-child {
+    border-bottom: 0;
+}
+.mcust-timeline .dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    margin-top: 4px;
+    background: var(--brand-2);
+}
+.mcust-timeline .dot.bad {
+    background: var(--bad);
+}
+.mcust-timeline .when {
+    font-family: var(--mono);
+    font-size: 11.5px;
+    color: var(--muted);
+    white-space: nowrap;
+}
+.mcust-timeline .sub {
+    display: block;
+    font-size: 11.5px;
+    color: var(--muted);
+}
+
+/* Filtre de consentement */
+.mcust-consent {
+    display: flex;
+    align-items: center;
+    gap: 10px 14px;
+    flex-wrap: wrap;
+    margin-top: 14px;
+}
+.mcust-consent-label {
+    font-size: 11px;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--muted);
+    font-weight: 600;
+}
+.mcust-consent .mdash-seg button {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+}
+.mcust-count {
+    font-family: var(--mono);
+    font-size: 11px;
+    opacity: 0.8;
+}
+.mcust-consent-hint {
+    font-size: 12px;
+    color: var(--muted);
+}
+.mcust-dot {
+    display: inline-block;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--faint);
+    flex: none;
+    margin-right: 4px;
+    vertical-align: 0;
+}
+.mcust-dot.opt_in {
+    background: var(--ok);
+}
+.mcust-dot.opt_out {
+    background: var(--bad);
+}
+.mcust-legend {
+    display: inline-flex;
+    flex-wrap: wrap;
+    gap: 6px 12px;
+    align-items: center;
+}
+
+/* Sélection */
+.mcust-check {
+    width: 34px;
+}
+.mdash .mcust-check input {
+    width: 16px;
+    height: 16px;
+    accent-color: var(--brand-2);
+    cursor: pointer;
+}
+.mcust-table tbody tr.selected td {
+    background: var(--brand-soft);
+}
+.mcust-select-all {
+    margin: 0 0 10px;
+    padding: 8px 12px;
+    border-radius: 10px;
+    background: var(--brand-soft);
+    font-size: 13px;
+    text-align: center;
+}
+.mcust-select-all button {
+    font: inherit;
+    font-weight: 600;
+    color: var(--brand);
+    background: none;
+    border: 0;
+    cursor: pointer;
+    text-decoration: underline;
+}
+.mcust-selbar {
+    position: sticky;
+    bottom: 16px;
+    z-index: 30;
+    margin: 16px auto 0;
+    width: fit-content;
+    max-width: 100%;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: wrap;
+    padding: 10px 12px 10px 18px;
+    border-radius: 14px;
+    background: var(--surface);
+    border: 1px solid var(--line);
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.18);
+    font-size: 13.5px;
+}
+
+/* Actions de ligne : Consulter (fiche 360°) / Modifier */
+.mcust-row-actions {
+    display: inline-flex;
+    gap: 6px;
+    justify-content: flex-end;
+}
+.mdash .mdash-btn.sm {
+    padding: 5px 10px;
+    font-size: 12.5px;
+}
+.mcust-table table {
+    min-width: 960px;
+}
+
+/* Fiche client (fusion de l'ancienne fiche contact) : grille deux colonnes. */
+.mdash .c6 {
+    grid-column: span 6;
+}
+@media (max-width: 1100px) {
+    .mdash .c6 {
+        grid-column: span 12;
+    }
+}
+
+/* Profil RFM : segment + action, puis trois indicateurs avec jauge 1-5. */
+.mcust-rfm-code {
+    color: var(--ink);
+    font-family: var(--mono);
+}
+.mcust-rfm-action {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+    margin: 0 0 14px;
+    font-size: 13.5px;
+}
+.mcust-rfm {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 12px;
+}
+@media (max-width: 700px) {
+    .mcust-rfm {
+        grid-template-columns: minmax(0, 1fr);
+    }
+}
+.mcust-rfm-metric {
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    padding: 12px 14px;
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    min-width: 0;
+}
+.mcust-rfm-metric .k-label {
+    font-size: 12px;
+    color: var(--muted);
+    font-weight: 500;
+}
+.mcust-rfm-metric .k-val {
+    font-size: 22px;
+    font-weight: 700;
+    letter-spacing: -0.02em;
+    line-height: 1.15;
+}
+.mcust-rfm-metric .k-val small {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--muted);
+    margin-left: 3px;
+}
+.mcust-rfm-metric .k-foot {
+    font-size: 12px;
+    color: var(--muted);
+}
+.mcust-gauge {
+    display: inline-flex;
+    align-items: center;
+    gap: 3px;
+    margin-top: 8px;
+}
+.mcust-gauge b {
+    font-family: var(--mono);
+    font-size: 12px;
+    width: 24px;
+}
+.mcust-gauge i {
+    width: 16px;
+    height: 7px;
+    border-radius: 2px;
+    background: var(--surface-2);
+}
+.mcust-gauge i.on.s1 {
+    background: var(--bad);
+}
+.mcust-gauge i.on.s2 {
+    background: var(--warn);
+}
+.mcust-gauge i.on.s3 {
+    background: var(--idle);
+}
+.mcust-gauge i.on.s4,
+.mcust-gauge i.on.s5 {
+    background: var(--ok);
+}
+.mcust-gauge i.on.s4 {
+    opacity: 0.75;
+}
+
+/* Coordonnées : libellé à gauche, valeur à droite ; champs vides masqués. */
+.mcust-fields {
+    margin: 0;
+}
+.mcust-field {
+    display: grid;
+    grid-template-columns: 130px minmax(0, 1fr);
+    gap: 12px;
+    padding: 8px 0;
+    border-bottom: 1px solid var(--line);
+    font-size: 13px;
+}
+.mcust-field:last-child {
+    border-bottom: 0;
+}
+.mcust-field dt {
+    color: var(--muted);
+}
+.mcust-field dd {
+    margin: 0;
+    min-width: 0;
+    overflow-wrap: anywhere;
+}
+.mcust-field .sub,
+.mcust-stores .sub {
+    display: block;
+    font-size: 11.5px;
+    color: var(--muted);
+}
+
+/* Boutiques : consentement + actions du contact de chaque boutique. */
+.mcust-stores {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+}
+.mcust-stores li {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+    padding: 9px 0;
+    border-bottom: 1px solid var(--line);
+    font-size: 13px;
+}
+.mcust-stores li:last-child {
+    border-bottom: 0;
+}
+.mcust-stores .grow {
+    flex: 1;
+    min-width: 160px;
+}
+.mcust-row-links {
+    display: inline-flex;
+    gap: 10px;
+}
+.mcust-row-links button {
+    font: inherit;
+    font-size: 12.5px;
+    font-weight: 600;
+    background: none;
+    border: 0;
+    padding: 0;
+    color: var(--brand);
+    cursor: pointer;
+}
+.mcust-row-links button.danger {
+    color: var(--bad);
+}
+.mcust-row-links button:disabled {
+    opacity: 0.5;
+    cursor: wait;
+}
+.mcust-welcome {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    align-items: center;
+    margin-top: 12px;
+    padding-top: 12px;
+    border-top: 1px solid var(--line);
+}
+.mcust-welcome a {
+    color: var(--brand);
+}
+
+/* Barre de sélection : ajout / retrait d'un groupe. */
+.mcust-groupact {
+    display: inline-flex;
+    gap: 6px;
+    align-items: center;
+}
+.mdash .mcust-groupact select {
+    min-width: 170px;
+    padding: 5px 8px;
+}
+
+/* Fiche client : groupes modifiables sur place. */
+.mcust-chip a {
+    color: inherit;
+    text-decoration: none;
+}
+.mcust-chip a:hover {
+    text-decoration: underline;
+}
+.mcust-chip-x {
+    font: inherit;
+    line-height: 1;
+    background: none;
+    border: 0;
+    padding: 0 0 0 4px;
+    color: var(--faint);
+    cursor: pointer;
+}
+.mcust-chip-x:hover {
+    color: var(--bad);
+}
+.mdash select.mcust-chip-add {
+    min-width: 0;
+    font-size: 11.5px;
+    padding: 1px 6px;
+    border-radius: 6px;
+    border-style: dashed;
+    color: var(--brand);
+    background: transparent;
+    cursor: pointer;
+}

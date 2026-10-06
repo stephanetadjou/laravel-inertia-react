@@ -21,7 +21,8 @@ class ContactFactory extends Factory
         return [
             'store_id' => Store::factory(),
             'name' => fake()->name(),
-            'phone_e164' => '241'.fake()->numerify('########'),
+            // Mobile gabonais valide (cf. PhoneNormalizer) : 241 + 6/7 + 7 chiffres.
+            'phone_e164' => '241'.fake()->randomElement(['6', '7']).fake()->numerify('#######'),
             'consent_status' => fake()->randomElement(['unknown', 'opt_in', 'opt_out']),
         ];
     }

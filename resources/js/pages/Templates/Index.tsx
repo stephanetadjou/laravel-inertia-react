@@ -1,14 +1,10 @@
-import { Head, router, useForm, usePage } from '@inertiajs/react';
-import { FormEventHandler, useState } from 'react';
+import { router, useForm, usePage } from '@inertiajs/react';
+import { FormEventHandler, useMemo, useState } from 'react';
 
 import AppLayout from '../../layout/AppLayout';
-import PageBreadcrumb from '../../components/common/PageBreadCrumb';
-import ComponentCard from '../../components/common/ComponentCard';
-import Alert from '../../components/ui/alert/Alert';
-import Badge from '../../components/ui/badge/Badge';
+import { Empty, Page, Panel, PlusIcon, SearchFilter, Seg, SelectFilter, StatStrip, formatDay } from '../../components/page/Page';
 import Button from '../../components/ui/button/Button';
 import { Modal } from '../../components/ui/modal';
-import { Table, TableBody, TableCell, TableHeader, TableRow } from '../../components/ui/table';
 
 interface TemplateRow {
     id: number;
@@ -17,6 +13,8 @@ interface TemplateRow {
     category: string;
     description: string | null;
     is_active: boolean;
+    campaigns_count: number;
+    last_used_at: string | null;
 }
 
 interface PageProps {
@@ -28,12 +26,6 @@ interface PageProps {
     [key: string]: unknown;
 }
 
-const categoryColor: Record<string, 'info' | 'warning' | 'light' | 'success'> = {
-    utility: 'info',
-    marketing: 'warning',
-    authentication: 'light',
-    service: 'success',
-};
 
 function fieldClasses() {
     return 'w-full rounded-lg border border-gray-300 px-3 py-2.5 text-sm text-gray-800 focus:border-brand-300 focus:outline-hidden dark:border-gray-700 dark:bg-white/[0.03] dark:text-white/90';
@@ -70,16 +62,16 @@ function TemplateFormModal({ isOpen, onClose, template }: { isOpen: boolean; onC
     return (
         <Modal isOpen={isOpen} onClose={onClose} className="max-w-lg p-6">
             <h3 className="mb-1 text-lg font-semibold text-gray-800 dark:text-white/90">
-                {isEditing ? 'Modifier le template' : 'Nouveau template'}
+                {isEditing ? 'Modifier le modèle' : 'Nouveau modèle'}
             </h3>
             <p className="mb-6 text-sm text-gray-500 dark:text-gray-400">
-                Le nom et la langue doivent correspondre exactement à un template déjà approuvé dans Meta Business Manager.
+                Le nom et la langue doivent correspondre exactement à un modèle déjà approuvé dans Meta Business Manager.
             </p>
 
             <form onSubmit={submit} className="space-y-5">
                 <div>
                     <label htmlFor="name" className="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-300">
-                        Nom du template (exact, tel qu'approuvé sur Meta)
+                        Nom du modèle (exact, tel qu'approuvé sur Meta)
                     </label>
                     <input
                         id="name"
@@ -113,9 +105,9 @@ function TemplateFormModal({ isOpen, onClose, template }: { isOpen: boolean; onC
                             Catégorie Meta
                         </label>
                         <select id="category" value={data.category} onChange={(e) => setData('category', e.target.value)} className={fieldClasses()}>
-                            <option value="utility">Utility</option>
+                            <option value="utility">Utilitaire</option>
                             <option value="marketing">Marketing</option>
-                            <option value="authentication">Authentication</option>
+                            <option value="authentication">Authentification</option>
                             <option value="service">Service</option>
                         </select>
                     </div>
@@ -130,7 +122,7 @@ function TemplateFormModal({ isOpen, onClose, template }: { isOpen: boolean; onC
                         value={data.description}
                         onChange={(e) => setData('description', e.target.value)}
                         rows={2}
-                        placeholder="Contenu ou usage prévu du template..."
+                        placeholder="Contenu ou usage prévu du modèle..."
                         className={fieldClasses()}
                     />
                 </div>
@@ -144,120 +136,152 @@ function TemplateFormModal({ isOpen, onClose, template }: { isOpen: boolean; onC
                     <Button type="button" variant="outline" onClick={onClose}>
                         Annuler
                     </Button>
-                    <Button disabled={processing}>{processing ? 'Enregistrement...' : isEditing ? 'Mettre à jour' : 'Créer le template'}</Button>
+                    <Button disabled={processing}>{processing ? 'Enregistrement...' : isEditing ? 'Mettre à jour' : 'Créer le modèle'}</Button>
                 </div>
             </form>
         </Modal>
     );
 }
 
-function TemplatesIndex() {
-    const { templates, flash } = usePage<PageProps>().props;
-    const success = flash?.success ?? null;
-    const error = flash?.error ?? null;
+const CATEGORY: Record<string, { label: string; pill: string; hint: string }> = {
+    utility: { label: 'Utilitaire', pill: 'info', hint: 'Bienvenue, confirmations : seul type envoyable à un contact au consentement inconnu' },
+    marketing: { label: 'Marketing', pill: 'accent', hint: 'Promotions : réservé aux contacts opt-in' },
+    authentication: { label: 'Authentification', pill: 'idle', hint: 'Codes de vérification' },
+    service: { label: 'Service', pill: 'ok', hint: 'Réponses au service client' },
+};
 
+function TemplatesIndex() {
+    const { templates } = usePage<PageProps>().props;
     const [modalTemplate, setModalTemplate] = useState<TemplateRow | null | undefined>(undefined);
+    const [search, setSearch] = useState('');
+    const [category, setCategory] = useState<string | null>(null);
+    const [language, setLanguage] = useState<string | null>(null);
+    const [state, setState] = useState<'all' | 'active' | 'inactive'>('all');
+
+    const languages = useMemo(() => Array.from(new Set(templates.map((t) => t.language))).sort(), [templates]);
+    const visible = templates.filter((t) => {
+        const q = search.trim().toLowerCase();
+        return (
+            (!q || t.name.toLowerCase().includes(q) || (t.description ?? '').toLowerCase().includes(q)) &&
+            (!category || t.category === category) &&
+            (!language || t.language === language) &&
+            (state === 'all' || (state === 'active') === t.is_active)
+        );
+    });
+    const filtered = Boolean(search || category || language || state !== 'all');
 
     function destroy(template: TemplateRow) {
-        if (confirm(`Supprimer le template « ${template.name} » ? Les campagnes déjà envoyées ne sont pas affectées.`)) {
+        if (confirm(`Supprimer le modèle « ${template.name} » ? Les campagnes déjà envoyées ne sont pas affectées.`)) {
             router.delete(`/templates/${template.id}`, { preserveScroll: true });
         }
     }
 
     return (
-        <>
-            <Head title="Templates" />
-
-            <PageBreadcrumb pageTitle="Templates" />
-
-            <div className="space-y-4">
-                {success && <Alert variant="success" title="Succès" message={success} />}
-                {error && <Alert variant="error" title="Erreur" message={error} />}
-
-                <div className="flex justify-end">
-                    <Button type="button" onClick={() => setModalTemplate(null)}>
-                        Nouveau template
-                    </Button>
-                </div>
-
-                <ComponentCard
-                    title="Templates WhatsApp"
-                    desc="Registre local des templates déjà approuvés sur Meta Business Manager. Enregistrer un template ici ne le fait pas approuver — il doit déjà l'être côté Meta."
-                >
-                    <div className="overflow-x-auto">
-                        <Table>
-                            <TableHeader className="border-b border-gray-100 dark:border-gray-800">
-                                <TableRow>
-                                    <TableCell isHeader className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase dark:text-gray-400">
-                                        Nom
-                                    </TableCell>
-                                    <TableCell isHeader className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase dark:text-gray-400">
-                                        Langue
-                                    </TableCell>
-                                    <TableCell isHeader className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase dark:text-gray-400">
-                                        Catégorie
-                                    </TableCell>
-                                    <TableCell isHeader className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase dark:text-gray-400">
-                                        Statut
-                                    </TableCell>
-                                    <TableCell isHeader className="px-4 py-3" />
-                                </TableRow>
-                            </TableHeader>
-                            <TableBody className="divide-y divide-gray-100 dark:divide-gray-800">
-                                {templates.length === 0 && (
-                                    <TableRow>
-                                        <TableCell className="px-4 py-6 text-center text-sm text-gray-500 dark:text-gray-400" colSpan={5}>
-                                            Aucun template enregistré. Ajoutez au moins un template approuvé pour pouvoir lancer une campagne.
-                                        </TableCell>
-                                    </TableRow>
-                                )}
-                                {templates.map((template) => (
-                                    <TableRow key={template.id}>
-                                        <TableCell className="px-4 py-3 text-sm font-medium text-gray-800 dark:text-white/90">
-                                            {template.name}
-                                            {template.description && (
-                                                <p className="mt-0.5 text-xs font-normal text-gray-400">{template.description}</p>
-                                            )}
-                                        </TableCell>
-                                        <TableCell className="px-4 py-3 text-sm text-gray-600 dark:text-gray-400">{template.language}</TableCell>
-                                        <TableCell className="px-4 py-3 text-sm">
-                                            <Badge size="sm" color={categoryColor[template.category] ?? 'light'}>
-                                                {template.category}
-                                            </Badge>
-                                        </TableCell>
-                                        <TableCell className="px-4 py-3 text-sm">
-                                            <Badge size="sm" color={template.is_active ? 'success' : 'light'}>
-                                                {template.is_active ? 'actif' : 'inactif'}
-                                            </Badge>
-                                        </TableCell>
-                                        <TableCell className="px-4 py-3 text-right whitespace-nowrap">
-                                            <button
-                                                type="button"
-                                                onClick={() => setModalTemplate(template)}
-                                                className="mr-3 text-sm font-medium text-brand-500 hover:text-brand-600"
-                                            >
-                                                Modifier
-                                            </button>
-                                            <button
-                                                type="button"
-                                                onClick={() => destroy(template)}
-                                                className="text-sm font-medium text-error-500 hover:text-error-600"
-                                            >
-                                                Supprimer
-                                            </button>
-                                        </TableCell>
-                                    </TableRow>
-                                ))}
-                            </TableBody>
-                        </Table>
-                    </div>
-                </ComponentCard>
+        <Page
+            title="Modèles de messages"
+            subtitle="Modèles approuvés dans Meta Business Manager, utilisés pour les campagnes et le message de bienvenue"
+            actions={
+                <button type="button" className="mdash-btn brand" onClick={() => setModalTemplate(null)}>
+                    <PlusIcon />
+                    Nouveau modèle
+                </button>
+            }
+            filters={
+                <>
+                    <SearchFilter value={search} placeholder="Nom ou description" onSearch={setSearch} />
+                    <SelectFilter
+                        label="Catégorie"
+                        value={category}
+                        allLabel="Toutes"
+                        options={Object.entries(CATEGORY).map(([value, c]) => ({ value, label: c.label }))}
+                        onChange={setCategory}
+                    />
+                    {languages.length > 1 && (
+                        <SelectFilter label="Langue" value={language} allLabel="Toutes" options={languages.map((l) => ({ value: l, label: l }))} onChange={setLanguage} />
+                    )}
+                    <Seg
+                        label="État"
+                        value={state}
+                        options={[
+                            { key: 'all', label: 'Tous' },
+                            { key: 'active', label: 'Actifs' },
+                            { key: 'inactive', label: 'Inactifs' },
+                        ]}
+                        onChange={setState}
+                    />
+                </>
+            }
+        >
+            <StatStrip
+                items={[
+                    { label: 'Modèles', value: templates.length },
+                    { label: 'Actifs', value: templates.filter((t) => t.is_active).length, tone: 'ok' },
+                    { label: 'Marketing', value: templates.filter((t) => t.category === 'marketing').length },
+                    { label: 'Utilitaires', value: templates.filter((t) => t.category === 'utility').length, hint: 'pour la bienvenue' },
+                ]}
+            />
+            <div className="mpage-note">
+                Le nom et la langue doivent correspondre <b>exactement</b> au modèle approuvé chez Meta. Les modèles <b>Marketing</b> ne partent
+                qu'aux contacts opt-in ; un modèle <b>Utilitaire</b> actif est nécessaire pour envoyer le message de bienvenue.
             </div>
 
+            <Panel>
+                {visible.length === 0 ? (
+                    <Empty title={filtered ? 'Aucun modèle ne correspond aux filtres' : 'Aucun modèle pour l’instant'}>
+                        {filtered ? 'Modifiez les filtres.' : 'Ajoutez un modèle déjà approuvé dans Meta Business Manager (ex. hello_world).'}
+                    </Empty>
+                ) : (
+                    <div className="mdash-tbl mpage-table">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Modèle</th>
+                                    <th>Langue</th>
+                                    <th>Catégorie</th>
+                                    <th>État</th>
+                                    <th className="r">Campagnes</th>
+                                    <th className="r">Dernière utilisation</th>
+                                    <th className="r">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {visible.map((t) => (
+                                    <tr key={t.id}>
+                                        <td className="cell-main wrap">
+                                            <b className="mono">{t.name}</b>
+                                            {t.description && <span>{t.description}</span>}
+                                        </td>
+                                        <td className="mono">{t.language}</td>
+                                        <td>
+                                            <span className={`mdash-pill ${CATEGORY[t.category]?.pill ?? 'idle'}`} title={CATEGORY[t.category]?.hint}>
+                                                {CATEGORY[t.category]?.label ?? t.category}
+                                            </span>
+                                        </td>
+                                        <td>{t.is_active ? <span className="mdash-pill ok">Actif</span> : <span className="mdash-pill idle">Inactif</span>}</td>
+                                        <td className="r num">{t.campaigns_count}</td>
+                                        <td className="r mono">{formatDay(t.last_used_at)}</td>
+                                        <td className="r">
+                                            <span className="mpage-rowlinks">
+                                                <button type="button" onClick={() => setModalTemplate(t)}>
+                                                    Modifier
+                                                </button>
+                                                <button type="button" className="danger" onClick={() => destroy(t)}>
+                                                    Supprimer
+                                                </button>
+                                            </span>
+                                        </td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    </div>
+                )}
+            </Panel>
+
             {modalTemplate !== undefined && (
-                <TemplateFormModal isOpen={true} onClose={() => setModalTemplate(undefined)} template={modalTemplate} />
+                <TemplateFormModal key={modalTemplate?.id ?? 'new'} isOpen={true} onClose={() => setModalTemplate(undefined)} template={modalTemplate} />
             )}
-        </>
+        </Page>
     );
 }
 

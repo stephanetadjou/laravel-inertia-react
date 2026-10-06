@@ -17,7 +17,7 @@ function makeBrandWithStore(Organization $organization, string $brandName): arra
     return [$brand, $store];
 }
 
-it('scopes the contacts list to a brand_manager\'s own brand', function () {
+it('scopes the customer list to a brand_manager\'s own brand', function () {
     $organization = Organization::factory()->create();
     [$adidas, $adidasStore] = makeBrandWithStore($organization, 'Adidas');
     [$mango, $mangoStore] = makeBrandWithStore($organization, 'Mango');
@@ -31,16 +31,16 @@ it('scopes the contacts list to a brand_manager\'s own brand', function () {
         'brand_id' => $adidas->id,
     ]);
 
-    $response = $this->actingAs($brandManager)->get('/contacts');
+    $response = $this->actingAs($brandManager)->get('/customers');
 
     $response->assertOk();
     $response->assertInertia(fn ($page) => $page
-        ->has('contacts.data', 1)
-        ->where('contacts.data.0.id', $adidasContact->id),
+        ->has('customers.data', 1)
+        ->where('customers.data.0.id', $adidasContact->fresh()->customer_id),
     );
 });
 
-it('scopes the contacts list to a store_manager\'s own store, even within the same brand', function () {
+it('scopes the customer list to a store_manager\'s own store, even within the same brand', function () {
     $organization = Organization::factory()->create();
     $brand = Brand::factory()->create(['organization_id' => $organization->id]);
     $storeA = Store::factory()->create(['organization_id' => $organization->id, 'brand_id' => $brand->id]);
@@ -55,11 +55,11 @@ it('scopes the contacts list to a store_manager\'s own store, even within the sa
         'store_id' => $storeA->id,
     ]);
 
-    $response = $this->actingAs($storeManager)->get('/contacts');
+    $response = $this->actingAs($storeManager)->get('/customers');
 
     $response->assertInertia(fn ($page) => $page
-        ->has('contacts.data', 1)
-        ->where('contacts.data.0.id', $contactA->id),
+        ->has('customers.data', 1)
+        ->where('customers.data.0.id', $contactA->fresh()->customer_id),
     );
 });
 
@@ -143,8 +143,8 @@ it('scopes purchases to a store_manager\'s own store', function () {
 
     $contactA = Contact::factory()->create(['store_id' => $storeA->id]);
     $contactB = Contact::factory()->create(['store_id' => $storeB->id]);
-    $purchaseA = Purchase::factory()->create(['contact_id' => $contactA->id, 'store_id' => $storeA->id]);
-    Purchase::factory()->create(['contact_id' => $contactB->id, 'store_id' => $storeB->id]);
+    $purchaseA = Purchase::factory()->create(['contact_id' => $contactA->id, 'store_id' => $storeA->id, 'purchased_at' => now()]);
+    Purchase::factory()->create(['contact_id' => $contactB->id, 'store_id' => $storeB->id, 'purchased_at' => now()]);
 
     $storeManager = User::factory()->create([
         'organization_id' => $organization->id,
@@ -178,7 +178,7 @@ it('scopes the dashboard counters to a brand_manager\'s own brand', function () 
     $response = $this->actingAs($brandManager)->get('/dashboard');
 
     $response->assertInertia(fn ($page) => $page
-        ->where('stats.total_contacts', 1)
+        ->where('kpis.contacts.current', 1)
         ->has('stores', 1),
     );
 });
@@ -193,9 +193,9 @@ it('does not restrict admin and super_admin to any brand or store', function () 
 
     $admin = User::factory()->create(['organization_id' => $organization->id, 'role_id' => defaultRole($organization, 'Administrateur')->id]);
 
-    $response = $this->actingAs($admin)->get('/contacts');
+    $response = $this->actingAs($admin)->get('/customers');
 
-    $response->assertInertia(fn ($page) => $page->has('contacts.data', 2));
+    $response->assertInertia(fn ($page) => $page->has('customers.data', 2));
 });
 
 it('scopes visibility to the assigned brand even for a custom role', function () {
@@ -219,10 +219,10 @@ it('scopes visibility to the assigned brand even for a custom role', function ()
         'brand_id' => $adidas->id,
     ]);
 
-    $response = $this->actingAs($user)->get('/contacts');
+    $response = $this->actingAs($user)->get('/customers');
 
     $response->assertInertia(fn ($page) => $page
-        ->has('contacts.data', 1)
-        ->where('contacts.data.0.id', $adidasContact->id),
+        ->has('customers.data', 1)
+        ->where('customers.data.0.id', $adidasContact->fresh()->customer_id),
     );
 });

@@ -9,6 +9,7 @@ export interface PurchaseImportPreview {
     purchases_to_record: number;
     contacts_to_create: number;
     total_amount: number;
+    consents: { opt_in: number; opt_out: number };
     skipped: string[];
     sample: {
         contact_name: string;
@@ -90,6 +91,9 @@ export default function PurchaseImportModal({ isOpen, onClose, preview }: Purcha
                         <code className="rounded bg-gray-200 px-1 dark:bg-white/10">quantite</code> — optionnel, défaut 1
                     </li>
                     <li>
+                        <code className="rounded bg-gray-200 px-1 dark:bg-white/10">consentement</code> — optionnel : <b>oui</b> si le client a accepté en caisse de recevoir les offres WhatsApp, <b>non</b> s'il a refusé ; vide = inchangé
+                    </li>
+                    <li>
                         <code className="rounded bg-gray-200 px-1 dark:bg-white/10">prix</code> (prix unitaire) et/ou{' '}
                         <code className="rounded bg-gray-200 px-1 dark:bg-white/10">montant</code> (total) — l'un des deux obligatoire ; si les
                         deux sont présents, <code className="rounded bg-gray-200 px-1 dark:bg-white/10">montant</code> est utilisé tel quel
@@ -139,6 +143,15 @@ export default function PurchaseImportModal({ isOpen, onClose, preview }: Purcha
                             <p className="mt-1 text-xl font-semibold text-gray-800 dark:text-white/90">{formatFcfa(preview.total_amount)}</p>
                         </div>
                     </div>
+                    {(preview.consents?.opt_in ?? 0) + (preview.consents?.opt_out ?? 0) > 0 ? (
+                        <p className="rounded-lg bg-success-50 px-3 py-2 text-sm text-success-700 dark:bg-success-500/15 dark:text-success-400">
+                            Consentement WhatsApp déclaré en caisse : <b>{preview.consents.opt_in} accord(s)</b> (opt-in) et <b>{preview.consents.opt_out} refus</b> (opt-out).
+                        </p>
+                    ) : (
+                        <p className="text-xs text-gray-500 dark:text-gray-400">
+                            Aucune colonne « consentement » renseignée : les nouveaux clients seront au consentement « inconnu » et ne recevront pas de campagne.
+                        </p>
+                    )}
 
                     {preview.sample.length > 0 && (
                         <div>

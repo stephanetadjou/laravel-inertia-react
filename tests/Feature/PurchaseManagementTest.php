@@ -15,19 +15,19 @@ it('lists purchases scoped to the user organization with totals', function () {
     $user = User::factory()->create(['organization_id' => $organization->id]);
 
     $contact = Contact::factory()->create(['store_id' => $store->id]);
-    Purchase::factory()->create(['contact_id' => $contact->id, 'store_id' => $store->id, 'amount' => 10000, 'quantity' => 2]);
-    Purchase::factory()->create(['contact_id' => $contact->id, 'store_id' => $store->id, 'amount' => 5000, 'quantity' => 1]);
+    Purchase::factory()->create(['contact_id' => $contact->id, 'store_id' => $store->id, 'amount' => 10000, 'quantity' => 2, 'purchased_at' => now()]);
+    Purchase::factory()->create(['contact_id' => $contact->id, 'store_id' => $store->id, 'amount' => 5000, 'quantity' => 1, 'purchased_at' => now()->subDay()]);
 
     $foreignContact = Contact::factory()->create(['store_id' => $otherStore->id]);
-    Purchase::factory()->create(['contact_id' => $foreignContact->id, 'store_id' => $otherStore->id, 'amount' => 99999]);
+    Purchase::factory()->create(['contact_id' => $foreignContact->id, 'store_id' => $otherStore->id, 'amount' => 99999, 'purchased_at' => now()]);
 
     $response = $this->actingAs($user)->get('/purchases');
 
     $response->assertOk();
     $response->assertInertia(fn ($page) => $page
-        ->where('stats.total_purchases', 2)
-        ->where('stats.total_amount', 15000)
-        ->where('stats.total_quantity', 3)
+        ->where('kpis.current.purchases', 2)
+        ->where('kpis.current.revenue', 15000)
+        ->where('kpis.current.quantity', 3)
         ->has('purchases.data', 2),
     );
 });

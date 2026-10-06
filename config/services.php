@@ -39,6 +39,9 @@ return [
         'token' => env('META_WHATSAPP_TOKEN'),
         'phone_number_id' => env('META_PHONE_NUMBER_ID'),
         'api_version' => env('META_WHATSAPP_API_VERSION', 'v21.0'),
+        // cloud : vraie API Meta. log : simulation locale, aucun appel externe
+        // (ignoré en production), cf. App\Services\WhatsAppClient.
+        'driver' => env('WHATSAPP_DRIVER', 'cloud'),
     ],
 
 ];

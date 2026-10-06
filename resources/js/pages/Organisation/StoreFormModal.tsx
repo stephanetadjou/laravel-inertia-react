@@ -49,7 +49,7 @@ export default function StoreFormModal({ isOpen, onClose, brandId, brandName }: 
                         autoFocus
                     />
                     <p className="mt-1.5 text-xs text-gray-500 dark:text-gray-400">
-                        La connexion WhatsApp (numéro + token) se configure ensuite depuis la page Boutiques.
+                        La connexion WhatsApp (numéro + token) se configure ensuite depuis la page Marques &amp; boutiques (bouton « Modifier »).
                     </p>
                     {errors.name && <p className="mt-1.5 text-sm text-error-500">{errors.name}</p>}
                 </div>

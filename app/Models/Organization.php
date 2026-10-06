@@ -12,7 +12,40 @@ class Organization extends Model
     /** @use HasFactory<OrganizationFactory> */
     use HasFactory;
 
-    protected $fillable = ['name'];
+    protected $fillable = ['name', 'lifecycle_settings'];
+
+    /**
+     * Seuils par défaut du parcours client (modifiables dans Organisation).
+     * Durées en jours ; VIP = top X % des acheteurs de chaque boutique (CA dans
+     * la boutique sur la période), un client pouvant être VIP dans une seule.
+     */
+    public const LIFECYCLE_DEFAULTS = [
+        'new_customer_days' => 90,
+        'at_risk_days' => 90,
+        'churn_days' => 180,
+        'vip_top_percent' => 10,
+        'vip_period_days' => 365,
+    ];
+
+    protected function casts(): array
+    {
+        return ['lifecycle_settings' => 'array'];
+    }
+
+    /**
+     * @return array{new_customer_days: int, at_risk_days: int, churn_days: int, vip_top_percent: int, vip_period_days: int}
+     */
+    public function lifecycleSettings(): array
+    {
+        $saved = array_intersect_key($this->lifecycle_settings ?? [], self::LIFECYCLE_DEFAULTS);
+
+        return array_map('intval', [...self::LIFECYCLE_DEFAULTS, ...$saved]);
+    }
+
+    public function customers(): HasMany
+    {
+        return $this->hasMany(Customer::class);
+    }
 
     public function brands(): HasMany
     {

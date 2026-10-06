@@ -6,6 +6,7 @@ use App\Http\Controllers\CampaignController;
 use App\Http\Controllers\CategoryController;
 use App\Http\Controllers\ChatController;
 use App\Http\Controllers\ContactController;
+use App\Http\Controllers\CustomerController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\GroupController;
 use App\Http\Controllers\ImportController;
@@ -42,6 +43,12 @@ Route::middleware('auth')->group(function () {
     Route::post('/contacts/{contact}/send-test', [ContactController::class, 'sendTest'])->name('contacts.send-test');
     Route::post('/contacts/{contact}/send-welcome', [ContactController::class, 'sendWelcome'])->name('contacts.send-welcome');
 
+    Route::get('/customers', [CustomerController::class, 'index'])->name('customers.index');
+    Route::get('/customers/export', [CustomerController::class, 'export'])->name('customers.export');
+    Route::get('/customers/audience', [CustomerController::class, 'audience'])->name('customers.audience');
+    Route::get('/customers/{customer}', [CustomerController::class, 'show'])->name('customers.show');
+    Route::put('/customers/{customer}', [CustomerController::class, 'update'])->name('customers.update');
+
     Route::get('/chat', [ChatController::class, 'index'])->name('chat.index');
     Route::get('/chat/{contact}', [ChatController::class, 'show'])->name('chat.show');
 
@@ -49,6 +56,8 @@ Route::middleware('auth')->group(function () {
     Route::post('/groups', [GroupController::class, 'store'])->name('groups.store');
     Route::put('/groups/{group}', [GroupController::class, 'update'])->name('groups.update');
     Route::delete('/groups/{group}', [GroupController::class, 'destroy'])->name('groups.destroy');
+    Route::post('/groups/{group}/customers', [GroupController::class, 'addCustomers'])->name('groups.customers.add');
+    Route::delete('/groups/{group}/customers', [GroupController::class, 'removeCustomers'])->name('groups.customers.remove');
 
     Route::get('/categories', [CategoryController::class, 'index'])->name('categories.index');
     Route::post('/categories', [CategoryController::class, 'store'])->name('categories.store');
@@ -57,11 +66,13 @@ Route::middleware('auth')->group(function () {
 
     Route::get('/stores', [StoreController::class, 'index'])->name('stores.index');
     Route::put('/stores/{store}', [StoreController::class, 'update'])->name('stores.update');
+    Route::get('/stores/{store}/qr', [StoreController::class, 'qr'])->name('stores.qr');
     Route::post('/stores/{store}/test-connection', [StoreController::class, 'testConnection'])->name('stores.test-connection');
 
     Route::middleware('can-manage-organization')->group(function () {
         Route::get('/organisation', [OrganizationController::class, 'index'])->name('organisation.index');
         Route::put('/organisation', [OrganizationController::class, 'update'])->name('organisation.update');
+        Route::put('/organisation/lifecycle', [OrganizationController::class, 'updateLifecycle'])->name('organisation.lifecycle');
 
         Route::post('/brands', [BrandController::class, 'store'])->name('brands.store');
         Route::put('/brands/{brand}', [BrandController::class, 'update'])->name('brands.update');

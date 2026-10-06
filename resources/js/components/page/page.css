@@ -1,0 +1,373 @@
+/* Kit commun des pages (Page.tsx) : complète dashboard.css (.mdash), suit le thème clair/sombre. */
+
+/* En-tête : défile avec le contenu (filtres collants réservés au tableau de bord). */
+.mpage .mpage-top {
+    position: relative;
+    top: 0;
+}
+.mpage-actions {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    align-items: center;
+}
+.mpage-filters {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px 12px;
+    align-items: flex-end;
+    margin-top: 14px;
+}
+.mdash .mpage-filters select {
+    min-width: 150px;
+}
+.mdash .mpage-search {
+    font: inherit;
+    font-size: 13px;
+    background: var(--surface);
+    color: var(--ink);
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    padding: 8px 10px;
+    width: 240px;
+    max-width: 100%;
+}
+.mdash .mpage-search::placeholder {
+    color: var(--faint);
+}
+.mdash .mdash-btn.brand {
+    background: var(--brand);
+    color: var(--surface);
+}
+.mdash .mdash-btn.sm {
+    padding: 5px 10px;
+    font-size: 12.5px;
+}
+.mdash .mdash-btn.danger {
+    background: transparent;
+    border-color: var(--line);
+    color: var(--bad);
+}
+
+/* Chiffres clés */
+.mpage-stats {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+    margin-top: 18px;
+}
+.mpage-stat {
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    padding: 10px 14px;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 140px;
+    flex: 1;
+}
+.mpage-stat span {
+    font-size: 12px;
+    color: var(--muted);
+}
+.mpage-stat b {
+    font-size: 22px;
+    letter-spacing: -0.02em;
+}
+.mpage-stat small {
+    font-size: 11.5px;
+    color: var(--muted);
+}
+.mpage-stat.bad b {
+    color: var(--bad);
+}
+.mpage-stat.warn b {
+    color: var(--warn);
+}
+.mpage-stat.ok b {
+    color: var(--ok);
+}
+
+.mpage-panel {
+    margin-top: 16px;
+}
+.mdash-grid .mpage-panel {
+    margin-top: 0;
+}
+.mpage-table tbody tr:hover td {
+    background: var(--surface-2);
+}
+.mpage-table td.wrap {
+    white-space: normal;
+}
+
+/* Liens d'action dans une ligne de tableau. */
+.mpage-rowlinks {
+    display: inline-flex;
+    gap: 12px;
+    justify-content: flex-end;
+}
+.mpage-rowlinks a,
+.mpage-rowlinks button {
+    font: inherit;
+    font-size: 12.5px;
+    font-weight: 600;
+    background: none;
+    border: 0;
+    padding: 0;
+    color: var(--brand);
+    cursor: pointer;
+    text-decoration: none;
+}
+.mpage-rowlinks a:hover,
+.mpage-rowlinks button:hover {
+    text-decoration: underline;
+}
+.mpage-rowlinks .danger {
+    color: var(--bad);
+}
+
+.mpage-empty {
+    padding: 36px 16px;
+    text-align: center;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    color: var(--muted);
+    font-size: 13px;
+}
+.mpage-empty b {
+    color: var(--ink);
+    font-size: 15px;
+}
+
+.mpage-pager {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+    margin-top: 12px;
+    font-size: 12.5px;
+    color: var(--muted);
+}
+.mpage-pager .btns {
+    display: flex;
+    gap: 6px;
+    align-items: center;
+}
+.mdash .mpage-pager select {
+    min-width: 0;
+    padding: 5px 8px;
+}
+
+/* Bandeau d'information (explication de page). */
+.mpage-note {
+    margin-top: 16px;
+    padding: 10px 14px;
+    border-radius: 10px;
+    background: var(--brand-soft);
+    font-size: 12.5px;
+    line-height: 1.5;
+}
+.mpage-note b {
+    font-weight: 600;
+}
+.mpage-note a {
+    color: var(--brand);
+    font-weight: 600;
+}
+
+/* Barre de progression (envoi de campagne). */
+.mpage-progress {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    min-width: 140px;
+}
+.mpage-progress .bar {
+    display: flex;
+    height: 6px;
+    border-radius: 3px;
+    overflow: hidden;
+    background: var(--surface-2);
+}
+.mpage-progress .bar i {
+    display: block;
+    height: 100%;
+}
+.mpage-progress .bar .ok {
+    background: var(--ok);
+}
+.mpage-progress .bar .bad {
+    background: var(--bad);
+}
+.mpage-progress small {
+    font-size: 11.5px;
+    color: var(--muted);
+}
+
+.mpage-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+    white-space: normal;
+}
+.mpage-chip {
+    font-size: 11.5px;
+    padding: 1px 7px;
+    border-radius: 6px;
+    background: var(--surface-2);
+    color: var(--ink);
+    white-space: nowrap;
+}
+.mpage-muted {
+    color: var(--muted);
+    font-size: 12px;
+}
+
+/* Sélection multiple dans un tableau (cases à cocher + barre d'action). */
+.mdash .mpage-check input {
+    width: 16px;
+    height: 16px;
+    accent-color: var(--brand);
+    cursor: pointer;
+}
+.mpage-selbar {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+    padding: 10px 12px;
+    margin-bottom: 10px;
+    border-radius: 10px;
+    background: var(--brand-soft);
+    font-size: 13px;
+}
+.mdash .mpage-selbar select {
+    min-width: 180px;
+}
+
+/* Formulaires intégrés à une page (hors fenêtres modales). */
+.mpage-form {
+    display: grid;
+    gap: 14px;
+}
+.mpage-form-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
+    gap: 14px;
+}
+.mpage-field {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+    min-width: 0;
+}
+.mpage-field > label {
+    font-size: 12.5px;
+    font-weight: 600;
+    color: var(--ink);
+}
+.mpage-field .unit {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 12px;
+    color: var(--muted);
+    white-space: nowrap;
+}
+.mdash .mpage-field input {
+    font: inherit;
+    font-size: 13.5px;
+    background: var(--surface);
+    color: var(--ink);
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    padding: 8px 10px;
+    width: 100%;
+    min-width: 0;
+}
+.mpage-field small {
+    font-size: 11.5px;
+    color: var(--muted);
+    line-height: 1.4;
+}
+.mpage-field .err {
+    font-size: 12px;
+    color: var(--bad);
+}
+.mpage-form-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+.morg-x {
+    font: inherit;
+    font-size: 13px;
+    line-height: 1;
+    background: none;
+    border: 0;
+    padding: 0 0 0 2px;
+    color: var(--faint);
+    cursor: pointer;
+}
+.morg-x:hover {
+    color: var(--bad);
+}
+.mdash .mpage-field select {
+    width: 100%;
+    min-width: 0;
+}
+.mdash .mpage-field input[type='file'] {
+    padding: 6px 8px;
+    cursor: pointer;
+}
+.mdash .mpage-field input[type='file']::file-selector-button {
+    font: inherit;
+    font-size: 12.5px;
+    font-weight: 600;
+    border: 0;
+    border-radius: 7px;
+    padding: 5px 10px;
+    margin-right: 10px;
+    background: var(--brand-soft);
+    color: var(--brand);
+    cursor: pointer;
+}
+
+/* Liste libellé / valeur (définitions, colonnes d'import…). */
+.mpage-dl {
+    margin: 0;
+}
+.mpage-dl-row {
+    display: grid;
+    grid-template-columns: minmax(120px, 38%) minmax(0, 1fr);
+    gap: 12px;
+    padding: 8px 0;
+    border-bottom: 1px solid var(--line);
+    font-size: 13px;
+}
+.mpage-dl-row:last-child {
+    border-bottom: 0;
+}
+.mpage-dl-row dt {
+    color: var(--muted);
+}
+.mpage-dl-row dd {
+    margin: 0;
+    min-width: 0;
+    overflow-wrap: anywhere;
+}
+
+/* Demi-largeur dans la grille 12 colonnes de dashboard.css. */
+.mdash .c6 {
+    grid-column: span 6;
+}
+@media (max-width: 1100px) {
+    .mdash .c6 {
+        grid-column: span 12;
+    }
+}

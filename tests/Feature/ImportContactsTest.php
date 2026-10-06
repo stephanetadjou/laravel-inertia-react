@@ -123,3 +123,40 @@ it('refuses to preview an import into a store belonging to another organization'
 
     $response->assertStatus(404);
 });
+
+it('normalizes Gabonese number variants and explains why 9-digit numbers are skipped', function () {
+    $organization = Organization::factory()->create();
+    $store = Store::factory()->create(['organization_id' => $organization->id]);
+    $user = User::factory()->create(['organization_id' => $organization->id]);
+
+    $csv = "nom,telephone\n".
+        "Amanda Obame,+241 62 60 50 54\n".
+        "Jean Mba,00241 77 12 34 56\n".
+        "Paul Nze,066212551\n".
+        "Doublon Amanda,062605054\n". // même numéro qu'Amanda une fois normalisé
+        "Neuf Chiffres,612345678\n";
+
+    $file = UploadedFile::fake()->createWithContent('contacts.csv', $csv);
+
+    $response = $this->actingAs($user)->post('/imports/preview', [
+        'store_id' => $store->id,
+        'file' => $file,
+    ]);
+
+    $response->assertOk();
+    $response->assertInertia(fn ($page) => $page
+        ->where('preview.total_valid', 4)
+        ->has('preview.skipped', 1)
+        ->where('preview.skipped.0', fn ($reason) => str_contains($reason, 'Ligne 6')
+            && str_contains($reason, '612345678')
+            && str_contains($reason, '8 chiffres commençant par 6 ou 7')),
+    );
+
+    $this->actingAs($user)->post('/imports', [
+        'store_id' => $store->id,
+        'file' => UploadedFile::fake()->createWithContent('contacts.csv', $csv),
+    ])->assertRedirect();
+
+    expect(Contact::where('store_id', $store->id)->orderBy('phone_e164')->pluck('phone_e164')->all())
+        ->toBe(['24162605054', '24166212551', '24177123456']);
+});

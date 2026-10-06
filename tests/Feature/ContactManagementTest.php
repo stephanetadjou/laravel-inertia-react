@@ -61,26 +61,18 @@ it('refuses to create a duplicate contact in the same store', function () {
     expect(Contact::where('store_id', $store->id)->count())->toBe(1);
 });
 
-it('paginates the contacts list', function () {
+it('redirects the old contacts list to the customer list, keeping its filters', function () {
     $organization = Organization::factory()->create();
-    $store = Store::factory()->create(['organization_id' => $organization->id]);
     $user = User::factory()->create(['organization_id' => $organization->id]);
-    Contact::factory()->count(30)->create(['store_id' => $store->id]);
 
-    $response = $this->actingAs($user)->get('/contacts');
-
-    $response->assertOk();
-    $response->assertInertia(fn ($page) => $page
-        ->has('contacts.data', 25)
-        ->where('contacts.total', 30)
-        ->where('perPage', 25),
-    );
+    $this->actingAs($user)->get('/contacts?group_id=4&consent_status=opt_in&q=Mba')
+        ->assertRedirect('/customers?q=Mba&consent=opt_in&group=4');
 });
 
 it('updates a contact profile', function () {
     $organization = Organization::factory()->create();
     $store = Store::factory()->create(['organization_id' => $organization->id]);
-    $user = User::factory()->create(['organization_id' => $organization->id]);
+    $user = User::factory()->create(['organization_id' => $organization->id, 'role_id' => defaultRole($organization, 'Administrateur')->id]);
     $contact = Contact::factory()->create(['store_id' => $store->id, 'name' => 'Amanda Obame', 'gender' => 'F']);
 
     $response = $this->actingAs($user)->put("/contacts/{$contact->id}", [
@@ -121,9 +113,22 @@ it('deletes a contact and its related records', function () {
 
     $response = $this->actingAs($user)->delete("/contacts/{$contact->id}");
 
-    $response->assertRedirect(route('contacts.index'));
+    // Dernier contact de la personne : la fiche disparaît, retour à la liste.
+    $response->assertRedirect(route('customers.index'));
     $response->assertSessionHas('success');
     expect(Contact::find($contact->id))->toBeNull();
+});
+
+it('goes back to the customer after deleting one of its store contacts', function () {
+    $organization = Organization::factory()->create();
+    $adidas = Store::factory()->create(['organization_id' => $organization->id]);
+    $mango = Store::factory()->create(['organization_id' => $organization->id]);
+    $user = User::factory()->create(['organization_id' => $organization->id]);
+    $kept = Contact::factory()->create(['store_id' => $adidas->id, 'phone_e164' => '24177451288']);
+    $removed = Contact::factory()->create(['store_id' => $mango->id, 'phone_e164' => '24177451288']);
+
+    $this->actingAs($user)->delete("/contacts/{$removed->id}")
+        ->assertRedirect(route('customers.show', $kept->customer_id));
 });
 
 it('refuses to delete a contact belonging to another organization', function () {
@@ -136,4 +141,20 @@ it('refuses to delete a contact belonging to another organization', function () 
     $this->actingAs($user)->delete("/contacts/{$foreignContact->id}")->assertStatus(403);
 
     expect(Contact::find($foreignContact->id))->not->toBeNull();
+});
+
+it('refuses to create a contact with a number that is not a Gabonese mobile', function () {
+    $organization = Organization::factory()->create();
+    $store = Store::factory()->create(['organization_id' => $organization->id]);
+    $user = User::factory()->create(['organization_id' => $organization->id]);
+
+    $response = $this->actingAs($user)->post('/contacts', [
+        'store_id' => $store->id,
+        'name' => 'Neuf Chiffres',
+        'phone_e164' => '612345678',
+        'consent_status' => 'unknown',
+    ]);
+
+    $response->assertSessionHas('error');
+    expect(Contact::count())->toBe(0);
 });
