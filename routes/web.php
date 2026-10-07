@@ -13,6 +13,7 @@ use App\Http\Controllers\GroupController;
 use App\Http\Controllers\ImportController;
 use App\Http\Controllers\MessageTemplateController;
 use App\Http\Controllers\OrganizationController;
+use App\Http\Controllers\PrivacyPolicyController;
 use App\Http\Controllers\PurchaseController;
 use App\Http\Controllers\RoleController;
 use App\Http\Controllers\StoreController;
@@ -25,6 +26,9 @@ use Illuminate\Support\Facades\Route;
 // X-Hub-Signature-256 (exclu de la vérification CSRF, cf. bootstrap/app.php).
 Route::get('/webhooks/whatsapp/{key}', [WhatsAppWebhookController::class, 'verify'])->name('webhooks.whatsapp');
 Route::post('/webhooks/whatsapp/{key}', [WhatsAppWebhookController::class, 'receive']);
+
+// Politique de confidentialité publique de chaque entreprise (URL à donner à Meta).
+Route::get('/confidentialite/{organization:slug}', [PrivacyPolicyController::class, 'show'])->name('privacy-policy');
 
 Route::middleware('guest')->group(function () {
     Route::get('/login', [AuthenticatedSessionController::class, 'create'])->name('login');
@@ -82,6 +86,7 @@ Route::middleware('auth')->group(function () {
         Route::get('/organisation', [OrganizationController::class, 'index'])->name('organisation.index');
         Route::put('/organisation', [OrganizationController::class, 'update'])->name('organisation.update');
         Route::put('/organisation/lifecycle', [OrganizationController::class, 'updateLifecycle'])->name('organisation.lifecycle');
+        Route::put('/organisation/privacy', [OrganizationController::class, 'updatePrivacy'])->name('organisation.privacy');
 
         Route::post('/brands', [BrandController::class, 'store'])->name('brands.store');
         Route::put('/brands/{brand}', [BrandController::class, 'update'])->name('brands.update');

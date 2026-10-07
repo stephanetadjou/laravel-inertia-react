@@ -27,6 +27,14 @@ class OrganizationController extends Controller
                 'id' => $organization->id,
                 'name' => $organization->name,
             ],
+            'privacy' => [
+                'url' => $organization->privacyPolicyUrl(),
+                'legal_name' => $organization->legal_name,
+                'email' => $organization->privacy_email,
+                'phone' => $organization->privacy_phone,
+                'address' => $organization->privacy_address,
+                'extra' => $organization->privacy_extra,
+            ],
             'lifecycleSettings' => $organization->lifecycleSettings(),
             'lifecycleDefaults' => Organization::LIFECYCLE_DEFAULTS,
             'brands' => $brands->map(fn (Brand $brand) => [
@@ -62,6 +70,33 @@ class OrganizationController extends Controller
         $changes = $lifecycle->refreshOrganization($organization);
 
         return back()->with('success', "Seuils du parcours client enregistrés : {$changes} fiche(s) ont changé d'étape.");
+    }
+
+    /**
+     * Coordonnées du responsable du traitement affichées sur la politique de
+     * confidentialité publique (/confidentialite/{slug}).
+     */
+    public function updatePrivacy(Request $request): RedirectResponse
+    {
+        $data = $request->validate([
+            'legal_name' => ['nullable', 'string', 'max:255'],
+            'email' => ['required', 'email', 'max:255'],
+            'phone' => ['nullable', 'string', 'max:50'],
+            'address' => ['nullable', 'string', 'max:255'],
+            'extra' => ['nullable', 'string', 'max:5000'],
+        ], [
+            'email.required' => 'Un courriel de contact est nécessaire pour que les clients exercent leurs droits.',
+        ]);
+
+        $request->user()->organization->update([
+            'legal_name' => $data['legal_name'] ?? null,
+            'privacy_email' => $data['email'],
+            'privacy_phone' => $data['phone'] ?? null,
+            'privacy_address' => $data['address'] ?? null,
+            'privacy_extra' => $data['extra'] ?? null,
+        ]);
+
+        return back()->with('success', 'Politique de confidentialité mise à jour.');
     }
 
     public function update(Request $request): RedirectResponse

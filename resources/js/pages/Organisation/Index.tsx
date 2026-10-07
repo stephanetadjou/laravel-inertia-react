@@ -6,6 +6,7 @@ import { Empty, Page, Panel, PlusIcon, StatStrip } from '../../components/page/P
 import BrandFormModal, { BrandFormValues } from './BrandFormModal';
 import StoreFormModal from './StoreFormModal';
 import LifecycleSettingsCard, { LifecycleSettings } from './LifecycleSettingsCard';
+import PrivacyPolicyCard, { PrivacySettings } from './PrivacyPolicyCard';
 
 interface StoreRow {
     id: number;
@@ -24,11 +25,12 @@ interface PageProps {
     brands: BrandRow[];
     lifecycleSettings: LifecycleSettings;
     lifecycleDefaults: LifecycleSettings;
+    privacy: PrivacySettings;
     [key: string]: unknown;
 }
 
 function OrganisationIndex() {
-    const { organization, brands, lifecycleSettings, lifecycleDefaults } = usePage<PageProps>().props;
+    const { organization, brands, lifecycleSettings, lifecycleDefaults, privacy } = usePage<PageProps>().props;
     const [modalBrand, setModalBrand] = useState<BrandFormValues | null | undefined>(undefined);
     const [newStoreBrand, setNewStoreBrand] = useState<{ id: number; name: string } | null>(null);
 
@@ -160,6 +162,8 @@ function OrganisationIndex() {
                 <div className="c12">
                     <LifecycleSettingsCard settings={lifecycleSettings} defaults={lifecycleDefaults} />
                 </div>
+
+                <PrivacyPolicyCard privacy={privacy} />
             </div>
 
             {modalBrand !== undefined && <BrandFormModal isOpen={true} onClose={() => setModalBrand(undefined)} brand={modalBrand} />}

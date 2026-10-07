@@ -6,13 +6,51 @@ use Database\Factories\OrganizationFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Support\Str;
 
 class Organization extends Model
 {
     /** @use HasFactory<OrganizationFactory> */
     use HasFactory;
 
-    protected $fillable = ['name', 'lifecycle_settings', 'uses_shared_whatsapp_account'];
+    protected $fillable = [
+        'name',
+        'slug',
+        'lifecycle_settings',
+        'uses_shared_whatsapp_account',
+        'legal_name',
+        'privacy_email',
+        'privacy_phone',
+        'privacy_address',
+        'privacy_extra',
+    ];
+
+    /**
+     * Adresse publique de la politique de confidentialité : slug unique tiré
+     * du nom, fixé à la création (il ne change pas si l'entreprise est
+     * renommée, l'URL étant déjà déclarée chez Meta).
+     */
+    protected static function booted(): void
+    {
+        static::creating(function (Organization $organization) {
+            if (blank($organization->slug)) {
+                $base = Str::slug($organization->name) ?: 'entreprise';
+                $slug = $base;
+                $i = 2;
+
+                while (static::where('slug', $slug)->exists()) {
+                    $slug = $base.'-'.$i++;
+                }
+
+                $organization->slug = $slug;
+            }
+        });
+    }
+
+    public function privacyPolicyUrl(): string
+    {
+        return route('privacy-policy', $this->slug);
+    }
 
     /**
      * Seuils par défaut du parcours client (modifiables dans Organisation).
