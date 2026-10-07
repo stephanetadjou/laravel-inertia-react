@@ -91,6 +91,8 @@ Route::middleware('auth')->group(function () {
         Route::put('/stores/{store}', [StoreController::class, 'update'])->name('stores.update');
         Route::delete('/stores/{store}', [StoreController::class, 'destroy'])->name('stores.destroy');
 
+        Route::post('/templates/sync', [MessageTemplateController::class, 'sync'])->name('templates.sync');
+
         Route::get('/settings/whatsapp', [WhatsAppSettingsController::class, 'index'])->name('settings.whatsapp');
         Route::put('/settings/whatsapp/{store}', [WhatsAppSettingsController::class, 'update'])->name('settings.whatsapp.update');
         Route::post('/settings/whatsapp/{store}/test', [WhatsAppSettingsController::class, 'test'])->name('settings.whatsapp.test');

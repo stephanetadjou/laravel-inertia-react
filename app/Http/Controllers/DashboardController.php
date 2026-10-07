@@ -187,7 +187,7 @@ class DashboardController extends Controller
                     'created_at' => $campaign->created_at->format('d/m/Y H:i'),
                 ]),
             'welcomeTemplates' => MessageTemplate::where('organization_id', $organizationId)
-                ->where('is_active', true)
+                ->sendable()
                 ->where('category', 'utility')
                 ->orderBy('name')
                 ->get(['id', 'name', 'language']),

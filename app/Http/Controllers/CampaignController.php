@@ -107,7 +107,7 @@ class CampaignController extends Controller
                 ->orderBy('name')
                 ->get(['id', 'name']),
             'templates' => MessageTemplate::where('organization_id', $request->user()->organization_id)
-                ->where('is_active', true)
+                ->sendable()
                 ->orderBy('name')
                 ->get(['id', 'name', 'language']),
         ]);
@@ -169,7 +169,8 @@ class CampaignController extends Controller
             'template_name' => [
                 'required_if:message_type,template', 'nullable', 'string', 'max:255',
                 Rule::exists('message_templates', 'name')->where(
-                    fn ($q) => $q->where('organization_id', $organizationId)->where('is_active', true),
+                    fn ($q) => $q->where('organization_id', $organizationId)->where('is_active', true)
+                        ->where(fn ($q) => $q->whereNull('status')->orWhere('status', MessageTemplate::STATUS_APPROVED)),
                 ),
             ],
             'text_body' => ['required_if:message_type,text', 'nullable', 'string', 'max:4096'],

@@ -116,7 +116,7 @@ class CustomerController extends Controller
             // Nombre de fiches du filtre joignables par campagne (au moins un contact opt-in).
             'reachableCount' => $search->query()->whereIn('customers.id', $search->recipients(null)->select('contacts.customer_id'))->count(),
             'templates' => MessageTemplate::where('organization_id', $request->user()->organization_id)
-                ->where('is_active', true)
+                ->sendable()
                 ->orderBy('name')
                 ->get(['id', 'name', 'language', 'category']),
             'customers' => $page->through(function (Customer $customer) use ($scoped, $stats, $editContacts) {
@@ -242,7 +242,7 @@ class CustomerController extends Controller
             'groups' => Group::where('organization_id', $user->organization_id)->orderBy('name')->get(['id', 'name']),
             'memberOf' => $contacts->flatMap(fn (Contact $c) => $c->groups->pluck('id'))->unique()->values(),
             'welcomeTemplates' => MessageTemplate::where('organization_id', $user->organization_id)
-                ->where('is_active', true)
+                ->sendable()
                 ->where('category', 'utility')
                 ->orderBy('name')
                 ->pluck('name'),

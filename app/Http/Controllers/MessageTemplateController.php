@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Campaign;
 use App\Models\MessageTemplate;
+use App\Services\MessageTemplateSync;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
@@ -39,10 +40,35 @@ class MessageTemplateController extends Controller
                 'category' => $t->category,
                 'description' => $t->description,
                 'is_active' => (bool) $t->is_active,
+                'status' => $t->status,
+                'body_text' => $t->body_text,
+                'body_variables' => $t->body_variables,
+                'header_format' => $t->header_format,
+                'synced_at' => $t->synced_at?->toIso8601String(),
                 'campaigns_count' => (int) ($usage[$t->name]->campaigns ?? 0),
                 'last_used_at' => isset($usage[$t->name]) ? substr((string) $usage[$t->name]->last_used_at, 0, 10) : null,
             ]),
+            'canSync' => $request->user()->canManageOrganization(),
         ]);
+    }
+
+    /**
+     * Importe les modèles des comptes WhatsApp Business des établissements
+     * (réservé aux administrateurs, cf. route).
+     */
+    public function sync(Request $request, MessageTemplateSync $sync): RedirectResponse
+    {
+        $result = $sync->sync($request->user()->organization);
+
+        if ($result['accounts'] === 0) {
+            return back()->with('error', 'Aucun établissement avec un WABA ID et un token : renseignez-les dans Paramètres → WhatsApp.');
+        }
+
+        $message = "{$result['synced']} modèle(s) synchronisé(s) depuis {$result['accounts']} compte(s) WhatsApp.";
+
+        return $result['errors'] === []
+            ? back()->with('success', $message)
+            : back()->with('error', $message.' Erreurs : '.implode(' ; ', $result['errors']));
     }
 
     public function store(Request $request): RedirectResponse

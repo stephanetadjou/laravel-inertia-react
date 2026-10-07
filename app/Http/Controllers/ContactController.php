@@ -6,6 +6,7 @@ use App\Jobs\SendWelcomeMessageJob;
 use App\Models\Contact;
 use App\Models\Customer;
 use App\Models\Group;
+use App\Models\MessageTemplate;
 use App\Models\Store;
 use App\Services\PhoneNormalizer;
 use App\Services\WhatsAppApiException;
@@ -197,6 +198,7 @@ class ContactController extends Controller
                 Rule::exists('message_templates', 'name')->where(
                     fn ($q) => $q->where('organization_id', $request->user()->organization_id)
                         ->where('is_active', true)
+                        ->where(fn ($q) => $q->whereNull('status')->orWhere('status', MessageTemplate::STATUS_APPROVED))
                         ->where('category', 'utility'),
                 ),
             ],
@@ -231,6 +233,7 @@ class ContactController extends Controller
                 Rule::exists('message_templates', 'name')->where(
                     fn ($q) => $q->where('organization_id', $request->user()->organization_id)
                         ->where('is_active', true)
+                        ->where(fn ($q) => $q->whereNull('status')->orWhere('status', MessageTemplate::STATUS_APPROVED))
                         ->where('category', 'utility'),
                 ),
             ],

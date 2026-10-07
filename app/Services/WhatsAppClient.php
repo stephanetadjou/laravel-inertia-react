@@ -88,6 +88,51 @@ class WhatsAppClient
     }
 
     /**
+     * Tous les modèles de message d'un compte WhatsApp Business (WABA), pages
+     * suivies jusqu'au bout.
+     *
+     * @return array<int, array<string, mixed>>
+     */
+    public function listTemplates(string $businessAccountId): array
+    {
+        if (self::simulated()) {
+            Log::info('[WhatsApp simulé] Lecture des modèles', ['waba_id' => $businessAccountId]);
+
+            return [[
+                'id' => 'SIMULATED',
+                'name' => 'bienvenue',
+                'language' => 'fr',
+                'category' => 'UTILITY',
+                'status' => 'APPROVED',
+                'components' => [['type' => 'BODY', 'text' => 'Bonjour {{1}}, bienvenue !']],
+            ]];
+        }
+
+        $templates = [];
+        $response = $this->baseRequest()->get("/{$businessAccountId}/message_templates", [
+            'fields' => 'id,name,language,category,status,components',
+            'limit' => 100,
+        ]);
+
+        for ($page = 0; $page < 50; $page++) {
+            if ($response->failed()) {
+                throw new WhatsAppApiException($businessAccountId, $response->status(), $response->json());
+            }
+
+            array_push($templates, ...($response->json('data') ?? []));
+            $next = $response->json('paging.next');
+
+            if (! $next) {
+                break;
+            }
+
+            $response = $this->baseRequest()->get($next);
+        }
+
+        return $templates;
+    }
+
+    /**
      * Enregistre le numéro auprès de la Cloud API (étape obligatoire avant le
      * premier envoi d'un numéro ajouté à la main), avec le PIN à 6 chiffres
      * de la vérification en deux étapes : défini à cette occasion s'il

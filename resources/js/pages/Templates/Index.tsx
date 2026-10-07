@@ -13,12 +13,18 @@ interface TemplateRow {
     category: string;
     description: string | null;
     is_active: boolean;
+    status: string | null;
+    body_text: string | null;
+    body_variables: number;
+    header_format: string | null;
+    synced_at: string | null;
     campaigns_count: number;
     last_used_at: string | null;
 }
 
 interface PageProps {
     templates: TemplateRow[];
+    canSync: boolean;
     flash?: {
         success: string | null;
         error: string | null;
@@ -150,8 +156,19 @@ const CATEGORY: Record<string, { label: string; pill: string; hint: string }> = 
     service: { label: 'Service', pill: 'ok', hint: 'Réponses au service client' },
 };
 
+const META_STATUS: Record<string, { label: string; pill: string }> = {
+    APPROVED: { label: 'Approuvé', pill: 'ok' },
+    PENDING: { label: 'En attente', pill: 'warn' },
+    IN_APPEAL: { label: 'En appel', pill: 'warn' },
+    REJECTED: { label: 'Rejeté', pill: 'bad' },
+    PAUSED: { label: 'En pause', pill: 'bad' },
+    DISABLED: { label: 'Désactivé', pill: 'bad' },
+    DELETED: { label: 'Supprimé chez Meta', pill: 'idle' },
+};
+
 function TemplatesIndex() {
-    const { templates } = usePage<PageProps>().props;
+    const { templates, canSync } = usePage<PageProps>().props;
+    const [syncing, setSyncing] = useState(false);
     const [modalTemplate, setModalTemplate] = useState<TemplateRow | null | undefined>(undefined);
     const [search, setSearch] = useState('');
     const [category, setCategory] = useState<string | null>(null);
@@ -181,10 +198,25 @@ function TemplatesIndex() {
             title="Modèles de messages"
             subtitle="Modèles approuvés dans Meta Business Manager, utilisés pour les campagnes et le message de bienvenue"
             actions={
-                <button type="button" className="mdash-btn brand" onClick={() => setModalTemplate(null)}>
-                    <PlusIcon />
-                    Nouveau modèle
-                </button>
+                <>
+                    {canSync && (
+                        <button
+                            type="button"
+                            className="mdash-btn ghost"
+                            disabled={syncing}
+                            onClick={() => {
+                                setSyncing(true);
+                                router.post('/templates/sync', {}, { preserveScroll: true, onFinish: () => setSyncing(false) });
+                            }}
+                        >
+                            {syncing ? 'Synchronisation…' : 'Synchroniser avec Meta'}
+                        </button>
+                    )}
+                    <button type="button" className="mdash-btn brand" onClick={() => setModalTemplate(null)}>
+                        <PlusIcon />
+                        Nouveau modèle
+                    </button>
+                </>
             }
             filters={
                 <>
@@ -249,7 +281,17 @@ function TemplatesIndex() {
                                     <tr key={t.id}>
                                         <td className="cell-main wrap">
                                             <b className="mono">{t.name}</b>
-                                            {t.description && <span>{t.description}</span>}
+                                            {(t.body_text ?? t.description) && <span>{t.body_text ?? t.description}</span>}
+                                            {(t.body_variables > 0 || t.header_format) && (
+                                                <span>
+                                                    {[
+                                                        t.body_variables > 0 && `${t.body_variables} variable${t.body_variables > 1 ? 's' : ''}`,
+                                                        t.header_format && `en-tête ${t.header_format.toLowerCase()}`,
+                                                    ]
+                                                        .filter(Boolean)
+                                                        .join(' · ')}
+                                                </span>
+                                            )}
                                         </td>
                                         <td className="mono">{t.language}</td>
                                         <td>
@@ -257,7 +299,14 @@ function TemplatesIndex() {
                                                 {CATEGORY[t.category]?.label ?? t.category}
                                             </span>
                                         </td>
-                                        <td>{t.is_active ? <span className="mdash-pill ok">Actif</span> : <span className="mdash-pill idle">Inactif</span>}</td>
+                                        <td>
+                                            {t.is_active ? <span className="mdash-pill ok">Actif</span> : <span className="mdash-pill idle">Inactif</span>}{' '}
+                                            {t.status && (
+                                                <span className={`mdash-pill ${META_STATUS[t.status]?.pill ?? 'idle'}`} title="Statut chez Meta (dernière synchronisation)">
+                                                    {META_STATUS[t.status]?.label ?? t.status}
+                                                </span>
+                                            )}
+                                        </td>
                                         <td className="r num">{t.campaigns_count}</td>
                                         <td className="r mono">{formatDay(t.last_used_at)}</td>
                                         <td className="r">
