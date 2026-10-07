@@ -3,7 +3,7 @@ import { FormEventHandler, useEffect, useState } from 'react';
 
 import { Modal } from '../../components/ui/modal';
 import Button from '../../components/ui/button/Button';
-import TemplateParams, { TemplateWithParams, templateParamsReady } from '../Campaigns/TemplateParams';
+import TemplateParams, { CostEstimate, TemplateWithParams, templateParamsReady } from '../Campaigns/TemplateParams';
 
 export interface CampaignTemplate extends TemplateWithParams {
     category: string | null;
@@ -212,6 +212,10 @@ export default function SelectionCampaignModal({ isOpen, onClose, customerIds, f
                         </p>
                         {errors.text_body && <p className="mt-1.5 text-sm text-error-500">{errors.text_body}</p>}
                     </div>
+                )}
+
+                {audience && audience.recipients > 0 && (
+                    <CostEstimate count={audience.recipients} category={selectedTemplate?.category} isText={data.message_type === 'text'} />
                 )}
 
                 <div className="flex justify-end gap-2 border-t border-gray-100 pt-4 dark:border-gray-800">

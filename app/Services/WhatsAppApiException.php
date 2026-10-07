@@ -26,6 +26,18 @@ class WhatsAppApiException extends RuntimeException
     }
 
     /**
+     * Erreur passagère (Meta indisponible, limite de débit) : l'envoi peut
+     * être retenté plus tard, contrairement à un numéro invalide ou un modèle
+     * refusé.
+     */
+    public function isTransient(): bool
+    {
+        return $this->httpStatus >= 500
+            || $this->httpStatus === 429
+            || in_array($this->metaCode(), [4, 80007, 130429, 131048, 131056, 131000], true);
+    }
+
+    /**
      * Explication en français de l'erreur Meta, avec ce qu'il faut corriger,
      * pour l'écran Paramètres → WhatsApp. Le code et le message bruts de Meta
      * restent ajoutés en fin de phrase pour le support.

@@ -1,6 +1,6 @@
 import { useForm } from '@inertiajs/react';
 
-import TemplateParams, { TemplateWithParams, templateParamsReady } from './TemplateParams';
+import TemplateParams, { CostEstimate, TemplateWithParams, templateParamsReady } from './TemplateParams';
 import { FormEventHandler, useEffect, useState } from 'react';
 
 import { Modal } from '../../components/ui/modal';
@@ -467,6 +467,11 @@ export default function CreateCampaignModal({ isOpen, onClose, stores, groups, t
                                         </span>
                                     )}
                                 </div>
+                                {!!segmentCount && (
+                                    <div className="mt-2">
+                                        <CostEstimate count={segmentCount} category={selectedTemplate?.category} isText={data.message_type === 'text'} />
+                                    </div>
+                                )}
                             </>
                         ) : (
                             <div className="rounded-lg border border-dashed border-gray-300 bg-gray-50 px-4 py-3 text-sm text-gray-600 dark:border-gray-700 dark:bg-white/[0.02] dark:text-gray-400">

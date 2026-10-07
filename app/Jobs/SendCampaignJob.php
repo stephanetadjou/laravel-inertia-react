@@ -3,26 +3,29 @@
 namespace App\Jobs;
 
 use App\Models\Campaign;
-use App\Models\MessageTemplate;
-use App\Models\Store;
-use App\Services\WhatsAppApiException;
-use App\Services\WhatsAppClient;
+use Illuminate\Bus\Batch;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
-use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
-use RuntimeException;
+use Illuminate\Support\Facades\Bus;
 
+/**
+ * Lance l'envoi d'une campagne : découpe les messages en attente en lots
+ * (services.meta_whatsapp.batch_size) envoyés chacun par un SendCampaignBatchJob
+ * avec ses propres tentatives. Quand tous les lots sont finis, la campagne
+ * passe « Terminée » (ou « Échec » si aucun message n'est parti).
+ *
+ * Chaque message part toujours via le numéro WhatsApp de la boutique du
+ * contact destinataire (cf. Store::whatsappClient()).
+ */
 class SendCampaignJob implements ShouldQueue
 {
     use InteractsWithQueue, Queueable, SerializesModels;
 
-    /** @var array<int, WhatsAppClient> Un client par boutique, construit à la demande. */
-    private array $clientsByStoreId = [];
+    public int $tries = 3;
 
-    /** @var array<int, string> Langue du template par organisation, résolue une seule fois. */
-    private array $languagesByOrganizationId = [];
+    public int $timeout = 120;
 
     public function __construct(public Campaign $campaign) {}
 
@@ -30,64 +33,30 @@ class SendCampaignJob implements ShouldQueue
     {
         $this->campaign->update(['status' => 'sending']);
 
-        $this->campaign->campaignMessages()
+        $batchSize = max(1, (int) config('services.meta_whatsapp.batch_size', 50));
+        $jobs = $this->campaign->campaignMessages()
             ->where('status', 'pending')
-            ->with('contact.store')
-            ->chunk(50, function ($messages) {
-                foreach ($messages as $message) {
-                    $store = $message->contact->store;
+            ->orderBy('id')
+            ->pluck('id')
+            ->chunk($batchSize)
+            ->map(fn ($ids) => new SendCampaignBatchJob($this->campaign->id, $ids->values()->all()))
+            ->values()
+            ->all();
 
-                    try {
-                        $client = $this->clientFor($store);
+        if ($jobs === []) {
+            $this->campaign->finishSending();
 
-                        $result = $this->campaign->message_type === 'text'
-                            ? $client->sendText($message->contact->phone_e164, $this->campaign->text_body)
-                            : $client->sendTemplate(
-                                $message->contact->phone_e164,
-                                $this->campaign->template_name,
-                                $this->campaign->template_language ?: $this->templateLanguageFor($store),
-                                $this->campaign->variablesFor($message->contact),
-                                $this->campaign->header_image_url,
-                            );
+            return;
+        }
 
-                        $message->update([
-                            'status' => 'sent',
-                            'meta_message_id' => $result['messages'][0]['id'] ?? null,
-                        ]);
-                        $this->campaign->increment('sent_count');
-                    } catch (WhatsAppApiException|ConnectionException|RuntimeException $e) {
-                        // RuntimeException : boutique sans identifiants et pas de
-                        // compte partagé — le message échoue, la campagne continue.
-                        $message->update([
-                            'status' => 'failed',
-                            'error_message' => $e->getMessage(),
-                        ]);
-                        $this->campaign->increment('failed_count');
-                    }
+        $campaignId = $this->campaign->id;
 
-                    // Respect des limites de débit WhatsApp (cf. whatsapp_bulk.php).
-                    usleep(300000);
-                }
-            });
-
-        $this->campaign->update(['status' => 'completed']);
-    }
-
-    /**
-     * Un message part toujours via le client de la boutique du contact
-     * destinataire : son propre numéro WhatsApp Business s'il est configuré,
-     * sinon le compte Meta partagé (cf. Store::whatsappClient()).
-     */
-    private function clientFor(Store $store): WhatsAppClient
-    {
-        return $this->clientsByStoreId[$store->id] ??= $store->whatsappClient();
-    }
-
-    private function templateLanguageFor(Store $store): string
-    {
-        return $this->languagesByOrganizationId[$store->organization_id] ??= MessageTemplate::languageFor(
-            $store->organization_id,
-            $this->campaign->template_name,
-        );
+        Bus::batch($jobs)
+            ->name("Campagne #{$campaignId}")
+            ->allowFailures()
+            ->finally(function (Batch $batch) use ($campaignId) {
+                Campaign::find($campaignId)?->finishSending();
+            })
+            ->dispatch();
     }
 }

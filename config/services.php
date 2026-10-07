@@ -42,6 +42,19 @@ return [
         // cloud : vraie API Meta. log : simulation locale, aucun appel externe
         // (ignoré en production), cf. App\Services\WhatsAppClient.
         'driver' => env('WHATSAPP_DRIVER', 'cloud'),
+        // Envoi des campagnes : messages par lot (un job par lot) et pause
+        // entre deux messages pour rester sous le débit autorisé par Meta.
+        'batch_size' => (int) env('WHATSAPP_BATCH_SIZE', 50),
+        'send_delay_ms' => (int) env('WHATSAPP_SEND_DELAY_MS', 100),
+        // Coût estimé avant envoi, par message et par catégorie de modèle.
+        // Valeurs indicatives (grille Meta « Rest of Africa », en USD) à
+        // ajuster selon la grille Meta en vigueur et le pays des destinataires.
+        'pricing' => [
+            'currency' => env('WHATSAPP_PRICE_CURRENCY', 'USD'),
+            'marketing' => (float) env('WHATSAPP_PRICE_MARKETING', 0.0225),
+            'utility' => (float) env('WHATSAPP_PRICE_UTILITY', 0.004),
+            'authentication' => (float) env('WHATSAPP_PRICE_AUTHENTICATION', 0.004),
+        ],
     ],
 
 ];

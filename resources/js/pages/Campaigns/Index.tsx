@@ -13,7 +13,7 @@ interface CampaignRow {
     message_type: 'template' | 'text';
     template_name: string | null;
     group_names: string[];
-    status: 'draft' | 'queued' | 'sending' | 'completed';
+    status: 'draft' | 'queued' | 'sending' | 'completed' | 'failed';
     sent_count: number;
     delivered_count: number;
     read_count: number;
@@ -54,6 +54,7 @@ export const CAMPAIGN_STATUS: Record<CampaignRow['status'], { label: string; pil
     queued: { label: 'En file', pill: 'idle' },
     sending: { label: 'En cours', pill: 'warn' },
     completed: { label: 'Terminée', pill: 'ok' },
+    failed: { label: 'Échec', pill: 'bad' },
 };
 
 function Progress({ c }: { c: CampaignRow }) {

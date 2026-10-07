@@ -110,7 +110,7 @@ class CampaignController extends Controller
             'templates' => MessageTemplate::where('organization_id', $request->user()->organization_id)
                 ->sendable()
                 ->orderBy('name')
-                ->get(['id', 'name', 'language', 'body_text', 'body_variables', 'header_format']),
+                ->get(['id', 'name', 'language', 'category', 'body_text', 'body_variables', 'header_format']),
         ]);
     }
 
@@ -252,6 +252,10 @@ class CampaignController extends Controller
             return back()->with('error', 'Aucun contact opt_in ne correspond à ce segment (consentement WhatsApp obligatoire avant tout envoi).');
         }
 
+        if ($overLimit = $this->messagingLimitErrors($contactIds)) {
+            return back()->with('error', 'Limite d\'envoi WhatsApp dépassée : '.implode(' ; ', $overLimit).'. Réduisez le ciblage ou répartissez l\'envoi sur plusieurs jours.');
+        }
+
         $campaign = Campaign::create([
             'name' => $data['name'],
             'description' => $data['description'] ?? null,
@@ -293,6 +297,50 @@ class CampaignController extends Controller
         }
 
         return redirect()->route('campaigns.index')->with('success', $message);
+    }
+
+    /**
+     * Plafond de destinataires : Meta limite chaque numéro à N destinataires
+     * uniques par 24 h (limite lue par « Tester » dans Paramètres → WhatsApp).
+     * Les destinataires déjà messagés par campagne sur 24 h glissantes
+     * comptent dans la limite. Sans limite connue, pas de plafond.
+     *
+     * @param  Collection<int, int>  $contactIds
+     * @return array<int, string>
+     */
+    private function messagingLimitErrors(Collection $contactIds): array
+    {
+        $perStore = Contact::whereIn('id', $contactIds)->selectRaw('store_id, count(*) as recipients')->groupBy('store_id')->pluck('recipients', 'store_id');
+        $errors = [];
+
+        foreach (Store::whereIn('id', $perStore->keys())->get() as $store) {
+            $limit = $store->dailyMessagingLimit();
+
+            if ($limit === null) {
+                continue;
+            }
+
+            $alreadyMessaged = CampaignMessage::where('campaign_messages.status', 'sent')
+                ->where('campaign_messages.updated_at', '>=', now()->subDay())
+                ->join('contacts', 'contacts.id', '=', 'campaign_messages.contact_id')
+                ->where('contacts.store_id', $store->id)
+                ->distinct()
+                ->count('campaign_messages.contact_id');
+
+            $recipients = (int) $perStore[$store->id];
+
+            if ($recipients + $alreadyMessaged > $limit) {
+                $errors[] = sprintf(
+                    '%s : %s destinataires pour une limite de %s / 24 h (déjà %s envoyés)',
+                    $store->name,
+                    number_format($recipients, 0, ',', ' '),
+                    number_format($limit, 0, ',', ' '),
+                    number_format($alreadyMessaged, 0, ',', ' '),
+                );
+            }
+        }
+
+        return $errors;
     }
 
     /**

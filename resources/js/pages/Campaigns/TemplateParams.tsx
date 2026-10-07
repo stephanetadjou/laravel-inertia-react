@@ -1,3 +1,41 @@
+import { usePage } from '@inertiajs/react';
+
+interface Pricing {
+    currency: string;
+    marketing: number;
+    utility: number;
+    authentication: number;
+}
+
+/**
+ * Coût estimé avant envoi : nombre de destinataires × tarif Meta de la
+ * catégorie du modèle (tarifs indicatifs, cf. services.meta_whatsapp.pricing).
+ * Un message libre, dans la fenêtre de 24 h ouverte par le client, n'est pas facturé.
+ */
+export function CostEstimate({ count, category, isText = false }: { count: number | null; category?: string | null; isText?: boolean }) {
+    const pricing = usePage<{ whatsappPricing?: Pricing | null }>().props.whatsappPricing;
+
+    if (!pricing || count === null) return null;
+
+    if (isText) {
+        return <p className="text-xs text-gray-500 dark:text-gray-400">Coût estimé : gratuit (message libre dans la fenêtre de 24 h du client).</p>;
+    }
+
+    const key = (category ?? 'marketing') as keyof Omit<Pricing, 'currency'>;
+    const unit = pricing[key] ?? pricing.marketing;
+    const format = (n: number, digits: number) =>
+        new Intl.NumberFormat('fr-FR', { style: 'currency', currency: pricing.currency, maximumFractionDigits: digits }).format(n);
+
+    return (
+        <p className="rounded-lg bg-gray-50 px-3 py-2 text-sm text-gray-700 dark:bg-white/[0.04] dark:text-gray-300">
+            Coût estimé : <b>{format(count * unit, 2)}</b>{' '}
+            <span className="text-xs text-gray-500 dark:text-gray-400">
+                ({new Intl.NumberFormat('fr-FR').format(count)} × {format(unit, 4)}, tarif {category ?? 'marketing'} indicatif)
+            </span>
+        </p>
+    );
+}
+
 /**
  * Paramètres d'un modèle WhatsApp dans une campagne : une valeur par variable
  * {{n}} du corps (texte fixe ou {prenom}, {nom}, {boutique} remplacés pour
@@ -11,6 +49,7 @@ export interface TemplateWithParams {
     body_text?: string | null;
     body_variables?: number;
     header_format?: string | null;
+    category?: string | null;
 }
 
 interface TemplateParamsProps {

@@ -33,5 +33,6 @@
         <env name="TELESCOPE_ENABLED" value="false"/>
         <env name="NIGHTWATCH_ENABLED" value="false"/>
         <env name="WHATSAPP_DRIVER" value="cloud"/>
+        <env name="WHATSAPP_SEND_DELAY_MS" value="0"/>
     </php>
 </phpunit>

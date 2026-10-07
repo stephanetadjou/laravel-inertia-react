@@ -54,6 +54,8 @@ class HandleInertiaRequests extends Middleware
                 ] : null,
                 'organization' => $user?->organization ? ['name' => $user->organization->name] : null,
             ],
+            // Tarifs indicatifs par message, pour le coût estimé avant envoi d'une campagne.
+            'whatsappPricing' => fn () => $user ? config('services.meta_whatsapp.pricing') : null,
             // Cloche « À traiter » (cf. NotificationService), calculée seulement si la page la demande.
             'notifications' => fn () => $user ? app(NotificationService::class)->forUser($user) : null,
         ];

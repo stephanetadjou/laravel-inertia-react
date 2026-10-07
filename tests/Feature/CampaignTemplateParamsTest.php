@@ -1,6 +1,5 @@
 <?php
 
-use App\Jobs\SendCampaignJob;
 use App\Models\Campaign;
 use App\Models\Contact;
 use App\Models\MessageTemplate;
@@ -106,12 +105,12 @@ it('refuses a template that Meta has not approved', function () {
 
 it('sends the personalised variables, the header image and the template language to Meta', function () {
     Http::fake(['graph.facebook.com/*' => Http::response(['messages' => [['id' => 'wamid.X']]])]);
-    Queue::fake();
+    // File synchrone (phpunit.xml) : la campagne part dès sa création, lot compris.
     [, $store, $user, $template] = paramsSetup(['header_format' => 'IMAGE', 'language' => 'fr']);
 
     $this->actingAs($user)->post('/campaigns', campaignPayload($store, $template, ['header_image_url' => 'https://cdn.exemple.com/rentree.jpg']));
 
-    (new SendCampaignJob(Campaign::sole()))->handle();
+    expect(Campaign::sole()->status)->toBe('completed');
 
     Http::assertSent(function (Request $request) {
         $template = $request['template'];

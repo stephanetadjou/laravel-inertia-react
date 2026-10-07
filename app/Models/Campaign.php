@@ -79,6 +79,19 @@ class Campaign extends Model
     }
 
     /**
+     * Fin de l'envoi : compteurs à jour, campagne « completed », ou « failed »
+     * si aucun message n'est parti.
+     */
+    public function finishSending(): void
+    {
+        $this->refreshDeliveryCounts();
+
+        $this->update([
+            'status' => $this->sent_count === 0 && $this->failed_count > 0 ? 'failed' : 'completed',
+        ]);
+    }
+
+    /**
      * Recalcule les compteurs depuis les messages (après un statut Meta) :
      * un message lu compte aussi comme remis, un échec signalé après coup
      * quitte les envoyés.
