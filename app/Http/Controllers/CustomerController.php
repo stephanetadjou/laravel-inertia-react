@@ -209,6 +209,8 @@ class CustomerController extends Controller
                 'store_name' => $c->store->name,
                 'brand_name' => $c->store->brand?->name,
                 'consent_status' => $c->consent_status,
+                'consent_at' => $c->consent_at?->toIso8601String(),
+                'consent_source' => Contact::CONSENT_SOURCES[$c->consent_source] ?? $c->consent_source,
                 'is_vip' => $c->is_vip,
                 'vip_since' => $c->vip_since?->toIso8601String(),
                 'welcomed' => $c->welcome_message_sent_at !== null,

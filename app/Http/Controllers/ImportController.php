@@ -17,6 +17,7 @@ class ImportController extends Controller
         return Inertia::render('Imports/Index', [
             'stores' => $this->visibleStoresQuery($request)->orderBy('name')->get(['id', 'name']),
             'preview' => null,
+            'fields' => $this->fields(),
         ]);
     }
 
@@ -29,13 +30,17 @@ class ImportController extends Controller
         $data = $request->validate([
             'store_id' => ['required', 'integer'],
             'file' => ['required', 'file', 'mimes:csv,txt,xlsx,xls'],
+            'mapping' => ['nullable', 'array'],
+            'mapping.*' => ['nullable', 'integer', 'min:0'],
+            'delimiter' => ['nullable', 'in:auto,comma,semicolon,tab'],
         ]);
 
         $store = $this->visibleStoresQuery($request)->findOrFail($data['store_id']);
 
         return Inertia::render('Imports/Index', [
             'stores' => $this->visibleStoresQuery($request)->orderBy('name')->get(['id', 'name']),
-            'preview' => $importer->preview($request->file('file'), $store),
+            'fields' => $this->fields(),
+            'preview' => $importer->preview($request->file('file'), $store, $this->mapping($request), $this->delimiter($data)),
         ]);
     }
 
@@ -44,11 +49,14 @@ class ImportController extends Controller
         $data = $request->validate([
             'store_id' => ['required', 'integer'],
             'file' => ['required', 'file', 'mimes:csv,txt,xlsx,xls'],
+            'mapping' => ['nullable', 'array'],
+            'mapping.*' => ['nullable', 'integer', 'min:0'],
+            'delimiter' => ['nullable', 'in:auto,comma,semicolon,tab'],
         ]);
 
         $store = $this->visibleStoresQuery($request)->findOrFail($data['store_id']);
 
-        $summary = $importer->import($request->file('file'), $store);
+        $summary = $importer->import($request->file('file'), $store, $this->mapping($request), $this->delimiter($data));
 
         $message = sprintf(
             '%d contact(s) créé(s), %d mis à jour, %d achat(s) enregistré(s).',
@@ -62,6 +70,36 @@ class ImportController extends Controller
         }
 
         return back()->with('success', $message);
+    }
+
+    /**
+     * Association champ => colonne choisie dans l'aperçu (absente au premier
+     * aperçu : détection automatique d'après les en-têtes).
+     *
+     * @return array<string, mixed>|null
+     */
+    private function mapping(Request $request): ?array
+    {
+        return $request->has('mapping') ? (array) $request->input('mapping') : null;
+    }
+
+    /**
+     * @param  array<string, mixed>  $data
+     */
+    private function delimiter(array $data): ?string
+    {
+        return ['comma' => ',', 'semicolon' => ';', 'tab' => "\t"][$data['delimiter'] ?? 'auto'] ?? null;
+    }
+
+    /**
+     * @return array<int, array{key: string, label: string, required: bool}>
+     */
+    private function fields(): array
+    {
+        return collect(ContactImporter::FIELDS)
+            ->map(fn (array $field, string $key) => ['key' => $key, 'label' => $field['label'], 'required' => $field['required']])
+            ->values()
+            ->all();
     }
 
     /**

@@ -227,7 +227,7 @@ class CampaignController extends Controller
             // ne jamais écraser un contact déjà explicitement désinscrit (opt_out).
             Contact::whereIn('id', $importedIds)
                 ->where('consent_status', 'unknown')
-                ->update(['consent_status' => 'opt_in']);
+                ->update(['consent_status' => 'opt_in', 'consent_at' => now(), 'consent_source' => 'campagne_import']);
 
             $stores = collect([$store]);
             $contactIds = Contact::whereIn('id', $importedIds)->where('consent_status', 'opt_in')->pluck('id');

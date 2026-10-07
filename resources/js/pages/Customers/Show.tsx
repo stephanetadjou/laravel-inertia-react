@@ -29,6 +29,8 @@ interface ContactRow {
     store_name: string;
     brand_name: string | null;
     consent_status: 'unknown' | 'opt_in' | 'opt_out';
+    consent_at: string | null;
+    consent_source: string | null;
     is_vip: boolean;
     vip_since: string | null;
     welcomed: boolean;
@@ -381,7 +383,16 @@ function CustomerShow() {
                                         {c.name !== customer.name ? ` · nommé « ${c.name} »` : ''}
                                     </span>
                                 </div>
-                                <span className={`mdash-pill ${CONSENT[c.consent_status][1]}`}>{CONSENT[c.consent_status][0]}</span>
+                                <span
+                                    className={`mdash-pill ${CONSENT[c.consent_status][1]}`}
+                                    title={
+                                        c.consent_source
+                                            ? `${c.consent_source}${c.consent_at ? ` · ${new Date(c.consent_at).toLocaleDateString('fr-FR')}` : ''}`
+                                            : undefined
+                                    }
+                                >
+                                    {CONSENT[c.consent_status][0]}
+                                </span>
                                 <span className="mcust-row-links">
                                     <button type="button" disabled={busy === c.id} onClick={() => post(c, `/contacts/${c.id}/send-test`)}>
                                         Message test

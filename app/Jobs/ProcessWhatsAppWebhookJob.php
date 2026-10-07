@@ -161,7 +161,7 @@ class ProcessWhatsAppWebhookJob implements ShouldQueue
 
         // « Stop » : le client retire son accord pour ce numéro de boutique.
         if ($inserted && $contactId && self::isStopRequest($body)) {
-            Contact::find($contactId)?->update(['consent_status' => 'opt_out']);
+            Contact::find($contactId)?->update(['consent_status' => 'opt_out', 'consent_source' => 'whatsapp_stop']);
         }
     }
 

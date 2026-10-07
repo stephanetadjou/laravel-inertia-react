@@ -115,11 +115,12 @@ class PurchaseImporter
                     'phone_e164' => $row['phone'],
                     'name' => $row['name'] ?? "Client {$row['phone']}",
                     'consent_status' => $row['consent'] ?? 'unknown',
+                    'consent_source' => $row['consent'] !== null ? 'import' : null,
                 ]);
                 $contactsCreated++;
             } elseif ($row['consent'] !== null && $row['consent'] !== $contact->consent_status) {
                 // Réponse explicite en caisse : elle remplace le statut enregistré.
-                $contact->update(['consent_status' => $row['consent']]);
+                $contact->update(['consent_status' => $row['consent'], 'consent_source' => 'import']);
             }
 
             Purchase::create([
