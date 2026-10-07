@@ -6,8 +6,9 @@
 @custom-variant dark (&:is(.dark *));
 
 @theme {
-    --font-sans: 'Instrument Sans', ui-sans-serif, system-ui, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji',
+    --font-sans: 'Outfit', ui-sans-serif, system-ui, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji',
         'Segoe UI Symbol', 'Noto Color Emoji';
+    --font-display: 'Bricolage Grotesque', 'Outfit', ui-sans-serif, system-ui, sans-serif;
 
     --breakpoint-*: initial;
     --breakpoint-2xsm: 375px;
@@ -36,18 +37,36 @@
     --text-theme-xs: 12px;
     --text-theme-xs--line-height: 18px;
 
-    --color-brand-25: #f2f7ff;
-    --color-brand-50: #ecf3ff;
-    --color-brand-100: #dde9ff;
-    --color-brand-200: #c2d6ff;
-    --color-brand-300: #9cb9ff;
-    --color-brand-400: #7592ff;
-    --color-brand-500: #465fff;
-    --color-brand-600: #3641f5;
-    --color-brand-700: #2a31d8;
-    --color-brand-800: #252dae;
-    --color-brand-900: #262e89;
-    --color-brand-950: #161950;
+    /* Marque Menentia (design system) : rouge pour la marque, anthracite pour
+       les titres et le menu latéral. Le vert n'est plus une couleur de marque :
+       il reste uniquement dans l'échelle success-* (succès, opt-in). */
+    --color-brand: #ef4444; /* logo, grands aplats, titres colorés de 24 px et plus */
+    --color-brand-strong: #dc2626; /* boutons principaux, texte blanc dessus */
+    --color-brand-text: #b91c1c; /* petit texte rouge, liens, sur fond clair */
+    --color-ink-strong: #1f2937; /* titres, menu latéral */
+    --color-ink: #111827;
+    --color-ink-muted: #4b5563;
+    --color-accent: #fca5a5; /* décor, élément actif sur anthracite ; jamais de texte rose sur blanc */
+    --color-tint: #fee2e2;
+    --color-surface-soft: #fef2f2;
+    --color-line: #f3d9d9;
+    --color-focus: #1f2937;
+    --color-focus-dark: #fca5a5;
+
+    /* Échelle brand-* des classes existantes (bg-brand-500 pour les boutons,
+       text-brand-text pour les liens…), alignée sur les tokens ci-dessus. */
+    --color-brand-25: #fffafa;
+    --color-brand-50: #fef2f2;
+    --color-brand-100: #fee2e2;
+    --color-brand-200: #fecaca;
+    --color-brand-300: #fca5a5;
+    --color-brand-400: #f87171;
+    --color-brand-500: #dc2626;
+    --color-brand-600: #b91c1c;
+    --color-brand-700: #991b1b;
+    --color-brand-800: #7f1d1d;
+    --color-brand-900: #631a1a;
+    --color-brand-950: #450a0a;
 
     --color-blue-light-25: #f5fbff;
     --color-blue-light-50: #f0f9ff;
@@ -149,6 +168,16 @@
     body {
         @apply relative z-1 bg-gray-50 font-normal dark:bg-gray-900;
     }
+    h1,
+    .font-display {
+        font-family: var(--font-display);
+    }
+    :focus-visible {
+        outline-color: var(--color-focus);
+    }
+    .dark :focus-visible {
+        outline-color: var(--color-focus-dark);
+    }
 }
 
 /*
@@ -181,7 +210,7 @@
 }
 
 @utility menu-item-active {
-    @apply bg-brand-50 text-brand-500 dark:bg-brand-500/[0.12] dark:text-brand-400;
+    @apply bg-brand-50 text-brand-text dark:bg-brand-500/[0.12] dark:text-brand-400;
 }
 
 @utility menu-item-inactive {
@@ -195,7 +224,7 @@
 }
 
 @utility menu-item-icon-active {
-    @apply text-brand-500 dark:text-brand-400;
+    @apply text-brand-text dark:text-brand-400;
 }
 
 @utility menu-item-icon-inactive {
@@ -211,7 +240,7 @@
 }
 
 @utility menu-dropdown-item-active {
-    @apply bg-brand-50 text-brand-500 dark:bg-brand-500/[0.12] dark:text-brand-400;
+    @apply bg-brand-50 text-brand-text dark:bg-brand-500/[0.12] dark:text-brand-400;
 }
 
 @utility menu-dropdown-item-inactive {
@@ -219,7 +248,7 @@
 }
 
 @utility menu-dropdown-badge {
-    @apply block rounded-full px-2.5 py-0.5 text-xs font-medium text-brand-500 uppercase dark:text-brand-400;
+    @apply block rounded-full px-2.5 py-0.5 text-xs font-medium text-brand-text uppercase dark:text-brand-400;
 }
 
 @utility menu-dropdown-badge-active {

@@ -24,7 +24,7 @@ export function useNotifications(): Notifications | null {
 const DOT: Record<NotificationItem['tone'], string> = {
     bad: 'bg-error-500',
     warn: 'bg-warning-500',
-    info: 'bg-brand-500',
+    info: 'bg-blue-light-500',
 };
 
 const UNREAD_TITLE = 'Messages clients non lus';
@@ -76,7 +76,7 @@ export function NotificationBell() {
                 <div className="absolute right-0 mt-2 w-[min(360px,calc(100vw-24px))] rounded-xl border border-gray-200 bg-white shadow-theme-lg dark:border-gray-800 dark:bg-gray-900">
                     <div className="flex items-center justify-between border-b border-gray-100 px-4 py-3 dark:border-gray-800">
                         <span className="text-sm font-semibold text-gray-800 dark:text-white/90">À traiter</span>
-                        <Link href="/dashboard" className="text-xs font-medium text-brand-500" onClick={() => setOpen(false)}>
+                        <Link href="/dashboard" className="text-xs font-medium text-brand-text" onClick={() => setOpen(false)}>
                             Tableau de bord
                         </Link>
                     </div>

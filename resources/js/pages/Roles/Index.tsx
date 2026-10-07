@@ -96,7 +96,7 @@ function RoleFormModal({ isOpen, onClose, role }: { isOpen: boolean; onClose: ()
                         type="checkbox"
                         checked={data.can_manage_organization}
                         onChange={(e) => setData('can_manage_organization', e.target.checked)}
-                        className="mt-1 h-4 w-4 rounded border-gray-300 text-brand-500 focus:ring-brand-300"
+                        className="mt-1 h-4 w-4 rounded border-gray-300 text-brand-text focus:ring-brand-300"
                     />
                     <label htmlFor="can_manage_organization" className="text-sm text-gray-700 dark:text-gray-300">
                         Peut gérer l'organisation

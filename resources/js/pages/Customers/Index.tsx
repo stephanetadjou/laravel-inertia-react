@@ -62,7 +62,7 @@ type QueryValue = string | number | null;
 
 const STAGE_COLOR: Record<string, string> = {
     idle: 'var(--faint)',
-    info: 'var(--brand)',
+    info: 'var(--data)',
     ok: 'var(--ok)',
     accent: 'var(--accent)',
     warn: 'var(--warn)',

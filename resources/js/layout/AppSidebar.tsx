@@ -17,6 +17,7 @@ import {
     UserIcon,
 } from '../icons';
 import { useSidebar } from '../context/SidebarContext';
+import { MenentiaSymbol, MenentiaWordmark } from '../components/common/MenentiaLogo';
 
 type NavItem = {
     name: string;
@@ -125,7 +126,7 @@ const AppSidebar: React.FC = () => {
 
     return (
         <aside
-            className={`fixed top-0 left-0 z-50 mt-16 flex h-screen flex-col bg-[#0a5a41] px-4 text-[#effaf4] transition-all duration-300 ease-in-out lg:mt-0 ${
+            className={`fixed top-0 left-0 z-50 mt-16 flex h-screen flex-col bg-ink-strong px-4 text-gray-100 transition-all duration-300 ease-in-out lg:mt-0 ${
                 isExpanded || isMobileOpen ? 'w-[290px]' : isHovered ? 'w-[290px]' : 'w-[90px]'
             } ${isMobileOpen ? 'translate-x-0' : '-translate-x-full'} lg:translate-x-0`}
             onMouseEnter={() => !isExpanded && setIsHovered(true)}
@@ -133,16 +134,11 @@ const AppSidebar: React.FC = () => {
         >
             <div className={`flex py-6 ${!isExpanded && !isHovered ? 'lg:justify-center' : 'justify-start'}`}>
                 <Link href="/dashboard" className="flex items-center gap-2.5">
-                    <span className="grid h-9 w-9 shrink-0 place-items-center rounded-[10px] bg-[#25d366]" aria-hidden="true">
-                        <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="#05331f" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-                            <path d="M4 20l1.3-3.9A8 8 0 1 1 8 19z" />
-                            <path d="M9 10h6M9 13.5h4" />
-                        </svg>
-                    </span>
+                    <MenentiaSymbol className="h-9 w-9" />
                     {showLabels && (
                         <span className="leading-tight">
-                            <span className="block text-lg font-bold tracking-tight text-white">MERCURE CRM</span>
-                            <span className="block text-[11px] text-[#a9dcc3]">CRM WhatsApp retail</span>
+                            <MenentiaWordmark onDark className="block text-[22px]" />
+                            <span className="mt-1 block text-[11px] text-gray-400">CRM WhatsApp retail</span>
                         </span>
                     )}
                 </Link>
@@ -157,7 +153,7 @@ const AppSidebar: React.FC = () => {
                                 <div key={group.label}>
                                     <h2
                                         onClick={() => group.collapsible && showLabels && toggleGroup(group.label)}
-                                        className={`mb-1.5 flex items-center px-3 pt-1 text-[10.5px] leading-[20px] tracking-[0.08em] text-[#a9dcc3] uppercase ${
+                                        className={`mb-1.5 flex items-center px-3 pt-1 text-[10.5px] leading-[20px] tracking-[0.08em] text-gray-400 uppercase ${
                                             !isExpanded && !isHovered ? 'lg:justify-center' : 'justify-start'
                                         } ${group.collapsible && showLabels ? 'cursor-pointer select-none' : ''}`}
                                     >
@@ -178,10 +174,10 @@ const AppSidebar: React.FC = () => {
                                                         <Link
                                                             href={nav.path}
                                                             aria-current={active ? 'page' : undefined}
-                                                            className={`flex w-full items-center gap-3 rounded-[9px] px-3 py-2 text-sm whitespace-nowrap transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#25d366] ${
+                                                            className={`flex w-full items-center gap-3 rounded-[9px] px-3 py-2 text-sm whitespace-nowrap transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent ${
                                                                 active
-                                                                    ? 'bg-[#25d366] font-semibold text-[#05331f]'
-                                                                    : 'text-[#effaf4] hover:bg-[#0e6b4e]'
+                                                                    ? 'bg-brand-strong font-semibold text-white'
+                                                                    : 'text-gray-100 hover:bg-white/10'
                                                             } ${!isExpanded && !isHovered ? 'lg:justify-center' : ''}`}
                                                         >
                                                             <span className={`shrink-0 [&_svg]:size-5 ${active ? '' : 'opacity-85'}`}>{nav.icon}</span>

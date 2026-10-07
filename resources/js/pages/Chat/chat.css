@@ -162,7 +162,7 @@
     height: 44px;
     border-radius: 50%;
     background: var(--brand-soft);
-    color: var(--brand);
+    color: var(--brand-text);
     display: grid;
     place-items: center;
     font-weight: 700;

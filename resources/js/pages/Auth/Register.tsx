@@ -2,6 +2,7 @@ import { Head, Link, useForm } from '@inertiajs/react';
 import { FormEventHandler } from 'react';
 
 import Button from '../../components/ui/button/Button';
+import MenentiaLogo from '../../components/common/MenentiaLogo';
 
 type Field = 'organization_name' | 'store_name' | 'name' | 'email' | 'password' | 'password_confirmation';
 
@@ -41,7 +42,10 @@ export default function Register() {
             <div className="flex min-h-screen items-center justify-center bg-gray-50 px-4 py-10 dark:bg-gray-900">
                 <div className="w-full max-w-md rounded-2xl border border-gray-200 bg-white p-8 shadow-theme-md dark:border-gray-800 dark:bg-gray-900">
                     <div className="mb-8 text-center">
-                        <h1 className="text-xl font-bold text-gray-900 dark:text-white">Créer un compte entreprise</h1>
+                        <div className="mb-5 flex justify-center">
+                            <MenentiaLogo symbolClassName="h-10 w-10" wordmarkClassName="text-[28px]" />
+                        </div>
+                        <h1 className="text-xl font-bold text-ink-strong dark:text-white">Créer un compte entreprise</h1>
                         <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
                             Votre entreprise, votre premier établissement et votre accès administrateur.
                         </p>
@@ -68,7 +72,7 @@ export default function Register() {
 
                         <p className="text-center text-sm text-gray-500 dark:text-gray-400">
                             Déjà un compte ?{' '}
-                            <Link href="/login" className="font-medium text-brand-500 hover:underline">
+                            <Link href="/login" className="font-medium text-brand-text hover:underline">
                                 Se connecter
                             </Link>
                         </p>

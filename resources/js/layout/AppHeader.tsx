@@ -4,6 +4,7 @@ import { Link, router, usePage } from '@inertiajs/react';
 import { useSidebar } from '../context/SidebarContext';
 import { ThemeToggleButton } from '../components/common/ThemeToggleButton';
 import { NotificationBell } from '../components/notifications/Notifications';
+import MenentiaLogo from '../components/common/MenentiaLogo';
 
 interface SharedAuthProps {
     auth?: {
@@ -56,8 +57,8 @@ const AppHeader: React.FC = () => {
                         )}
                     </button>
 
-                    <Link href="/dashboard" className="text-lg font-bold text-gray-900 lg:hidden dark:text-white">
-                        MERCURE <span className="text-brand-500">CRM</span>
+                    <Link href="/dashboard" className="lg:hidden" aria-label="Menentia, tableau de bord">
+                        <MenentiaLogo symbolClassName="h-8 w-8" wordmarkClassName="text-xl" />
                     </Link>
 
                     {auth?.organization && (
@@ -85,7 +86,7 @@ const AppHeader: React.FC = () => {
                                     <div className="border-b border-gray-100 px-4 py-2 dark:border-gray-800">
                                         <p className="text-xs text-gray-500 dark:text-gray-400">{auth.user.email}</p>
                                         {auth.user.role_name && (
-                                            <p className="mt-0.5 text-xs font-medium text-brand-500">{auth.user.role_name}</p>
+                                            <p className="mt-0.5 text-xs font-medium text-brand-text">{auth.user.role_name}</p>
                                         )}
                                     </div>
                                     <button

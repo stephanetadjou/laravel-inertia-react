@@ -234,7 +234,7 @@ function ContactsShow() {
                         {contact.customer_id && (
                             <Link
                                 href={`/customers/${contact.customer_id}`}
-                                className="text-sm font-medium text-brand-500 hover:text-brand-600 dark:text-brand-400"
+                                className="text-sm font-medium text-brand-text hover:text-brand-700 dark:text-brand-400"
                             >
                                 Fiche client (toutes boutiques)
                             </Link>

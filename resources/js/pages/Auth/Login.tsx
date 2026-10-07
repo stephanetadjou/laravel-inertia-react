@@ -2,6 +2,7 @@ import { Head, Link, useForm } from '@inertiajs/react';
 import { FormEventHandler } from 'react';
 
 import Button from '../../components/ui/button/Button';
+import MenentiaLogo from '../../components/common/MenentiaLogo';
 
 export default function Login() {
     const { data, setData, post, processing, errors } = useForm({
@@ -22,8 +23,8 @@ export default function Login() {
             <div className="flex min-h-screen items-center justify-center bg-gray-50 px-4 dark:bg-gray-900">
                 <div className="w-full max-w-sm rounded-2xl border border-gray-200 bg-white p-8 shadow-theme-md dark:border-gray-800 dark:bg-gray-900">
                     <div className="mb-8 text-center">
-                        <h1 className="text-xl font-bold text-gray-900 dark:text-white">
-                            RETAIL <span className="text-brand-500">GROUP</span>
+                        <h1 className="flex justify-center">
+                            <MenentiaLogo symbolClassName="h-10 w-10" wordmarkClassName="text-[28px]" />
                         </h1>
                         <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">Connexion au backoffice</p>
                     </div>
@@ -64,7 +65,7 @@ export default function Login() {
 
                         <p className="text-center text-sm text-gray-500 dark:text-gray-400">
                             Nouvelle entreprise ?{' '}
-                            <Link href="/register" className="font-medium text-brand-500 hover:underline">
+                            <Link href="/register" className="font-medium text-brand-text hover:underline">
                                 Créer un compte
                             </Link>
                         </p>

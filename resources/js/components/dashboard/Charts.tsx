@@ -149,7 +149,7 @@ export function MessagesChart({ series }: { series: (Bucket & { sent: number; fa
                     <g key={d.start} onMouseEnter={() => setHover(i)} onMouseLeave={() => setHover(null)}>
                         <rect x={x(i) - slot / 2} y={frame.T} width={slot} height={frame.H - frame.T - frame.B} fill="transparent" />
                         {d.sent > 0 && (
-                            <rect x={x(i) - bw / 2} y={y(d.sent)} width={bw} height={y(0) - y(d.sent)} rx={1.5} fill="var(--brand-2)" opacity={hover === i ? 1 : 0.85} />
+                            <rect x={x(i) - bw / 2} y={y(d.sent)} width={bw} height={y(0) - y(d.sent)} rx={1.5} fill="var(--data-2)" opacity={hover === i ? 1 : 0.85} />
                         )}
                         {d.failed > 0 && (
                             <rect
@@ -197,8 +197,8 @@ export function SalesChart({ series, height = 260 }: { series: (Bucket & { reven
             <svg className="mdash-chart" viewBox={`0 0 ${W} ${frame.H}`} role="img" aria-label="Chiffre d'affaires par période, comparé à la période précédente">
                 <defs>
                     <linearGradient id="mdash-ca-fill" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="0" stopColor="var(--brand-2)" stopOpacity="0.28" />
-                        <stop offset="1" stopColor="var(--brand-2)" stopOpacity="0" />
+                        <stop offset="0" stopColor="var(--data-2)" stopOpacity="0.28" />
+                        <stop offset="1" stopColor="var(--data-2)" stopOpacity="0" />
                     </linearGradient>
                 </defs>
                 <Axes frame={frame} top={top} step={step} n={n} x={x} labels={series.map(shortLabel)} format={formatCompact} />
@@ -206,7 +206,7 @@ export function SalesChart({ series, height = 260 }: { series: (Bucket & { reven
                     <>
                         <path d={path(previous)} fill="none" stroke="var(--accent)" strokeWidth={1.5} strokeDasharray="4 3" />
                         <path d={`${path(current)}L${x(n - 1)} ${y(0)}L${x(0)} ${y(0)}Z`} fill="url(#mdash-ca-fill)" />
-                        <path d={path(current)} fill="none" stroke="var(--brand)" strokeWidth={2.4} strokeLinejoin="round" />
+                        <path d={path(current)} fill="none" stroke="var(--data)" strokeWidth={2.4} strokeLinejoin="round" />
                     </>
                 )}
                 {hover !== null && <line x1={x(hover)} x2={x(hover)} y1={frame.T} y2={y(0)} stroke="var(--line)" />}
@@ -215,7 +215,7 @@ export function SalesChart({ series, height = 260 }: { series: (Bucket & { reven
                         {(n === 1 || hover === i) && (
                             <>
                                 <circle cx={x(i)} cy={y(d.previous)} r={3.5} fill="var(--accent)" />
-                                <circle cx={x(i)} cy={y(d.revenue)} r={4.5} fill="var(--brand)" stroke="var(--surface)" strokeWidth={2} />
+                                <circle cx={x(i)} cy={y(d.revenue)} r={4.5} fill="var(--data)" stroke="var(--surface)" strokeWidth={2} />
                             </>
                         )}
                         <rect

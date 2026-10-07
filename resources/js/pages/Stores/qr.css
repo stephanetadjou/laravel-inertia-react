@@ -7,7 +7,7 @@
     margin-bottom: 4px;
 }
 .mqr-back:hover {
-    color: var(--brand);
+    color: var(--brand-text);
 }
 .mqr-grid {
     display: grid;

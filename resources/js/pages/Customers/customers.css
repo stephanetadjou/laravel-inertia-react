@@ -177,7 +177,7 @@
     height: 56px;
     border-radius: 50%;
     background: var(--brand-soft);
-    color: var(--brand);
+    color: var(--brand-text);
     display: grid;
     place-items: center;
     font-weight: 700;
@@ -328,7 +328,7 @@
 .mcust-select-all button {
     font: inherit;
     font-weight: 600;
-    color: var(--brand);
+    color: var(--brand-text);
     background: none;
     border: 0;
     cursor: pointer;
@@ -527,7 +527,7 @@
     background: none;
     border: 0;
     padding: 0;
-    color: var(--brand);
+    color: var(--brand-text);
     cursor: pointer;
 }
 .mcust-row-links button.danger {
@@ -547,7 +547,7 @@
     border-top: 1px solid var(--line);
 }
 .mcust-welcome a {
-    color: var(--brand);
+    color: var(--brand-text);
 }
 
 /* Barre de sélection : ajout / retrait d'un groupe. */
@@ -587,7 +587,7 @@
     padding: 1px 6px;
     border-radius: 6px;
     border-style: dashed;
-    color: var(--brand);
+    color: var(--brand-text);
     background: transparent;
     cursor: pointer;
 }

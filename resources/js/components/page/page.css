@@ -116,7 +116,7 @@
     background: none;
     border: 0;
     padding: 0;
-    color: var(--brand);
+    color: var(--brand-text);
     cursor: pointer;
     text-decoration: none;
 }
@@ -175,7 +175,7 @@
     font-weight: 600;
 }
 .mpage-note a {
-    color: var(--brand);
+    color: var(--brand-text);
     font-weight: 600;
 }
 
@@ -334,7 +334,7 @@
     padding: 5px 10px;
     margin-right: 10px;
     background: var(--brand-soft);
-    color: var(--brand);
+    color: var(--brand-text);
     cursor: pointer;
 }
 

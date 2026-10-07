@@ -14,7 +14,7 @@ import { NotificationPanel } from '../../components/notifications/Notifications'
 /** Couleur de chaque étape du parcours, selon sa pastille (cf. stages.ts). */
 const STAGE_COLORS: Record<string, string> = {
     idle: 'var(--faint)',
-    info: 'var(--brand)',
+    info: 'var(--data)',
     ok: 'var(--ok)',
     accent: 'var(--accent)',
     warn: 'var(--warn)',
@@ -398,7 +398,7 @@ function DashboardIndex() {
                         </div>
                         <div className="mdash-keys">
                             <span>
-                                <i style={{ background: 'var(--brand-2)' }} />
+                                <i style={{ background: 'var(--data-2)' }} />
                                 Envoyés
                             </span>
                             <span>
@@ -718,7 +718,7 @@ function DashboardIndex() {
                         </div>
                         <div className="mdash-keys">
                             <span>
-                                <i style={{ background: 'var(--brand)' }} />
+                                <i style={{ background: 'var(--data)' }} />
                                 Période
                             </span>
                             <span>
