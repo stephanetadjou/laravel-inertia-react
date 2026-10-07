@@ -3,11 +3,9 @@ import { FormEventHandler, useEffect, useState } from 'react';
 
 import { Modal } from '../../components/ui/modal';
 import Button from '../../components/ui/button/Button';
+import TemplateParams, { TemplateWithParams, templateParamsReady } from '../Campaigns/TemplateParams';
 
-export interface CampaignTemplate {
-    id: number;
-    name: string;
-    language: string;
+export interface CampaignTemplate extends TemplateWithParams {
     category: string | null;
 }
 
@@ -48,6 +46,10 @@ export default function SelectionCampaignModal({ isOpen, onClose, customerIds, f
         name: defaultName,
         message_type: 'template' as 'template' | 'text',
         template_name: templates[0]?.name ?? '',
+        template_id: templates[0] ? String(templates[0].id) : '',
+        template_variables: [] as string[],
+        header_image: null as File | null,
+        header_image_url: '',
         text_body: '',
     });
 
@@ -83,6 +85,7 @@ export default function SelectionCampaignModal({ isOpen, onClose, customerIds, f
         }));
         post('/campaigns', {
             preserveScroll: true,
+            forceFormData: true,
             onSuccess: () => {
                 reset();
                 onClose();
@@ -91,7 +94,7 @@ export default function SelectionCampaignModal({ isOpen, onClose, customerIds, f
     };
 
     const excluded = audience ? audience.customers - audience.reachable_customers : 0;
-    const selectedTemplate = templates.find((t) => t.name === data.template_name);
+    const selectedTemplate = templates.find((t) => String(t.id) === data.template_id);
 
     return (
         <Modal isOpen={isOpen} onClose={onClose} className="max-w-xl p-6 sm:p-8">
@@ -157,9 +160,24 @@ export default function SelectionCampaignModal({ isOpen, onClose, customerIds, f
                         {templates.length === 0 ? (
                             <p className="text-sm text-gray-500 dark:text-gray-400">Aucun modèle actif : créez-en un dans « Modèles de messages ».</p>
                         ) : (
-                            <select id="sc_template" className={field} value={data.template_name} onChange={(e) => setData('template_name', e.target.value)}>
+                            <select
+                                id="sc_template"
+                                className={field}
+                                value={data.template_id}
+                                onChange={(e) => {
+                                    const template = templates.find((t) => String(t.id) === e.target.value);
+                                    setData((d) => ({
+                                        ...d,
+                                        template_id: e.target.value,
+                                        template_name: template?.name ?? '',
+                                        template_variables: [],
+                                        header_image: null,
+                                        header_image_url: '',
+                                    }));
+                                }}
+                            >
                                 {templates.map((t) => (
-                                    <option key={t.id} value={t.name}>
+                                    <option key={t.id} value={t.id}>
                                         {t.name} ({t.language}
                                         {t.category ? ` · ${t.category}` : ''})
                                     </option>
@@ -170,6 +188,18 @@ export default function SelectionCampaignModal({ isOpen, onClose, customerIds, f
                             <p className="mt-1.5 text-xs text-gray-500 dark:text-gray-400">Modèle marketing : envoyé uniquement aux clients opt-in.</p>
                         )}
                         {errors.template_name && <p className="mt-1.5 text-sm text-error-500">{errors.template_name}</p>}
+                        <div className="mt-4">
+                            <TemplateParams
+                                template={selectedTemplate}
+                                variables={data.template_variables}
+                                onVariablesChange={(v) => setData('template_variables', v)}
+                                image={data.header_image}
+                                onImageChange={(file) => setData('header_image', file)}
+                                imageUrl={data.header_image_url}
+                                onImageUrlChange={(url) => setData('header_image_url', url)}
+                                error={errors.template_variables ?? errors.header_image ?? errors.header_image_url}
+                            />
+                        </div>
                     </div>
                 ) : (
                     <div>
@@ -194,7 +224,9 @@ export default function SelectionCampaignModal({ isOpen, onClose, customerIds, f
                             !data.name ||
                             !audience ||
                             audience.recipients === 0 ||
-                            (data.message_type === 'template' ? !data.template_name : !data.text_body.trim())
+                            (data.message_type === 'template'
+                                ? !templateParamsReady(selectedTemplate, data.template_variables, data.header_image, data.header_image_url)
+                                : !data.text_body.trim())
                         }
                     >
                         {processing ? 'Lancement…' : audience ? `Lancer l'envoi (${plural(audience.recipients, 'message')})` : "Lancer l'envoi"}

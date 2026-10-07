@@ -17,6 +17,7 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\Rule;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -109,7 +110,7 @@ class CampaignController extends Controller
             'templates' => MessageTemplate::where('organization_id', $request->user()->organization_id)
                 ->sendable()
                 ->orderBy('name')
-                ->get(['id', 'name', 'language']),
+                ->get(['id', 'name', 'language', 'body_text', 'body_variables', 'header_format']),
         ]);
     }
 
@@ -173,8 +174,23 @@ class CampaignController extends Controller
                         ->where(fn ($q) => $q->whereNull('status')->orWhere('status', MessageTemplate::STATUS_APPROVED)),
                 ),
             ],
+            'template_id' => ['nullable', 'integer'],
+            'template_variables' => ['nullable', 'array', 'max:20'],
+            'template_variables.*' => ['nullable', 'string', 'max:1024'],
+            'header_image' => ['nullable', 'file', 'mimes:jpg,jpeg,png', 'max:5120'],
+            'header_image_url' => ['nullable', 'url:https', 'max:2048'],
             'text_body' => ['required_if:message_type,text', 'nullable', 'string', 'max:4096'],
         ]);
+
+        $templateParameters = [];
+
+        if ($data['message_type'] === 'template') {
+            $templateParameters = $this->templateParameters($request, $data);
+
+            if (is_string($templateParameters)) {
+                return back()->withErrors(['template_variables' => $templateParameters])->withInput();
+            }
+        }
 
         $importSummary = null;
 
@@ -240,7 +256,10 @@ class CampaignController extends Controller
             'name' => $data['name'],
             'description' => $data['description'] ?? null,
             'message_type' => $data['message_type'],
-            'template_name' => $data['message_type'] === 'template' ? $data['template_name'] : null,
+            'template_name' => $data['message_type'] === 'template' ? $templateParameters['template_name'] : null,
+            'template_language' => $templateParameters['template_language'] ?? null,
+            'template_variables' => $templateParameters['template_variables'] ?? null,
+            'header_image_url' => $templateParameters['header_image_url'] ?? null,
             'text_body' => $data['message_type'] === 'text' ? $data['text_body'] : null,
             'segment_filters' => $filters,
             'status' => 'queued',
@@ -274,6 +293,60 @@ class CampaignController extends Controller
         }
 
         return redirect()->route('campaigns.index')->with('success', $message);
+    }
+
+    /**
+     * Modèle choisi (par id, sinon par nom) et ses paramètres : langue de la
+     * version approuvée, une valeur par variable {{n}} du corps, image
+     * d'en-tête (fichier envoyé, stocké sur le disque public, ou URL https)
+     * quand le modèle a un en-tête IMAGE. Renvoie un message d'erreur sinon.
+     *
+     * @param  array<string, mixed>  $data
+     * @return array{template_name: string, template_language: string, template_variables: array<int, string>|null, header_image_url: string|null}|string
+     */
+    private function templateParameters(Request $request, array $data): array|string
+    {
+        $template = MessageTemplate::sendable()
+            ->where('organization_id', $request->user()->organization_id)
+            ->when(
+                filled($data['template_id'] ?? null),
+                fn ($q) => $q->whereKey($data['template_id']),
+                fn ($q) => $q->where('name', $data['template_name'] ?? '')->orderByRaw("case when status = 'APPROVED' then 0 else 1 end"),
+            )
+            ->first();
+
+        if (! $template) {
+            return 'Modèle introuvable ou non approuvé par Meta.';
+        }
+
+        $variables = array_slice(array_values($data['template_variables'] ?? []), 0, $template->body_variables);
+
+        if (count(array_filter($variables, 'filled')) < $template->body_variables) {
+            return "Le modèle « {$template->name} » attend {$template->body_variables} variable(s) : renseignez chacune d'elles.";
+        }
+
+        $imageUrl = null;
+
+        if ($template->header_format === 'IMAGE') {
+            if ($request->hasFile('header_image')) {
+                $imageUrl = Storage::disk('public')->url($request->file('header_image')->store('campaign-images', 'public'));
+            } else {
+                $imageUrl = $data['header_image_url'] ?? null;
+            }
+
+            if (! $imageUrl) {
+                return "Le modèle « {$template->name} » a un en-tête image : choisissez une image (JPG ou PNG) ou indiquez son adresse https.";
+            }
+        } elseif (in_array($template->header_format, ['VIDEO', 'DOCUMENT', 'LOCATION'], true)) {
+            return 'Les modèles avec un en-tête vidéo, document ou localisation ne sont pas encore pris en charge.';
+        }
+
+        return [
+            'template_name' => $template->name,
+            'template_language' => $template->language,
+            'template_variables' => $variables === [] ? null : $variables,
+            'header_image_url' => $imageUrl,
+        ];
     }
 
     /**

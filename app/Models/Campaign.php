@@ -18,6 +18,9 @@ class Campaign extends Model
         'description',
         'message_type',
         'template_name',
+        'template_language',
+        'template_variables',
+        'header_image_url',
         'text_body',
         'segment_filters',
         'status',
@@ -31,7 +34,33 @@ class Campaign extends Model
     {
         return [
             'segment_filters' => 'array',
+            'template_variables' => 'array',
         ];
+    }
+
+    /** Champs du contact utilisables dans les variables du modèle. */
+    public const VARIABLE_TOKENS = ['{prenom}', '{nom}', '{boutique}'];
+
+    /**
+     * Valeurs des variables {{1}}, {{2}}… pour un contact : {prenom}, {nom}
+     * et {boutique} sont remplacés ; Meta refusant un paramètre vide, un champ
+     * inconnu devient « Client ».
+     *
+     * @return array<int, string>
+     */
+    public function variablesFor(Contact $contact): array
+    {
+        $name = trim((string) $contact->name);
+        $replacements = [
+            '{prenom}' => $name !== '' ? strtok($name, ' ') : 'Client',
+            '{nom}' => $name !== '' ? $name : 'Client',
+            '{boutique}' => (string) $contact->store?->name,
+        ];
+
+        return array_map(
+            fn ($value) => trim(strtr((string) $value, $replacements)) ?: 'Client',
+            array_values($this->template_variables ?? []),
+        );
     }
 
     /**

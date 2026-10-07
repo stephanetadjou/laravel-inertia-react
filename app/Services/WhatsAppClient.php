@@ -163,28 +163,41 @@ class WhatsAppClient
      *
      * @param  string  $to  Numéro au format international sans "+" (ex: 24177123456)
      * @param  string[]  $bodyParameters  Valeurs des variables {{1}}, {{2}}... du corps du template
+     * @param  string|null  $headerImageUrl  Image publique (https) de l'en-tête, pour un modèle à en-tête IMAGE
      */
     public function sendTemplate(
         string $to,
         string $templateName,
         string $languageCode = 'en_US',
         array $bodyParameters = [],
+        ?string $headerImageUrl = null,
     ): array {
         $template = [
             'name' => $templateName,
             'language' => ['code' => $languageCode],
         ];
 
-        if ($bodyParameters !== []) {
-            $template['components'] = [
-                [
-                    'type' => 'body',
-                    'parameters' => array_map(
-                        static fn (string $text) => ['type' => 'text', 'text' => $text],
-                        $bodyParameters
-                    ),
-                ],
+        $components = [];
+
+        if ($headerImageUrl !== null) {
+            $components[] = [
+                'type' => 'header',
+                'parameters' => [['type' => 'image', 'image' => ['link' => $headerImageUrl]]],
             ];
+        }
+
+        if ($bodyParameters !== []) {
+            $components[] = [
+                'type' => 'body',
+                'parameters' => array_map(
+                    static fn (string $text) => ['type' => 'text', 'text' => $text],
+                    $bodyParameters
+                ),
+            ];
+        }
+
+        if ($components !== []) {
+            $template['components'] = $components;
         }
 
         if (self::simulated()) {

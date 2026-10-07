@@ -1,4 +1,6 @@
 import { useForm } from '@inertiajs/react';
+
+import TemplateParams, { TemplateWithParams, templateParamsReady } from './TemplateParams';
 import { FormEventHandler, useEffect, useState } from 'react';
 
 import { Modal } from '../../components/ui/modal';
@@ -16,11 +18,7 @@ interface GroupOption {
     name: string;
 }
 
-interface TemplateOption {
-    id: number;
-    name: string;
-    language: string;
-}
+type TemplateOption = TemplateWithParams;
 
 interface CreateCampaignModalProps {
     isOpen: boolean;
@@ -56,6 +54,10 @@ export default function CreateCampaignModal({ isOpen, onClose, stores, groups, t
         confirm_consent: boolean;
         message_type: 'template' | 'text';
         template_name: string;
+        template_id: string;
+        template_variables: string[];
+        header_image: File | null;
+        header_image_url: string;
         text_body: string;
         gender: string;
         lifecycle_stages: string[];
@@ -71,6 +73,10 @@ export default function CreateCampaignModal({ isOpen, onClose, stores, groups, t
         confirm_consent: false,
         message_type: 'template',
         template_name: templates[0]?.name ?? '',
+        template_id: templates[0] ? String(templates[0].id) : '',
+        template_variables: [],
+        header_image: null,
+        header_image_url: '',
         text_body: '',
         gender: '',
         lifecycle_stages: [],
@@ -122,8 +128,11 @@ export default function CreateCampaignModal({ isOpen, onClose, stores, groups, t
         });
     };
 
+    const selectedTemplate = templates.find((t) => String(t.id) === data.template_id);
     const messageReady =
-        data.message_type === 'template' ? templates.length > 0 && !!data.template_name : data.text_body.trim().length > 0;
+        data.message_type === 'template'
+            ? templateParamsReady(selectedTemplate, data.template_variables, data.header_image, data.header_image_url)
+            : data.text_body.trim().length > 0;
 
     const canSubmit =
         !processing &&
@@ -360,18 +369,40 @@ export default function CreateCampaignModal({ isOpen, onClose, stores, groups, t
                                 ) : (
                                     <select
                                         id="template_name"
-                                        value={data.template_name}
-                                        onChange={(e) => setData('template_name', e.target.value)}
+                                        value={data.template_id}
+                                        onChange={(e) => {
+                                            const template = templates.find((t) => String(t.id) === e.target.value);
+                                            setData((d) => ({
+                                                ...d,
+                                                template_id: e.target.value,
+                                                template_name: template?.name ?? '',
+                                                template_variables: [],
+                                                header_image: null,
+                                                header_image_url: '',
+                                            }));
+                                        }}
                                         className={fieldClasses()}
                                     >
                                         {templates.map((template) => (
-                                            <option key={template.id} value={template.name}>
+                                            <option key={template.id} value={template.id}>
                                                 {template.name} ({template.language})
                                             </option>
                                         ))}
                                     </select>
                                 )}
                                 {errors.template_name && <p className="mt-1.5 text-sm text-error-500">{errors.template_name}</p>}
+                                <div className="mt-4">
+                                    <TemplateParams
+                                        template={selectedTemplate}
+                                        variables={data.template_variables}
+                                        onVariablesChange={(v) => setData('template_variables', v)}
+                                        image={data.header_image}
+                                        onImageChange={(file) => setData('header_image', file)}
+                                        imageUrl={data.header_image_url}
+                                        onImageUrlChange={(url) => setData('header_image_url', url)}
+                                        error={errors.template_variables ?? errors.header_image ?? errors.header_image_url}
+                                    />
+                                </div>
                             </div>
                         ) : (
                             <div>

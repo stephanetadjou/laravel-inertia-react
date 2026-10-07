@@ -45,7 +45,9 @@ class SendCampaignJob implements ShouldQueue
                             : $client->sendTemplate(
                                 $message->contact->phone_e164,
                                 $this->campaign->template_name,
-                                $this->templateLanguageFor($store),
+                                $this->campaign->template_language ?: $this->templateLanguageFor($store),
+                                $this->campaign->variablesFor($message->contact),
+                                $this->campaign->header_image_url,
                             );
 
                         $message->update([

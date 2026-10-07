@@ -118,7 +118,7 @@ class CustomerController extends Controller
             'templates' => MessageTemplate::where('organization_id', $request->user()->organization_id)
                 ->sendable()
                 ->orderBy('name')
-                ->get(['id', 'name', 'language', 'category']),
+                ->get(['id', 'name', 'language', 'category', 'body_text', 'body_variables', 'header_format']),
             'customers' => $page->through(function (Customer $customer) use ($scoped, $stats, $editContacts) {
                 $own = $stats->get($customer->id);
                 $contacts = $editContacts->get($customer->id, collect());
