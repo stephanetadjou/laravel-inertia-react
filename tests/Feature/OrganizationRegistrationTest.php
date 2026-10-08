@@ -79,3 +79,18 @@ it('refuses an email already used by another account', function () {
 it('redirects authenticated users away from registration', function () {
     $this->actingAs(User::factory()->create())->get('/register')->assertRedirect();
 });
+
+it('registers a company whose name is already used by another organization', function () {
+    Organization::factory()->create(['name' => 'Retail Group']);
+
+    $this->post('/register', registrationPayload(['organization_name' => 'RETAIL GROUP', 'store_name' => 'MOODA', 'name' => 'MOODA']))
+        ->assertRedirect(route('dashboard.index'));
+
+    expect(Organization::where('name', 'RETAIL GROUP')->exists())->toBeTrue();
+});
+
+it('waits for a busy SQLite database instead of failing at once', function () {
+    // Serveur web, worker de file d'attente, cache et sessions écrivent dans
+    // le même fichier : sans délai d'attente, « database is locked » immédiat.
+    expect(config('database.connections.sqlite.busy_timeout'))->toBe(5000);
+});

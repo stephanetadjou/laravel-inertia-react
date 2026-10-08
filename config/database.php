@@ -38,10 +38,17 @@ return [
             'database' => env('DB_DATABASE', database_path('database.sqlite')),
             'prefix' => '',
             'foreign_key_constraints' => env('DB_FOREIGN_KEYS', true),
-            'busy_timeout' => null,
-            'journal_mode' => null,
-            'synchronous' => null,
-            'transaction_mode' => 'DEFERRED',
+            // Plusieurs processus écrivent dans la même base SQLite (serveur web,
+            // worker de file d'attente, cache et sessions en base) : sans délai
+            // d'attente, la moindre écriture concurrente échoue aussitôt avec
+            // « database is locked » (vu sur l'inscription d'une entreprise).
+            // IMMEDIATE (pris en compte à partir de PHP 8.4) réserve l'écriture
+            // dès le début d'une transaction. WAL reste optionnel : avec PHP 8.3,
+            // une transaction qui lit puis écrit y échoue sans attendre.
+            'busy_timeout' => env('DB_BUSY_TIMEOUT', 5000),
+            'journal_mode' => env('DB_JOURNAL_MODE'),
+            'synchronous' => env('DB_SYNCHRONOUS'),
+            'transaction_mode' => env('DB_TRANSACTION_MODE', 'IMMEDIATE'),
         ],
 
         'mysql' => [
