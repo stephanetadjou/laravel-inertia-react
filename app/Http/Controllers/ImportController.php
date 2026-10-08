@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Controllers\Concerns\ValidatesImportFile;
 use App\Models\Store;
 use App\Services\ContactImporter;
 use Illuminate\Database\Eloquent\Builder;
@@ -12,6 +13,8 @@ use Inertia\Response;
 
 class ImportController extends Controller
 {
+    use ValidatesImportFile;
+
     public function index(Request $request): Response
     {
         return Inertia::render('Imports/Index', [
@@ -27,9 +30,8 @@ class ImportController extends Controller
      */
     public function preview(Request $request, ContactImporter $importer): Response
     {
-        $data = $request->validate([
+        $data = $this->validateImportFile($request, [
             'store_id' => ['required', 'integer'],
-            'file' => ['required', 'file', 'mimes:csv,txt,xlsx,xls'],
             'mapping' => ['nullable', 'array'],
             'mapping.*' => ['nullable', 'integer', 'min:0'],
             'delimiter' => ['nullable', 'in:auto,comma,semicolon,tab'],
@@ -46,9 +48,8 @@ class ImportController extends Controller
 
     public function store(Request $request, ContactImporter $importer): RedirectResponse
     {
-        $data = $request->validate([
+        $data = $this->validateImportFile($request, [
             'store_id' => ['required', 'integer'],
-            'file' => ['required', 'file', 'mimes:csv,txt,xlsx,xls'],
             'mapping' => ['nullable', 'array'],
             'mapping.*' => ['nullable', 'integer', 'min:0'],
             'delimiter' => ['nullable', 'in:auto,comma,semicolon,tab'],

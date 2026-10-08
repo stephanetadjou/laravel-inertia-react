@@ -1,5 +1,5 @@
 import { router, useForm } from '@inertiajs/react';
-import { FormEventHandler } from 'react';
+import { FormEventHandler, useState } from 'react';
 
 import { Modal } from '../../components/ui/modal';
 import Button from '../../components/ui/button/Button';
@@ -32,19 +32,51 @@ function formatFcfa(amount: number) {
     return new Intl.NumberFormat('fr-FR').format(amount) + ' FCFA';
 }
 
+/**
+ * Message affiché dans la fenêtre quand le serveur répond par une erreur HTTP
+ * (au lieu de la fenêtre d'erreur générique d'Inertia, parfois vide).
+ */
+export function importHttpErrorMessage(status: number): string {
+    if (status === 413) return 'Fichier trop volumineux pour le serveur : réduisez-le ou découpez-le en plusieurs fichiers.';
+    if (status === 419) return 'Votre session a expiré : rechargez la page puis recommencez.';
+    if (status === 429) return 'Trop de tentatives : patientez une minute avant de réessayer.';
+    if (status === 403) return "Vous n'avez pas accès à cet import.";
+    return `Le serveur n'a pas pu traiter le fichier (erreur ${status}). Si le disque du serveur est plein, l'envoi échoue : réessayez plus tard ou contactez l'administrateur.`;
+}
+
 export default function PurchaseImportModal({ isOpen, onClose, preview }: PurchaseImportModalProps) {
-    const { data, setData, post, processing, errors, reset } = useForm<{ file: File | null }>({ file: null });
+    const { data, setData, post, processing, errors, reset, clearErrors } = useForm<{ file: File | null }>({ file: null });
+    const [requestError, setRequestError] = useState<string | null>(null);
+
+    // Erreurs de validation sans champ affiché (le champ fichier n'est visible
+    // qu'avant l'aperçu), à montrer dans le bandeau d'erreur de la fenêtre.
+    const otherErrors = Object.entries(errors)
+        .filter(([field]) => field !== 'file' || preview !== null)
+        .map(([, message]) => message);
+
+    const requestCallbacks = {
+        forceFormData: true,
+        preserveScroll: true,
+        onStart: () => setRequestError(null),
+        onHttpException: (response: { status: number }) => {
+            setRequestError(importHttpErrorMessage(response.status));
+            return false;
+        },
+        onNetworkError: () => {
+            setRequestError('Serveur injoignable : vérifiez la connexion puis réessayez.');
+            return false;
+        },
+    };
 
     const previewFile: FormEventHandler = (e) => {
         e.preventDefault();
-        post('/purchases/preview', { forceFormData: true, preserveScroll: true });
+        post('/purchases/preview', requestCallbacks);
     };
 
     const confirmImport: FormEventHandler = (e) => {
         e.preventDefault();
         post('/purchases', {
-            forceFormData: true,
-            preserveScroll: true,
+            ...requestCallbacks,
             onSuccess: () => {
                 reset();
                 onClose();
@@ -54,6 +86,8 @@ export default function PurchaseImportModal({ isOpen, onClose, preview }: Purcha
 
     function close() {
         reset();
+        clearErrors();
+        setRequestError(null);
 
         if (preview) {
             router.reload({ only: ['preview'] });
@@ -103,6 +137,12 @@ export default function PurchaseImportModal({ isOpen, onClose, preview }: Purcha
                     </li>
                 </ul>
             </div>
+
+            {(requestError || otherErrors.length > 0) && (
+                <div role="alert" className="mb-4 rounded-lg bg-error-50 px-4 py-3 text-sm text-error-600 dark:bg-error-500/15 dark:text-error-500">
+                    {requestError ?? otherErrors.join(' ')}
+                </div>
+            )}
 
             {!preview ? (
                 <form onSubmit={previewFile} className="space-y-5">

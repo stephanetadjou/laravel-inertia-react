@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Http\Controllers\Concerns\AnalyzesPeriods;
 use App\Http\Controllers\Concerns\ResolvesBrandFilter;
+use App\Http\Controllers\Concerns\ValidatesImportFile;
 use App\Models\Brand;
 use App\Models\Category;
 use App\Models\Purchase;
@@ -18,7 +19,7 @@ use Inertia\Response;
 
 class PurchaseController extends Controller
 {
-    use AnalyzesPeriods, ResolvesBrandFilter;
+    use AnalyzesPeriods, ResolvesBrandFilter, ValidatesImportFile;
 
     public function index(Request $request): Response
     {
@@ -33,9 +34,7 @@ class PurchaseController extends Controller
      */
     public function preview(Request $request, PurchaseImporter $importer): Response
     {
-        $request->validate([
-            'file' => ['required', 'file', 'mimes:csv,txt,xlsx,xls'],
-        ]);
+        $this->validateImportFile($request);
 
         return Inertia::render('Purchases/Index', [
             ...$this->pageProps($request),
@@ -45,9 +44,7 @@ class PurchaseController extends Controller
 
     public function store(Request $request, PurchaseImporter $importer): RedirectResponse
     {
-        $request->validate([
-            'file' => ['required', 'file', 'mimes:csv,txt,xlsx,xls'],
-        ]);
+        $this->validateImportFile($request);
 
         $summary = $importer->import($request->file('file'), $request->user()->organization, $request->user()->visibleStoreIds());
 
