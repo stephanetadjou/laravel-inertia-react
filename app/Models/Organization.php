@@ -34,17 +34,28 @@ class Organization extends Model
     {
         static::creating(function (Organization $organization) {
             if (blank($organization->slug)) {
-                $base = Str::slug($organization->name) ?: 'entreprise';
-                $slug = $base;
-                $i = 2;
-
-                while (static::where('slug', $slug)->exists()) {
-                    $slug = $base.'-'.$i++;
-                }
-
-                $organization->slug = $slug;
+                $organization->slug = static::uniqueSlug((string) $organization->name);
             }
         });
+    }
+
+    /**
+     * Slug libre tiré du nom (« retail-group », sinon « retail-group-2 »…).
+     * À calculer avant d'ouvrir une transaction : avec SQLite, une transaction
+     * qui lit avant d'écrire échoue au lieu d'attendre si un autre processus
+     * écrit au même moment (cf. config/database.php).
+     */
+    public static function uniqueSlug(string $name): string
+    {
+        $base = Str::slug($name) ?: 'entreprise';
+        $slug = $base;
+        $i = 2;
+
+        while (static::where('slug', $slug)->exists()) {
+            $slug = $base.'-'.$i++;
+        }
+
+        return $slug;
     }
 
     public function privacyPolicyUrl(): string

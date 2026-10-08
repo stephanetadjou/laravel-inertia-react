@@ -39,8 +39,12 @@ class RegisteredOrganizationController extends Controller
             'password' => ['required', 'confirmed', Password::defaults()],
         ]);
 
-        $user = DB::transaction(function () use ($validated) {
-            $organization = Organization::create(['name' => $validated['organization_name']]);
+        // Slug choisi hors transaction : la transaction commence ainsi par une
+        // écriture et attend le verrou SQLite au lieu d'échouer (cf. uniqueSlug).
+        $slug = Organization::uniqueSlug($validated['organization_name']);
+
+        $user = DB::transaction(function () use ($validated, $slug) {
+            $organization = Organization::create(['name' => $validated['organization_name'], 'slug' => $slug]);
 
             Role::seedDefaultsFor($organization);
 

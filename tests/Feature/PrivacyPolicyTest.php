@@ -84,3 +84,19 @@ it('creates the policy page with the company at registration', function () {
 
     $this->get('/confidentialite/boutique-owendo')->assertOk()->assertSee('Owendo Centre');
 });
+
+it('gives a registered company a free slug when its name is already taken', function () {
+    Organization::factory()->create(['name' => 'Retail Group']);
+
+    $this->post('/register', [
+        'organization_name' => 'RETAIL GROUP',
+        'store_name' => 'MOODA',
+        'name' => 'MOODA',
+        'email' => 'mooda@example.com',
+        'password' => 'Secret-123456',
+        'password_confirmation' => 'Secret-123456',
+    ])->assertRedirect(route('dashboard.index'));
+
+    expect(Organization::where('name', 'RETAIL GROUP')->value('slug'))->toBe('retail-group-2');
+    $this->get('/confidentialite/retail-group-2')->assertOk()->assertSee('MOODA');
+});
