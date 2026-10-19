@@ -9,6 +9,7 @@ use App\Models\Brand;
 use App\Models\Category;
 use App\Models\Purchase;
 use App\Models\Store;
+use App\Services\CustomerScoring;
 use App\Services\PurchaseImporter;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\RedirectResponse;
@@ -42,11 +43,14 @@ class PurchaseController extends Controller
         ]);
     }
 
-    public function store(Request $request, PurchaseImporter $importer): RedirectResponse
+    public function store(Request $request, PurchaseImporter $importer, CustomerScoring $scoring): RedirectResponse
     {
         $this->validateImportFile($request);
 
         $summary = $importer->import($request->file('file'), $request->user()->organization, $request->user()->visibleStoreIds());
+
+        // Segments RFM, scores et alertes de churn relatifs à tous les acheteurs : recalcul de l'organisation.
+        $scoring->refreshOrganization($request->user()->organization);
 
         $message = "{$summary['purchases_recorded']} achat(s) enregistré(s).";
 

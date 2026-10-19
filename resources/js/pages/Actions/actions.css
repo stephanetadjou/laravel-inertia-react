@@ -1,0 +1,229 @@
+/* Actions du jour et agenda des rendez-vous (cf. pages Actions et Appointments). */
+
+.mact-lists {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(170px, 1fr));
+    gap: 10px;
+    margin-bottom: 16px;
+}
+
+.mact-lists button {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    padding: 12px 14px;
+    text-align: left;
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    background: var(--surface);
+    color: inherit;
+    cursor: pointer;
+}
+
+.mact-lists button b {
+    font-size: 22px;
+    line-height: 1;
+}
+
+.mact-lists button span {
+    font-size: 13px;
+    opacity: 0.8;
+}
+
+.mact-lists button.empty b {
+    opacity: 0.35;
+}
+
+.mact-lists button[aria-pressed='true'] {
+    border-color: var(--brand-text);
+    box-shadow: inset 0 0 0 1px var(--brand);
+}
+
+.mact-rows {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+}
+
+.mact-rows li {
+    display: grid;
+    grid-template-columns: minmax(200px, 1.2fr) minmax(200px, 2fr) auto;
+    gap: 16px;
+    align-items: start;
+    padding: 14px 0;
+    border-top: 1px solid var(--line);
+}
+
+.mact-rows li:first-child {
+    border-top: 0;
+}
+
+.mact-rows li.done {
+    opacity: 0.55;
+}
+
+.mact-who,
+.mact-why {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    min-width: 0;
+}
+
+.mact-who .mono {
+    font-size: 12px;
+    opacity: 0.7;
+}
+
+.mact-tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+    margin-top: 2px;
+}
+
+.mact-why textarea,
+.mact-editor textarea {
+    width: 100%;
+    margin-top: 4px;
+    padding: 8px 10px;
+    font: inherit;
+    font-size: 13px;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    background: transparent;
+    color: inherit;
+}
+
+.mact-preview,
+.mact-reset {
+    align-self: flex-start;
+    padding: 0;
+    font-size: 12px;
+    border: 0;
+    background: none;
+    color: var(--brand-text);
+    cursor: pointer;
+    text-decoration: underline;
+}
+
+.mact-do {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    justify-content: flex-end;
+}
+
+.mact-editor {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+    gap: 14px;
+}
+
+.mact-editor label {
+    display: flex;
+    flex-direction: column;
+    font-size: 13px;
+}
+
+.mact-editor label > span {
+    font-weight: 600;
+}
+
+.mact-editor-actions {
+    grid-column: 1 / -1;
+    display: flex;
+    justify-content: flex-end;
+    gap: 8px;
+}
+
+/* Agenda */
+
+.mappt-nav {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.mappt-day + .mappt-day {
+    margin-top: 18px;
+}
+
+.mappt-day h3 {
+    margin: 0 0 6px;
+    font-size: 13px;
+    font-weight: 600;
+    text-transform: capitalize;
+    opacity: 0.75;
+}
+
+.mappt-list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+}
+
+.mappt-list li {
+    display: grid;
+    grid-template-columns: 70px minmax(180px, 1.5fr) minmax(140px, 1fr) auto;
+    gap: 12px;
+    align-items: center;
+    padding: 10px 0;
+    border-top: 1px solid var(--line);
+}
+
+.mappt-list li.cancelled {
+    opacity: 0.5;
+}
+
+.mappt-time {
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+}
+
+.mappt-time small {
+    display: block;
+    font-weight: 400;
+    font-size: 11px;
+    opacity: 0.7;
+}
+
+.mappt-who {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+}
+
+.mappt-who span {
+    font-size: 12px;
+    opacity: 0.75;
+}
+
+.mappt-do {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 6px;
+    justify-content: flex-end;
+}
+
+.mappt-do select {
+    padding: 5px 8px;
+    font-size: 12px;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    background: transparent;
+    color: inherit;
+}
+
+@media (max-width: 760px) {
+    .mact-rows li,
+    .mappt-list li {
+        grid-template-columns: 1fr;
+    }
+
+    .mact-do,
+    .mappt-do {
+        justify-content: flex-start;
+    }
+}

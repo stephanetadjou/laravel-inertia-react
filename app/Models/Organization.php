@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Services\ActionLists;
 use Database\Factories\OrganizationFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -23,6 +24,8 @@ class Organization extends Model
         'privacy_phone',
         'privacy_address',
         'privacy_extra',
+        'whatsapp_api_enabled',
+        'action_messages',
     ];
 
     /**
@@ -83,6 +86,10 @@ class Organization extends Model
             // Repli autorisé sur le compte Meta partagé (.env) : organisations
             // historiques uniquement, jamais une entreprise inscrite.
             'uses_shared_whatsapp_account' => 'boolean',
+            // Envoi par l'API WhatsApp Cloud (campagnes, modèles, bienvenue, webhook).
+            // Désactivé : le CRM fonctionne avec des relances manuelles par lien wa.me.
+            'whatsapp_api_enabled' => 'boolean',
+            'action_messages' => 'array',
         ];
     }
 
@@ -94,6 +101,31 @@ class Organization extends Model
         $saved = array_intersect_key($this->lifecycle_settings ?? [], self::LIFECYCLE_DEFAULTS);
 
         return array_map('intval', [...self::LIFECYCLE_DEFAULTS, ...$saved]);
+    }
+
+    /**
+     * Envoi par l'API WhatsApp Cloud activé (par défaut pour les organisations
+     * existantes). Sans API : listes d'actions et liens wa.me uniquement.
+     */
+    public function usesWhatsAppApi(): bool
+    {
+        return $this->whatsapp_api_enabled ?? true;
+    }
+
+    /**
+     * Messages préremplis des listes d'actions, modifiables dans la page
+     * Actions : défauts complétés par ceux enregistrés par l'entreprise.
+     *
+     * @return array<string, string>
+     */
+    public function actionMessages(): array
+    {
+        $saved = array_filter(
+            array_intersect_key($this->action_messages ?? [], ActionLists::DEFAULT_MESSAGES),
+            fn ($text) => is_string($text) && trim($text) !== '',
+        );
+
+        return [...ActionLists::DEFAULT_MESSAGES, ...$saved];
     }
 
     public function customers(): HasMany

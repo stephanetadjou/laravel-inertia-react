@@ -3,6 +3,7 @@ import { Link, usePage } from '@inertiajs/react';
 
 import {
     BoxCubeIcon,
+    CalenderIcon,
     ChatIcon,
     ChevronDownIcon,
     DocsIcon,
@@ -10,6 +11,7 @@ import {
     GroupIcon,
     HorizontaLDots,
     ListIcon,
+    TaskIcon,
     PageIcon,
     PaperPlaneIcon,
     PieChartIcon,
@@ -39,7 +41,7 @@ type NavGroup = {
  * entrées qu'aux rôles qui y ont accès. /stores et /categories restent
  * accessibles à tous les rôles, elles sont donc toujours visibles.
  */
-function buildNavGroups(canManageOrganization: boolean): NavGroup[] {
+function buildNavGroups(canManageOrganization: boolean, whatsappApiEnabled: boolean): NavGroup[] {
     const administrationItems: NavItem[] = [];
 
     if (canManageOrganization) {
@@ -52,26 +54,39 @@ function buildNavGroups(canManageOrganization: boolean): NavGroup[] {
     );
 
     if (canManageOrganization) {
-        administrationItems.push(
-            { icon: <ChatIcon />, name: 'Paramètres WhatsApp', path: '/settings/whatsapp' },
-            { icon: <UserCircleIcon />, name: 'Utilisateurs & rôles', path: '/users', alsoActiveOn: ['/roles'] },
-        );
+        // Paramètres WhatsApp : seulement si l'API WhatsApp est activée (Organisation).
+        if (whatsappApiEnabled) {
+            administrationItems.push({ icon: <ChatIcon />, name: 'Paramètres WhatsApp', path: '/settings/whatsapp' });
+        }
+        administrationItems.push({ icon: <UserCircleIcon />, name: 'Utilisateurs & rôles', path: '/users', alsoActiveOn: ['/roles'] });
     }
+
+    // Communication par l'API WhatsApp : masquée tant que l'entreprise ne l'a pas activée.
+    const communication: NavGroup[] = whatsappApiEnabled
+        ? [
+              {
+                  label: 'Communication',
+                  collapsible: true,
+                  items: [
+                      { icon: <PaperPlaneIcon />, name: 'Campagnes', path: '/campaigns' },
+                      { icon: <DocsIcon />, name: 'Modèles de messages', path: '/templates' },
+                      { icon: <ChatIcon />, name: 'Historique messages', path: '/chat' },
+                  ],
+              },
+          ]
+        : [];
 
     return [
         {
             label: "Vue d'ensemble",
-            items: [{ icon: <PieChartIcon />, name: 'Tableau de bord', path: '/dashboard' }],
-        },
-        {
-            label: 'Communication',
-            collapsible: true,
             items: [
-                { icon: <PaperPlaneIcon />, name: 'Campagnes', path: '/campaigns' },
-                { icon: <DocsIcon />, name: 'Modèles de messages', path: '/templates' },
-                { icon: <ChatIcon />, name: 'Historique messages', path: '/chat' },
+                { icon: <PieChartIcon />, name: 'Tableau de bord', path: '/dashboard' },
+                // Relances manuelles par lien wa.me : disponibles avec ou sans l'API WhatsApp.
+                { icon: <TaskIcon />, name: 'Actions du jour', path: '/actions' },
+                { icon: <CalenderIcon />, name: 'Rendez-vous', path: '/appointments' },
             ],
         },
+        ...communication,
         {
             label: 'Clients',
             collapsible: true,
@@ -93,6 +108,7 @@ function buildNavGroups(canManageOrganization: boolean): NavGroup[] {
 interface SidebarAuthProps {
     auth?: {
         user: { can_manage_organization?: boolean } | null;
+        organization?: { whatsapp_api_enabled?: boolean } | null;
     };
     [key: string]: unknown;
 }
@@ -101,7 +117,7 @@ const AppSidebar: React.FC = () => {
     const { isExpanded, isMobileOpen, isHovered, setIsHovered } = useSidebar();
     const { url, props } = usePage<SidebarAuthProps>();
 
-    const navGroups = buildNavGroups(props.auth?.user?.can_manage_organization ?? false);
+    const navGroups = buildNavGroups(props.auth?.user?.can_manage_organization ?? false, props.auth?.organization?.whatsapp_api_enabled ?? true);
 
     const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(new Set());
 
@@ -138,7 +154,7 @@ const AppSidebar: React.FC = () => {
                     {showLabels && (
                         <span className="leading-tight">
                             <MenentiaWordmark onDark className="block text-[22px]" />
-                            <span className="mt-1 block text-[11px] text-gray-400">CRM WhatsApp retail</span>
+                            <span className="mt-1 block text-[11px] text-gray-400">CRM relation client</span>
                         </span>
                     )}
                 </Link>

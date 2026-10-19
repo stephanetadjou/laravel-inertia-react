@@ -5,6 +5,7 @@ namespace App\Console\Commands;
 use App\Models\Contact;
 use App\Models\Organization;
 use App\Services\CustomerLifecycle;
+use App\Services\CustomerScoring;
 use Illuminate\Console\Command;
 
 /**
@@ -17,9 +18,9 @@ class RefreshCustomerLifecycle extends Command
 {
     protected $signature = 'crm:refresh-lifecycle {--organization= : ID d\'une seule organisation}';
 
-    protected $description = "Recalcule les fiches clients (compteurs d'achats et étape du parcours)";
+    protected $description = "Recalcule les fiches clients (compteurs d'achats, étape du parcours, RFM, score et risque de churn)";
 
-    public function handle(CustomerLifecycle $lifecycle): int
+    public function handle(CustomerLifecycle $lifecycle, CustomerScoring $scoring): int
     {
         // Filet de sécurité : tout contact sans fiche (créé hors modèle) est rattaché.
         Contact::whereNull('customer_id')->each(function (Contact $contact) use ($lifecycle) {
@@ -33,6 +34,8 @@ class RefreshCustomerLifecycle extends Command
 
         foreach ($organizations as $organization) {
             $changes = $lifecycle->refreshOrganization($organization);
+            // Après l'étape : le risque de churn en dépend.
+            $scoring->refreshOrganization($organization);
             $this->info("{$organization->name} : {$organization->customers()->count()} fiche(s), {$changes} changement(s) d'étape.");
         }
 

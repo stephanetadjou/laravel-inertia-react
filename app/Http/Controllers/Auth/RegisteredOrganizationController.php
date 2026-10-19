@@ -44,7 +44,13 @@ class RegisteredOrganizationController extends Controller
         $slug = Organization::uniqueSlug($validated['organization_name']);
 
         $user = DB::transaction(function () use ($validated, $slug) {
-            $organization = Organization::create(['name' => $validated['organization_name'], 'slug' => $slug]);
+            $organization = Organization::create([
+                'name' => $validated['organization_name'],
+                'slug' => $slug,
+                // Sans compte Meta vérifié au départ : relances manuelles par lien wa.me,
+                // l'API WhatsApp s'active plus tard dans Organisation.
+                'whatsapp_api_enabled' => false,
+            ]);
 
             Role::seedDefaultsFor($organization);
 

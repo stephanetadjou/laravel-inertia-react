@@ -35,6 +35,7 @@ class OrganizationController extends Controller
                 'address' => $organization->privacy_address,
                 'extra' => $organization->privacy_extra,
             ],
+            'whatsappApiEnabled' => $organization->usesWhatsAppApi(),
             'lifecycleSettings' => $organization->lifecycleSettings(),
             'lifecycleDefaults' => Organization::LIFECYCLE_DEFAULTS,
             'brands' => $brands->map(fn (Brand $brand) => [
@@ -97,6 +98,22 @@ class OrganizationController extends Controller
         ]);
 
         return back()->with('success', 'Politique de confidentialité mise à jour.');
+    }
+
+    /**
+     * Envoi automatique par l'API WhatsApp Cloud : à activer une fois le
+     * compte Meta vérifié. Désactivé, le CRM reste complet (import, RFM,
+     * rendez-vous, listes d'actions avec relance manuelle par lien wa.me).
+     */
+    public function updateWhatsAppApi(Request $request): RedirectResponse
+    {
+        $data = $request->validate(['enabled' => ['required', 'boolean']]);
+
+        $request->user()->organization->update(['whatsapp_api_enabled' => $data['enabled']]);
+
+        return back()->with('success', $data['enabled']
+            ? 'API WhatsApp activée : campagnes, modèles et paramètres WhatsApp sont disponibles.'
+            : "API WhatsApp désactivée : relancez vos clients depuis les listes d'actions.");
     }
 
     public function update(Request $request): RedirectResponse

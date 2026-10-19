@@ -15,9 +15,11 @@ type Consent = 'opt_in' | 'unknown' | 'opt_out';
 interface Filters {
     stage: Stage | null;
     vip: boolean;
+    segment: string | null;
+    risk: 'medium' | 'high' | 'any' | null;
     consent: Consent | null;
     q: string;
-    sort: 'last_purchase' | 'total_spent' | 'name';
+    sort: 'last_purchase' | 'total_spent' | 'name' | 'score';
     per_page: number;
     brand: number | null;
     brand_locked: boolean;
@@ -38,6 +40,9 @@ interface CustomerRow {
     contacts: EditableContact[];
     can_edit: boolean;
     stage: Stage;
+    segment: string | null;
+    score: number | null;
+    churn_risk: 'medium' | 'high' | null;
     stores: { name: string; vip: boolean; consent: Consent }[];
     opt_in: boolean;
     purchases_count: number;
@@ -50,6 +55,9 @@ interface PageProps {
     stores: { id: number; name: string }[];
     stages: { key: Stage; label: string; count: number }[];
     vipCount: number;
+    segments: { key: string; label: string }[];
+    riskCount: number;
+    apiEnabled: boolean;
     consentCounts: Record<Consent, number>;
     reachableCount: number;
     templates: CampaignTemplate[];
@@ -88,7 +96,8 @@ function plural(n: number, word: string, pluralWord = word + 's'): string {
 }
 
 function CustomersIndex() {
-    const { filters, stores, stages, vipCount, consentCounts, reachableCount, templates, customers, flash } = usePage<PageProps>().props;
+    const { filters, stores, stages, vipCount, segments, riskCount, apiEnabled, consentCounts, reachableCount, templates, customers, flash } = usePage<PageProps>().props;
+    const segmentLabel = (key: string | null) => segments.find((s) => s.key === key)?.label ?? '—';
     const [search, setSearch] = useState(filters.q);
     const [isNewContactOpen, setIsNewContactOpen] = useState(false);
     const [isCampaignOpen, setIsCampaignOpen] = useState(false);
@@ -109,6 +118,8 @@ function CustomersIndex() {
                 Object.entries({
                     stage: filters.stage,
                     vip: filters.vip ? 1 : null,
+                    segment: filters.segment,
+                    risk: filters.risk,
                     consent: filters.consent,
                     q: filters.q || null,
                     brand: filters.brand_locked ? null : filters.brand,
@@ -116,7 +127,7 @@ function CustomersIndex() {
                     group: filters.group,
                 }).filter(([, v]) => v !== null && v !== ''),
             ) as Record<string, string | number>,
-        [filters.stage, filters.vip, filters.consent, filters.q, filters.brand, filters.brand_locked, filters.store, filters.group],
+        [filters.stage, filters.vip, filters.segment, filters.risk, filters.consent, filters.q, filters.brand, filters.brand_locked, filters.store, filters.group],
     );
 
     // Un changement de filtre vide la sélection (elle ne correspondrait plus).
@@ -207,7 +218,7 @@ function CustomersIndex() {
                     <div className="mcust-title">
                         <div>
                             <h1>Fiches clients</h1>
-                            <small>Filtrez, cochez, lancez une campagne : une fiche par personne pour tout le Groupe</small>
+                            <small>Filtrez par étape, segment RFM ou risque de churn : une fiche par personne pour tout le Groupe</small>
                         </div>
                         <div className="mcust-actions">
                             <a href={exportUrl} className="mdash-btn ghost">
@@ -268,9 +279,18 @@ function CustomersIndex() {
                                 ))}
                             </select>
                         )}
+                        <select aria-label="Segment RFM" value={filters.segment ?? ''} onChange={(e) => visit({ segment: e.target.value || null })}>
+                            <option value="">Tous les segments RFM</option>
+                            {segments.map((s) => (
+                                <option key={s.key} value={s.key}>
+                                    {s.label}
+                                </option>
+                            ))}
+                        </select>
                         <select aria-label="Trier par" value={filters.sort} onChange={(e) => visit({ sort: e.target.value === 'last_purchase' ? null : e.target.value })}>
                             <option value="last_purchase">Dernier achat</option>
                             <option value="total_spent">CA total</option>
+                            <option value="score">Score client</option>
                             <option value="name">Nom</option>
                         </select>
                     </div>
@@ -311,6 +331,17 @@ function CustomersIndex() {
                     <span>VIP (par boutique)</span>
                     <b className="num">{formatNumber(vipCount)}</b>
                 </button>
+                <button
+                    type="button"
+                    className="mcust-step"
+                    aria-pressed={filters.risk !== null}
+                    title="Clients en retard sur leur rythme d'achat habituel (alerte de churn)"
+                    onClick={() => visit({ risk: filters.risk ? null : 'any' })}
+                >
+                    <i style={{ background: STAGE_COLOR.bad }} />
+                    <span>Alerte churn</span>
+                    <b className="num">{formatNumber(riskCount)}</b>
+                </button>
             </nav>
 
             <div className="mcust-consent" role="group" aria-label="Filtrer par consentement WhatsApp">
@@ -327,7 +358,9 @@ function CustomersIndex() {
                     ))}
                 </div>
                 <span className="mcust-consent-hint">
-                    {formatNumber(reachableCount)} client{reachableCount > 1 ? 's' : ''} du filtre joignable{reachableCount > 1 ? 's' : ''} par campagne (opt-in)
+                    {apiEnabled
+                        ? `${formatNumber(reachableCount)} client${reachableCount > 1 ? 's' : ''} du filtre joignable${reachableCount > 1 ? 's' : ''} par campagne (opt-in)`
+                        : 'Relances manuelles par WhatsApp depuis Actions du jour : jamais les clients en opt-out'}
                 </span>
             </div>
 
@@ -377,7 +410,8 @@ function CustomersIndex() {
                                         />
                                     </th>
                                     <th>Client</th>
-                                    <th>Étape</th>
+                                    <th>Étape · segment</th>
+                                    <th className="r">Score</th>
                                     <th>Boutiques · consentement</th>
                                     <th className="r">Achats</th>
                                     <th className="r">CA total</th>
@@ -402,7 +436,14 @@ function CustomersIndex() {
                                             </td>
                                             <td>
                                                 <span className={`mdash-pill ${stage.pill}`}>{stage.label}</span>
+                                                {c.churn_risk && (
+                                                    <span className={`mdash-pill ${c.churn_risk === 'high' ? 'bad' : 'warn'}`} title="Alerte churn">
+                                                        {c.churn_risk === 'high' ? 'Risque élevé' : 'Risque moyen'}
+                                                    </span>
+                                                )}
+                                                {c.segment && c.segment !== 'none' && <span className="mcust-sub">{segmentLabel(c.segment)}</span>}
                                             </td>
+                                            <td className="r mono">{c.score ?? '—'}</td>
                                             <td>
                                                 <span className="mcust-chips">
                                                     {c.stores.map((s) => (
@@ -512,13 +553,16 @@ function CustomersIndex() {
                         <button type="button" className="mdash-btn ghost sm" disabled={groupBusy} onClick={() => changeGroup(currentGroup.id, true)}>
                             Retirer de « {currentGroup.name} »
                         </button>
-                    )}                    <button type="button" className="mdash-btn primary" onClick={() => setIsCampaignOpen(true)}>
+                    )}
+                    {apiEnabled && (
+                    <button type="button" className="mdash-btn primary" onClick={() => setIsCampaignOpen(true)}>
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
                             <path d="M22 2L11 13" />
                             <path d="M22 2l-7 20-4-9-9-4z" />
                         </svg>
                         Créer une campagne
                     </button>
+                    )}
                 </div>
             )}
 

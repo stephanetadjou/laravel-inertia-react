@@ -50,6 +50,12 @@ class CustomerSearch
 
     public bool $vip;
 
+    /** Segment RFM enregistré sur la fiche (cf. CustomerScoring). */
+    public ?string $segment;
+
+    /** Risque de churn : medium, high, ou « any » (l'un ou l'autre). */
+    public ?string $risk;
+
     public ?string $consent;
 
     public string $search;
@@ -58,7 +64,7 @@ class CustomerSearch
     public ?Group $group;
 
     /**
-     * @param  array<string, mixed>  $filters  stage, vip, consent, q, brand, store, group
+     * @param  array<string, mixed>  $filters  stage, vip, consent, q, brand, store, group, segment, risk
      */
     public function __construct(public User $user, array $filters)
     {
@@ -81,6 +87,8 @@ class CustomerSearch
 
         $this->stage = array_key_exists((string) ($filters['stage'] ?? ''), Customer::STAGES) ? (string) $filters['stage'] : null;
         $this->vip = filter_var($filters['vip'] ?? false, FILTER_VALIDATE_BOOLEAN);
+        $this->segment = array_key_exists((string) ($filters['segment'] ?? ''), RfmCalculator::SEGMENTS) ? (string) $filters['segment'] : null;
+        $this->risk = in_array($filters['risk'] ?? null, ['medium', 'high', 'any'], true) ? (string) $filters['risk'] : null;
         $this->consent = in_array($filters['consent'] ?? null, self::CONSENTS, true) ? (string) $filters['consent'] : null;
         $this->search = trim((string) ($filters['q'] ?? ''));
         $groupId = (int) ($filters['group'] ?? 0);
@@ -89,7 +97,7 @@ class CustomerSearch
 
     public static function fromRequest(Request $request): self
     {
-        return new self($request->user(), $request->only(['stage', 'vip', 'consent', 'q', 'brand', 'store', 'group']));
+        return new self($request->user(), $request->only(['stage', 'vip', 'consent', 'q', 'brand', 'store', 'group', 'segment', 'risk']));
     }
 
     /**
@@ -117,6 +125,9 @@ class CustomerSearch
     {
         return Customer::where('organization_id', $this->user->organization_id)
             ->whereHas('contacts', $this->contactScope($ignore))
+            ->when($this->segment !== null, fn ($q) => $q->where('rfm_segment', $this->segment))
+            ->when($this->risk === 'any', fn ($q) => $q->whereIn('churn_risk', ['medium', 'high']))
+            ->when(in_array($this->risk, ['medium', 'high'], true), fn ($q) => $q->where('churn_risk', $this->risk))
             ->when($this->search !== '', function ($q) {
                 $digits = ltrim(preg_replace('/\D+/', '', $this->search), '0'); // 0 du format local ignoré
                 $q->where(fn ($q) => $q->where('name', 'like', "%{$this->search}%")
@@ -163,6 +174,8 @@ class CustomerSearch
             $this->group?->name,
             $this->stage !== null ? Customer::STAGES[$this->stage] : null,
             $this->vip ? 'VIP' : null,
+            $this->segment !== null ? RfmCalculator::SEGMENTS[$this->segment]['label'] : null,
+            $this->risk !== null ? 'Risque de churn' : null,
             match ($this->consent) {
                 'opt_in' => 'Opt-in',
                 'unknown' => 'Consentement inconnu',

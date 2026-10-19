@@ -52,7 +52,10 @@ class HandleInertiaRequests extends Middleware
                     'role_name' => $user->role?->name,
                     'can_manage_organization' => $user->canManageOrganization(),
                 ] : null,
-                'organization' => $user?->organization ? ['name' => $user->organization->name] : null,
+                'organization' => $user?->organization ? [
+                    'name' => $user->organization->name,
+                    'whatsapp_api_enabled' => $user->organization->usesWhatsAppApi(),
+                ] : null,
             ],
             // Tarifs indicatifs par message, pour le coût estimé avant envoi d'une campagne.
             'whatsappPricing' => fn () => $user ? config('services.meta_whatsapp.pricing') : null,

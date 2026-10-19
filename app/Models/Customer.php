@@ -60,6 +60,15 @@ class Customer extends Model
         'total_spent',
         'lifecycle_stage',
         'lifecycle_changed_at',
+        'rfm_r',
+        'rfm_f',
+        'rfm_m',
+        'rfm_segment',
+        'score',
+        'avg_purchase_interval_days',
+        'next_purchase_expected_at',
+        'churn_risk',
+        'scored_at',
     ];
 
     protected function casts(): array
@@ -71,6 +80,8 @@ class Customer extends Model
             'first_purchase_at' => 'date',
             'last_purchase_at' => 'date',
             'lifecycle_changed_at' => 'datetime',
+            'next_purchase_expected_at' => 'date',
+            'scored_at' => 'datetime',
         ];
     }
 
@@ -87,6 +98,16 @@ class Customer extends Model
     public function purchases(): HasManyThrough
     {
         return $this->hasManyThrough(Purchase::class, Contact::class);
+    }
+
+    public function appointments(): HasMany
+    {
+        return $this->hasMany(Appointment::class);
+    }
+
+    public function followUps(): HasMany
+    {
+        return $this->hasMany(CustomerFollowUp::class);
     }
 
     public function stageChanges(): HasMany

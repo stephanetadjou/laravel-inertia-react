@@ -7,6 +7,7 @@ import BrandFormModal, { BrandFormValues } from './BrandFormModal';
 import StoreFormModal from './StoreFormModal';
 import LifecycleSettingsCard, { LifecycleSettings } from './LifecycleSettingsCard';
 import PrivacyPolicyCard, { PrivacySettings } from './PrivacyPolicyCard';
+import WhatsAppApiCard from './WhatsAppApiCard';
 
 interface StoreRow {
     id: number;
@@ -26,11 +27,12 @@ interface PageProps {
     lifecycleSettings: LifecycleSettings;
     lifecycleDefaults: LifecycleSettings;
     privacy: PrivacySettings;
+    whatsappApiEnabled: boolean;
     [key: string]: unknown;
 }
 
 function OrganisationIndex() {
-    const { organization, brands, lifecycleSettings, lifecycleDefaults, privacy } = usePage<PageProps>().props;
+    const { organization, brands, lifecycleSettings, lifecycleDefaults, privacy, whatsappApiEnabled } = usePage<PageProps>().props;
     const [modalBrand, setModalBrand] = useState<BrandFormValues | null | undefined>(undefined);
     const [newStoreBrand, setNewStoreBrand] = useState<{ id: number; name: string } | null>(null);
 
@@ -162,6 +164,8 @@ function OrganisationIndex() {
                 <div className="c12">
                     <LifecycleSettingsCard settings={lifecycleSettings} defaults={lifecycleDefaults} />
                 </div>
+
+                <WhatsAppApiCard enabled={whatsappApiEnabled} />
 
                 <PrivacyPolicyCard privacy={privacy} />
             </div>

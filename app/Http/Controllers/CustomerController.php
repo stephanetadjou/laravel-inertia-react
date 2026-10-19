@@ -2,15 +2,20 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Appointment;
 use App\Models\Brand;
 use App\Models\CampaignMessage;
 use App\Models\Contact;
 use App\Models\Customer;
+use App\Models\CustomerFollowUp;
 use App\Models\Group;
 use App\Models\MessageTemplate;
 use App\Models\Purchase;
 use App\Models\Store;
+use App\Models\User;
+use App\Services\ActionLists;
 use App\Services\CustomerLifecycle;
+use App\Services\CustomerScoring;
 use App\Services\CustomerSearch;
 use App\Services\PhoneNormalizer;
 use App\Services\RfmCalculator;
@@ -41,7 +46,7 @@ class CustomerController extends Controller
         $search = CustomerSearch::fromRequest($request);
         $visibleIds = $request->user()->visibleStoreIds();
 
-        $sort = in_array($request->query('sort'), ['last_purchase', 'total_spent', 'name'], true) ? (string) $request->query('sort') : 'last_purchase';
+        $sort = in_array($request->query('sort'), ['last_purchase', 'total_spent', 'name', 'score'], true) ? (string) $request->query('sort') : 'last_purchase';
         $perPage = in_array($request->integer('per_page'), [25, 50, 100], true) ? $request->integer('per_page') : 25;
 
         // Compteurs des filtres : chacun ignore son propre critère, pour
@@ -63,6 +68,7 @@ class CustomerController extends Controller
             ->with(['contacts' => fn ($q) => $q->where($search->contactScope())->with('store:id,name')])
             ->when($sort === 'name', fn ($q) => $q->orderBy('name'))
             ->when($sort === 'total_spent', fn ($q) => $q->orderByDesc('total_spent'))
+            ->when($sort === 'score', fn ($q) => $q->orderByRaw('score is null')->orderByDesc('score'))
             ->when($sort === 'last_purchase', fn ($q) => $q->orderByRaw('last_purchase_at is null')->orderByDesc('last_purchase_at'))
             ->orderBy('id')
             ->paginate($perPage)
@@ -91,6 +97,8 @@ class CustomerController extends Controller
             'filters' => [
                 'stage' => $search->stage,
                 'vip' => $search->vip,
+                'segment' => $search->segment,
+                'risk' => $search->risk,
                 'consent' => $search->consent,
                 'q' => $search->search,
                 'sort' => $sort,
@@ -112,6 +120,9 @@ class CustomerController extends Controller
                 'count' => (int) ($stageCounts[$key] ?? 0),
             ])->values(),
             'vipCount' => $vipCount,
+            'segments' => collect(RfmCalculator::SEGMENTS)->map(fn ($segment, $key) => ['key' => $key, 'label' => $segment['label']])->values(),
+            'riskCount' => $search->baseQuery()->whereIn('churn_risk', ['medium', 'high'])->count(),
+            'apiEnabled' => $request->user()->organization->usesWhatsAppApi(),
             'consentCounts' => $consentCounts,
             // Nombre de fiches du filtre joignables par campagne (au moins un contact opt-in).
             'reachableCount' => $search->query()->whereIn('customers.id', $search->recipients(null)->select('contacts.customer_id'))->count(),
@@ -132,6 +143,9 @@ class CustomerController extends Controller
                     'contacts' => $contacts,
                     'can_edit' => $contacts->contains('editable', true),
                     'stage' => $customer->lifecycle_stage,
+                    'segment' => $customer->rfm_segment,
+                    'score' => $customer->score,
+                    'churn_risk' => $customer->churn_risk,
                     'stores' => $customer->contacts->map(fn (Contact $c) => [
                         'name' => $c->store->name,
                         'vip' => $c->is_vip,
@@ -151,7 +165,8 @@ class CustomerController extends Controller
     public function show(Request $request, Customer $customer, RfmCalculator $rfm): Response
     {
         $storeIds = $this->authorizeVisible($request, $customer);
-        $scoped = $request->user()->visibleStoreIds() !== null;
+        $user = $request->user();
+        $scoped = $user->visibleStoreIds() !== null;
 
         $contacts = $customer->contacts()->whereIn('store_id', $storeIds)->with(['store.brand', 'groups:id,name'])->get();
         $contactIds = $contacts->pluck('id');
@@ -183,8 +198,6 @@ class CustomerController extends Controller
             ->sortByDesc('at')
             ->values();
 
-        $user = $request->user();
-
         return Inertia::render('Customers/Show', [
             'customer' => [
                 'id' => $customer->id,
@@ -200,6 +213,35 @@ class CustomerController extends Controller
             ],
             'scoped' => $scoped,
             'rfm' => $rfm->forCustomer($customer, $storeIds),
+            // Score et alerte de churn enregistrés (toute l'organisation, cf. CustomerScoring).
+            'scoring' => [
+                'score' => $customer->score,
+                'segment' => $customer->rfm_segment,
+                'churn_risk' => $customer->churn_risk,
+                'churn_label' => CustomerScoring::CHURN_RISKS[$customer->churn_risk] ?? null,
+                'avg_interval_days' => $customer->avg_purchase_interval_days,
+                'next_expected_at' => $customer->next_purchase_expected_at?->toDateString(),
+            ],
+            'whatsappUrl' => ActionLists::whatsappUrl($customer->phone_e164, ''),
+            'apiEnabled' => $user->organization->usesWhatsAppApi(),
+            'appointments' => $customer->appointments()->whereIn('store_id', $storeIds)
+                ->with(['customer:id,name,phone_e164', 'store:id,name', 'staff:id,name'])
+                ->orderByDesc('starts_at')
+                ->take(10)
+                ->get()
+                ->map(fn (Appointment $a) => AppointmentController::present($a, $user->organization->actionMessages())),
+            'appointmentStores' => Store::whereIn('id', $contacts->pluck('store_id'))->orderBy('name')->get(['id', 'name']),
+            'appointmentStatuses' => Appointment::STATUSES,
+            'staff' => User::where('organization_id', $user->organization_id)->orderBy('name')->get(['id', 'name']),
+            'followUps' => $customer->followUps()->with(['user:id,name', 'store:id,name'])->latest('done_at')->take(10)->get()
+                ->map(fn (CustomerFollowUp $f) => [
+                    'id' => $f->id,
+                    'label' => ActionLists::LISTS[$f->action]['label'] ?? $f->action,
+                    'channel' => $f->channel,
+                    'user_name' => $f->user?->name,
+                    'store_name' => $f->store?->name,
+                    'at' => $f->done_at->toIso8601String(),
+                ]),
             'firstPurchaseAt' => $firstPurchaseAt ? substr((string) $firstPurchaseAt, 0, 10) : null,
             'contacts' => $contacts->map(fn (Contact $c) => [
                 'id' => $c->id,

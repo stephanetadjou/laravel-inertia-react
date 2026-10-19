@@ -1,5 +1,7 @@
 <?php
 
+use App\Http\Controllers\ActionController;
+use App\Http\Controllers\AppointmentController;
 use App\Http\Controllers\Auth\AuthenticatedSessionController;
 use App\Http\Controllers\Auth\RegisteredOrganizationController;
 use App\Http\Controllers\BrandController;
@@ -47,16 +49,26 @@ Route::middleware('auth')->group(function () {
 
     Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard.index');
 
+    // Relances manuelles (lien wa.me) : fonctionnent sans l'API WhatsApp.
+    Route::get('/actions', [ActionController::class, 'index'])->name('actions.index');
+    Route::post('/actions/done', [ActionController::class, 'done'])->name('actions.done');
+
+    Route::get('/appointments', [AppointmentController::class, 'index'])->name('appointments.index');
+    Route::post('/appointments', [AppointmentController::class, 'store'])->name('appointments.store');
+    Route::put('/appointments/{appointment}', [AppointmentController::class, 'update'])->name('appointments.update');
+    Route::patch('/appointments/{appointment}/status', [AppointmentController::class, 'updateStatus'])->name('appointments.status');
+    Route::delete('/appointments/{appointment}', [AppointmentController::class, 'destroy'])->name('appointments.destroy');
+
     Route::get('/contacts', [ContactController::class, 'index'])->name('contacts.index');
     Route::post('/contacts', [ContactController::class, 'store'])->name('contacts.store');
     Route::get('/contacts/export', [ContactController::class, 'export'])->name('contacts.export');
     Route::post('/contacts/assign-group', [ContactController::class, 'assignGroup'])->name('contacts.assign-group');
-    Route::post('/contacts/send-welcome-bulk', [ContactController::class, 'sendWelcomeBulk'])->name('contacts.send-welcome-bulk');
+    Route::post('/contacts/send-welcome-bulk', [ContactController::class, 'sendWelcomeBulk'])->middleware('whatsapp-api')->name('contacts.send-welcome-bulk');
     Route::get('/contacts/{contact}', [ContactController::class, 'show'])->name('contacts.show');
     Route::put('/contacts/{contact}', [ContactController::class, 'update'])->name('contacts.update');
     Route::delete('/contacts/{contact}', [ContactController::class, 'destroy'])->name('contacts.destroy');
-    Route::post('/contacts/{contact}/send-test', [ContactController::class, 'sendTest'])->name('contacts.send-test');
-    Route::post('/contacts/{contact}/send-welcome', [ContactController::class, 'sendWelcome'])->name('contacts.send-welcome');
+    Route::post('/contacts/{contact}/send-test', [ContactController::class, 'sendTest'])->middleware('whatsapp-api')->name('contacts.send-test');
+    Route::post('/contacts/{contact}/send-welcome', [ContactController::class, 'sendWelcome'])->middleware('whatsapp-api')->name('contacts.send-welcome');
 
     Route::get('/customers', [CustomerController::class, 'index'])->name('customers.index');
     Route::get('/customers/export', [CustomerController::class, 'export'])->name('customers.export');
@@ -64,8 +76,8 @@ Route::middleware('auth')->group(function () {
     Route::get('/customers/{customer}', [CustomerController::class, 'show'])->name('customers.show');
     Route::put('/customers/{customer}', [CustomerController::class, 'update'])->name('customers.update');
 
-    Route::get('/chat', [ChatController::class, 'index'])->name('chat.index');
-    Route::get('/chat/{contact}', [ChatController::class, 'show'])->name('chat.show');
+    Route::get('/chat', [ChatController::class, 'index'])->middleware('whatsapp-api')->name('chat.index');
+    Route::get('/chat/{contact}', [ChatController::class, 'show'])->middleware('whatsapp-api')->name('chat.show');
 
     Route::get('/groups', [GroupController::class, 'index'])->name('groups.index');
     Route::post('/groups', [GroupController::class, 'store'])->name('groups.store');
@@ -87,6 +99,8 @@ Route::middleware('auth')->group(function () {
         Route::put('/organisation', [OrganizationController::class, 'update'])->name('organisation.update');
         Route::put('/organisation/lifecycle', [OrganizationController::class, 'updateLifecycle'])->name('organisation.lifecycle');
         Route::put('/organisation/privacy', [OrganizationController::class, 'updatePrivacy'])->name('organisation.privacy');
+        Route::put('/organisation/whatsapp-api', [OrganizationController::class, 'updateWhatsAppApi'])->name('organisation.whatsapp-api');
+        Route::put('/actions/messages', [ActionController::class, 'updateMessages'])->name('actions.messages');
 
         Route::post('/brands', [BrandController::class, 'store'])->name('brands.store');
         Route::put('/brands/{brand}', [BrandController::class, 'update'])->name('brands.update');
@@ -96,12 +110,12 @@ Route::middleware('auth')->group(function () {
         Route::put('/stores/{store}', [StoreController::class, 'update'])->name('stores.update');
         Route::delete('/stores/{store}', [StoreController::class, 'destroy'])->name('stores.destroy');
 
-        Route::post('/templates/sync', [MessageTemplateController::class, 'sync'])->name('templates.sync');
+        Route::post('/templates/sync', [MessageTemplateController::class, 'sync'])->middleware('whatsapp-api')->name('templates.sync');
 
-        Route::get('/settings/whatsapp', [WhatsAppSettingsController::class, 'index'])->name('settings.whatsapp');
-        Route::put('/settings/whatsapp/{store}', [WhatsAppSettingsController::class, 'update'])->name('settings.whatsapp.update');
-        Route::post('/settings/whatsapp/{store}/test', [WhatsAppSettingsController::class, 'test'])->name('settings.whatsapp.test');
-        Route::post('/settings/whatsapp/{store}/register', [WhatsAppSettingsController::class, 'register'])->name('settings.whatsapp.register');
+        Route::get('/settings/whatsapp', [WhatsAppSettingsController::class, 'index'])->middleware('whatsapp-api')->name('settings.whatsapp');
+        Route::put('/settings/whatsapp/{store}', [WhatsAppSettingsController::class, 'update'])->middleware('whatsapp-api')->name('settings.whatsapp.update');
+        Route::post('/settings/whatsapp/{store}/test', [WhatsAppSettingsController::class, 'test'])->middleware('whatsapp-api')->name('settings.whatsapp.test');
+        Route::post('/settings/whatsapp/{store}/register', [WhatsAppSettingsController::class, 'register'])->middleware('whatsapp-api')->name('settings.whatsapp.register');
 
         Route::get('/users', [UserController::class, 'index'])->name('users.index');
         Route::post('/users', [UserController::class, 'store'])->name('users.store');
@@ -122,12 +136,12 @@ Route::middleware('auth')->group(function () {
     Route::post('/imports/preview', [ImportController::class, 'preview'])->name('imports.preview');
     Route::post('/imports', [ImportController::class, 'store'])->name('imports.store');
 
-    Route::get('/campaigns', [CampaignController::class, 'index'])->name('campaigns.index');
-    Route::get('/campaigns/segment-count', [CampaignController::class, 'segmentCount'])->name('campaigns.segment-count');
-    Route::post('/campaigns', [CampaignController::class, 'store'])->name('campaigns.store');
+    Route::get('/campaigns', [CampaignController::class, 'index'])->middleware('whatsapp-api')->name('campaigns.index');
+    Route::get('/campaigns/segment-count', [CampaignController::class, 'segmentCount'])->middleware('whatsapp-api')->name('campaigns.segment-count');
+    Route::post('/campaigns', [CampaignController::class, 'store'])->middleware('whatsapp-api')->name('campaigns.store');
 
-    Route::get('/templates', [MessageTemplateController::class, 'index'])->name('templates.index');
-    Route::post('/templates', [MessageTemplateController::class, 'store'])->name('templates.store');
-    Route::put('/templates/{template}', [MessageTemplateController::class, 'update'])->name('templates.update');
-    Route::delete('/templates/{template}', [MessageTemplateController::class, 'destroy'])->name('templates.destroy');
+    Route::get('/templates', [MessageTemplateController::class, 'index'])->middleware('whatsapp-api')->name('templates.index');
+    Route::post('/templates', [MessageTemplateController::class, 'store'])->middleware('whatsapp-api')->name('templates.store');
+    Route::put('/templates/{template}', [MessageTemplateController::class, 'update'])->middleware('whatsapp-api')->name('templates.update');
+    Route::delete('/templates/{template}', [MessageTemplateController::class, 'destroy'])->middleware('whatsapp-api')->name('templates.destroy');
 });

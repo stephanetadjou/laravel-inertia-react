@@ -4,6 +4,8 @@ import { useState } from 'react';
 import AppLayout from '../../layout/AppLayout';
 import { formatNumber } from '../../components/dashboard/Charts';
 import { VIP_PILL, stageInfo } from '../../components/dashboard/stages';
+import AppointmentFormModal, { APPOINTMENT_PILL, AppointmentRow } from '../../components/appointments/AppointmentFormModal';
+import WhatsAppIcon from '../../components/common/WhatsAppIcon';
 import CustomerEditModal from './CustomerEditModal';
 import '../Dashboard/dashboard.css';
 import './customers.css';
@@ -83,6 +85,21 @@ interface PageProps {
     welcomeTemplates: string[];
     groups: { id: number; name: string }[];
     memberOf: number[];
+    scoring: {
+        score: number | null;
+        segment: string | null;
+        churn_risk: 'medium' | 'high' | null;
+        churn_label: string | null;
+        avg_interval_days: number | null;
+        next_expected_at: string | null;
+    };
+    whatsappUrl: string;
+    apiEnabled: boolean;
+    appointments: AppointmentRow[];
+    appointmentStores: { id: number; name: string }[];
+    appointmentStatuses: Record<string, string>;
+    staff: { id: number; name: string }[];
+    followUps: { id: number; label: string; channel: string; user_name: string | null; store_name: string | null; at: string }[];
     flash?: { success: string | null; error: string | null };
     [key: string]: unknown;
 }
@@ -167,9 +184,32 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
 }
 
 function CustomerShow() {
-    const { customer, scoped, rfm, firstPurchaseAt, contacts, purchases, messages, messagesCount, stageHistory, canEdit, welcomeTemplates, groups: allGroups, memberOf, flash } =
-        usePage<PageProps>().props;
+    const {
+        customer,
+        scoped,
+        rfm,
+        firstPurchaseAt,
+        contacts,
+        purchases,
+        messages,
+        messagesCount,
+        stageHistory,
+        canEdit,
+        welcomeTemplates,
+        groups: allGroups,
+        memberOf,
+        scoring,
+        whatsappUrl,
+        apiEnabled,
+        appointments,
+        appointmentStores,
+        appointmentStatuses,
+        staff,
+        followUps,
+        flash,
+    } = usePage<PageProps>().props;
     const [editing, setEditing] = useState(false);
+    const [appointmentModal, setAppointmentModal] = useState<AppointmentRow | null | undefined>(undefined);
     const [welcomeTemplate, setWelcomeTemplate] = useState(welcomeTemplates[0] ?? '');
     const [busy, setBusy] = useState<number | null>(null);
     const stage = stageInfo(customer.stage);
@@ -250,7 +290,16 @@ function CustomerShow() {
                         </div>
                     </div>
                     <div className="mcust-actions">
-                        {contacts.length > 0 && (
+                        <a href={whatsappUrl} target="_blank" rel="noopener noreferrer" className="mdash-btn ghost" title="Ouvrir une discussion WhatsApp depuis le téléphone de l'établissement">
+                            <WhatsAppIcon />
+                            WhatsApp
+                        </a>
+                        {appointmentStores.length > 0 && (
+                            <button type="button" className="mdash-btn ghost" onClick={() => setAppointmentModal(null)}>
+                                Rendez-vous
+                            </button>
+                        )}
+                        {apiEnabled && contacts.length > 0 && (
                             <Link href={messagesUrl} className="mdash-btn ghost" title="Ouvrir la conversation WhatsApp avec ce client">
                                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
                                     <path d="M4 20l1.3-3.9A8 8 0 1 1 8 19z" />
@@ -282,6 +331,16 @@ function CustomerShow() {
                             </span>
                         )}
                     </div>
+                    {(scoring.score !== null || scoring.churn_risk) && (
+                        <p className="mcust-rfm-action">
+                            {scoring.score !== null && <span className="mdash-pill idle">Score client {scoring.score}/100</span>}
+                            {scoring.churn_risk && (
+                                <span className={`mdash-pill ${scoring.churn_risk === 'high' ? 'bad' : 'warn'}`}>Alerte churn : {scoring.churn_label?.toLowerCase()}</span>
+                            )}
+                            {scoring.avg_interval_days !== null &&
+                                `Achète en moyenne tous les ${formatNumber(scoring.avg_interval_days)} jours${scoring.next_expected_at ? `, prochain achat attendu vers le ${formatDate(scoring.next_expected_at)}` : ''}.`}
+                        </p>
+                    )}
                     <p className="mcust-rfm-action">
                         <span className={`mdash-pill ${SEGMENT_PILL[rfm.segment.key] ?? 'idle'}`}>{rfm.segment.label}</span>
                         {rfm.segment.action}
@@ -394,9 +453,11 @@ function CustomerShow() {
                                     {CONSENT[c.consent_status][0]}
                                 </span>
                                 <span className="mcust-row-links">
-                                    <button type="button" disabled={busy === c.id} onClick={() => post(c, `/contacts/${c.id}/send-test`)}>
-                                        Message test
-                                    </button>
+                                    {apiEnabled && (
+                                        <button type="button" disabled={busy === c.id} onClick={() => post(c, `/contacts/${c.id}/send-test`)}>
+                                            Message test
+                                        </button>
+                                    )}
                                     <button type="button" className="danger" onClick={() => destroyContact(c)}>
                                         Retirer
                                     </button>
@@ -404,7 +465,7 @@ function CustomerShow() {
                             </li>
                         ))}
                     </ul>
-                    {pendingWelcome.length > 0 && (
+                    {apiEnabled && pendingWelcome.length > 0 && (
                         <div className="mcust-welcome">
                             {welcomeTemplates.length === 0 ? (
                                 <span className="mdash-src">
@@ -470,6 +531,68 @@ function CustomerShow() {
 
                 <article className="mdash-panel c6">
                     <div className="mdash-ph">
+                        <h2>Rendez-vous</h2>
+                        {appointmentStores.length > 0 && (
+                            <button type="button" className="mdash-link" onClick={() => setAppointmentModal(null)}>
+                                + Nouveau
+                            </button>
+                        )}
+                    </div>
+                    {appointments.length === 0 ? (
+                        <div className="mdash-empty">Aucun rendez-vous.</div>
+                    ) : (
+                        <ul className="mcust-timeline">
+                            {appointments.map((a) => (
+                                <li key={a.id}>
+                                    <span className={`dot ${a.status === 'no_show' ? 'bad' : ''}`} />
+                                    <span>
+                                        <button type="button" className="mdash-link" onClick={() => setAppointmentModal(a)}>
+                                            {a.service ?? 'Rendez-vous'}
+                                        </button>
+                                        <span className="sub">
+                                            {a.store_name}
+                                            {a.staff_name ? ` · avec ${a.staff_name}` : ''} · {formatDate(a.starts_at)} à {a.starts_at.slice(11, 16).replace(':', 'h')}
+                                        </span>
+                                    </span>
+                                    <span className={`mdash-pill ${APPOINTMENT_PILL[a.status] ?? 'idle'}`}>{appointmentStatuses[a.status] ?? a.status}</span>
+                                </li>
+                            ))}
+                        </ul>
+                    )}
+                </article>
+
+                <article className="mdash-panel c6">
+                    <div className="mdash-ph">
+                        <h2>Relances</h2>
+                        <Link href="/actions" className="mdash-link">
+                            Actions du jour
+                        </Link>
+                    </div>
+                    {followUps.length === 0 ? (
+                        <div className="mdash-empty">Aucune relance enregistrée.</div>
+                    ) : (
+                        <ul className="mcust-timeline">
+                            {followUps.map((f) => (
+                                <li key={f.id}>
+                                    <span className="dot" />
+                                    <span>
+                                        {f.label}
+                                        <span className="sub">
+                                            {f.channel === 'whatsapp_manual' ? 'WhatsApp' : 'autre moyen'}
+                                            {f.user_name ? ` · par ${f.user_name}` : ''}
+                                            {f.store_name ? ` · ${f.store_name}` : ''}
+                                        </span>
+                                    </span>
+                                    <span className="when">{formatDate(f.at)}</span>
+                                </li>
+                            ))}
+                        </ul>
+                    )}
+                </article>
+
+                {apiEnabled && (
+                <article className="mdash-panel c6">
+                    <div className="mdash-ph">
                         <h2>Derniers messages WhatsApp</h2>
                         {messagesCount > 0 && (
                             <Link href={messagesUrl} className="mdash-link">
@@ -496,7 +619,21 @@ function CustomerShow() {
                         </ul>
                     )}
                 </article>
+                )}
             </div>
+
+            {appointmentModal !== undefined && (
+                <AppointmentFormModal
+                    key={appointmentModal?.id ?? 'new'}
+                    onClose={() => setAppointmentModal(undefined)}
+                    appointment={appointmentModal}
+                    customerId={customer.id}
+                    customerName={customer.name}
+                    stores={appointmentStores}
+                    staff={staff}
+                    statuses={appointmentStatuses}
+                />
+            )}
 
             {canEdit && <CustomerEditModal customer={customer} contacts={contacts} isOpen={editing} onClose={() => setEditing(false)} />}
         </div>
