@@ -114,6 +114,7 @@ interface PageProps {
     recentCampaigns: CampaignRow[];
     welcomeTemplates: { id: number; name: string; language: string }[];
     flash?: { success: string | null; error: string | null };
+    auth?: { organization?: { whatsapp_api_enabled?: boolean } | null };
     [key: string]: unknown;
 }
 
@@ -175,7 +176,10 @@ function DashboardIndex() {
         recentCampaigns,
         welcomeTemplates,
         flash,
+        auth,
     } = usePage<PageProps>().props;
+    // Sans l'API WhatsApp : pas de messages, campagnes ni bienvenue à suivre ici.
+    const apiEnabled = auth?.organization?.whatsapp_api_enabled ?? true;
 
     const headerHeight = useHeaderHeight();
     const [customFrom, setCustomFrom] = useState(filters.from);
@@ -294,7 +298,7 @@ function DashboardIndex() {
                 <div className="mdash-top-in">
                     <div>
                         <h1>Tableau de bord</h1>
-                        <small>Vue d'ensemble clients, ventes et WhatsApp</small>
+                        <small>{apiEnabled ? 'Clients, ventes et WhatsApp' : 'Clients et ventes'}</small>
                     </div>
                     <div className="mdash-filters">
                         <div className="mdash-fgroup">
@@ -369,12 +373,15 @@ function DashboardIndex() {
                         delta={<Delta value={null} missing="Pas d'historique du consentement : variation indisponible" />}
                         foot={`${formatPercent(optOutRate)} opt-out`}
                     />
+                    {apiEnabled && (
                     <Kpi
                         label="Messages envoyés"
                         value={formatNumber(kpis.messages.current)}
                         delta={<Delta value={percentChange(kpis.messages.current, kpis.messages.previous)} />}
                         foot={plural(kpis.messages.campaigns, 'campagne')}
                     />
+                    )}
+                    {apiEnabled && (
                     <Kpi
                         label="Taux d'échec d'envoi"
                         value={failureRate.toLocaleString('fr-FR', { maximumFractionDigits: 1 })}
@@ -382,6 +389,7 @@ function DashboardIndex() {
                         delta={<Delta value={previousFailureRate === null ? null : failureRate - previousFailureRate} unit="pt" inverted />}
                         foot={`${formatNumber(kpis.failure.failed)} / ${formatNumber(kpis.failure.attempted)} msg de campagne`}
                     />
+                    )}
                     <Kpi
                         label="Clients acheteurs"
                         value={formatNumber(kpis.buyers.current)}
@@ -390,6 +398,8 @@ function DashboardIndex() {
                     />
                 </div>
 
+                {apiEnabled && (
+                <>
                 <article className="mdash-panel c8">
                     <div className="mdash-ph">
                         <div>
@@ -445,6 +455,9 @@ function DashboardIndex() {
                     )}
                 </article>
 
+                </>
+                )}
+
                 <article className="mdash-panel c7" id="bienvenue">
                     <div className="mdash-ph">
                         <div>
@@ -465,6 +478,7 @@ function DashboardIndex() {
                             <table>
                                 <thead>
                                     <tr>
+                                        {apiEnabled && (
                                         <th>
                                             <input
                                                 type="checkbox"
@@ -477,6 +491,7 @@ function DashboardIndex() {
                                                 onChange={toggleAllClients}
                                             />
                                         </th>
+                                        )}
                                         <th>Client</th>
                                         <th>Ajouté</th>
                                         <th>Statut</th>
@@ -488,6 +503,7 @@ function DashboardIndex() {
                                         const [consentLabel, consentClass] = CONSENT[c.consent_status];
                                         return (
                                             <tr key={c.id}>
+                                                {apiEnabled && (
                                                 <td>
                                                     <input
                                                         type="checkbox"
@@ -497,6 +513,7 @@ function DashboardIndex() {
                                                         onChange={() => toggleClient(c.id)}
                                                     />
                                                 </td>
+                                                )}
                                                 <td className="cell-main wrap">
                                                     <b>
                                                         <Link href={customerUrl(c)}>{c.name}</Link>
@@ -531,6 +548,7 @@ function DashboardIndex() {
                             </table>
                         </div>
                     )}
+                    {apiEnabled && (
                     <div className="mdash-bar">
                         <span className="mdash-sub">
                             {selectedIds.size ? `${plural(selectedIds.size, 'client')} sélectionné${selectedIds.size > 1 ? 's' : ''}` : 'Aucun client sélectionné'}
@@ -550,7 +568,8 @@ function DashboardIndex() {
                             </button>
                         </span>
                     </div>
-                    {confirming && (
+                    )}
+                    {apiEnabled && confirming && (
                         <div className="mdash-confirm" role="alertdialog" aria-label="Confirmer l'envoi du message de bienvenue">
                             {welcomeTemplates.length === 0 ? (
                                 <>
@@ -745,7 +764,7 @@ function DashboardIndex() {
                     <SalesChart series={salesSeries} height={200} />
                 </article>
 
-                <article className="mdash-panel c7">
+                <article className={`mdash-panel ${apiEnabled ? 'c7' : 'c12'}`}>
                     <div className="mdash-ph">
                         <h2>Performance par boutique</h2>
                         <span className="mdash-sub">
@@ -807,6 +826,7 @@ function DashboardIndex() {
                     </div>
                 </article>
 
+                {apiEnabled && (
                 <article className="mdash-panel c5">
                     <div className="mdash-ph">
                         <h2>Dernières campagnes</h2>
@@ -862,6 +882,7 @@ function DashboardIndex() {
                         </div>
                     )}
                 </article>
+                )}
 
                 <article className="mdash-panel c12">
                     <div className="mdash-ph">

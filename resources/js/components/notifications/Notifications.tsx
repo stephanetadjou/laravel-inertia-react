@@ -81,6 +81,8 @@ export function NotificationBell() {
                         </Link>
                     </div>
                     <ul className="max-h-[60vh] overflow-y-auto py-1">
+                        {/* Messages non lus : affichés seulement une fois les messages entrants disponibles. */}
+                        {unread.available && (
                         <li className="flex gap-3 px-4 py-2.5">
                             <span className={`mt-1.5 h-2 w-2 flex-none rounded-full ${unread.count > 0 ? 'bg-error-500' : 'bg-gray-300 dark:bg-gray-600'}`} />
                             <span className="min-w-0">
@@ -90,6 +92,7 @@ export function NotificationBell() {
                                 {!unread.available && <span className="block text-xs text-gray-500 dark:text-gray-400">{UNREAD_PENDING}</span>}
                             </span>
                         </li>
+                        )}
                         {items.map((item) => (
                             <li key={item.key}>
                                 <Link
@@ -127,6 +130,7 @@ export function NotificationPanel() {
                 <span className="mdash-sub">{items.length === 0 ? 'Tout est à jour' : 'Cliquez pour ouvrir la page concernée'}</span>
             </div>
             <ul className="mnotif-list">
+                {unread.available && (
                 <li className={`mnotif-item ${unread.count > 0 ? 'bad' : 'idle'}`}>
                     <span className="dot" />
                     <span className="txt">
@@ -136,6 +140,7 @@ export function NotificationPanel() {
                         {!unread.available && <small>{UNREAD_PENDING}</small>}
                     </span>
                 </li>
+                )}
                 {items.map((item) => (
                     <li key={item.key}>
                         <Link href={item.href} className={`mnotif-item ${item.tone}`}>

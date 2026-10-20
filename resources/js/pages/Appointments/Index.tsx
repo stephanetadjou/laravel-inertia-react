@@ -136,7 +136,7 @@ function AppointmentsIndex() {
                                         <span className={`mdash-pill ${APPOINTMENT_PILL[a.status] ?? 'idle'}`}>{statuses[a.status] ?? a.status}</span>
                                         <span className="mappt-do">
                                             {a.whatsapp_url && ['planned', 'confirmed'].includes(a.status) && (
-                                                <a href={a.whatsapp_url} target="_blank" rel="noopener noreferrer" className="mdash-btn ghost sm" title="Rappel prérempli sur WhatsApp">
+                                                <a href={a.whatsapp_url} target="_blank" rel="noopener noreferrer" className="mdash-btn wa sm" title="Rappel prérempli sur WhatsApp">
                                                     <WhatsAppIcon />
                                                     Rappeler
                                                 </a>

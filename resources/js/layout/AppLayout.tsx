@@ -3,6 +3,9 @@ import { SidebarProvider, useSidebar } from '../context/SidebarContext';
 import AppHeader from './AppHeader';
 import Backdrop from './Backdrop';
 import AppSidebar from './AppSidebar';
+import '../pages/Dashboard/dashboard.css';
+import '../components/page/page.css';
+import '../components/page/simple.css';
 
 const LayoutContent: React.FC<{ children: ReactNode }> = ({ children }) => {
     const { isExpanded, isHovered, isMobileOpen } = useSidebar();
@@ -15,7 +18,7 @@ const LayoutContent: React.FC<{ children: ReactNode }> = ({ children }) => {
             </div>
             <div
                 className={`flex-1 transition-all duration-300 ease-in-out ${
-                    isExpanded || isHovered ? 'lg:ml-[290px]' : 'lg:ml-[90px]'
+                    isExpanded || isHovered ? 'lg:ml-[232px]' : 'lg:ml-[72px]'
                 } ${isMobileOpen ? 'ml-0' : ''}`}
             >
                 <AppHeader />

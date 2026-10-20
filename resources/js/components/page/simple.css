@@ -1,0 +1,241 @@
+/*
+ * Interface simplifiée (à la manière d'Odoo), chargée après les styles des
+ * pages : fond et barres claires, filtres en pastilles sur une ligne, sans
+ * libellés en capitales, une seule couleur d'accent (rouge Menentia) pour
+ * l'action principale et l'élément actif, le reste en gris neutres.
+ */
+
+.mdash {
+    --bg: #f7f8fa;
+    --line: #e6e8ec;
+    font-size: 14px;
+}
+.dark .mdash {
+    --bg: #101214;
+}
+
+/* Barre de titre de page (panneau de contrôle) : blanche, compacte. */
+.mdash .mdash-top {
+    background: var(--surface);
+    padding-top: 12px;
+    padding-bottom: 12px;
+}
+.mdash .mdash-top h1 {
+    font-size: 19px;
+    font-weight: 650;
+}
+.mdash .mdash-top small {
+    font-size: 12.5px;
+    margin-top: 2px;
+}
+
+/* Filtres : les libellés en capitales au-dessus de chaque champ disparaissent
+   (chaque champ garde son aria-label et son texte « Toutes les … »). */
+.mdash .mdash-fgroup > label,
+.mdash .mdash-fgroup > span {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
+}
+.mdash .mdash-fgroup {
+    position: relative;
+}
+.mdash .mdash-filters,
+.mdash .mpage-filters {
+    align-items: center;
+    gap: 8px;
+}
+.mdash select,
+.mdash .mpage-search,
+.mdash .mcust-search {
+    border-radius: 8px;
+    padding: 7px 10px;
+    min-width: 0;
+}
+.mdash .mpage-filters select,
+.mdash .mcust-top select {
+    min-width: 150px;
+}
+
+/* Choix segmentés : actif en gris foncé, pas en rouge. */
+.mdash .mdash-seg {
+    border-radius: 8px;
+    padding: 2px;
+}
+.mdash .mdash-seg button {
+    padding: 5px 10px;
+    border-radius: 6px;
+}
+.mdash .mdash-seg button[aria-pressed='true'] {
+    background: var(--ink);
+    color: var(--surface);
+}
+
+/* Panneaux : bord fin, coins moins arrondis. */
+.mdash .mdash-panel {
+    border-radius: 10px;
+    box-shadow: none;
+}
+.mdash .mdash-grid {
+    gap: 14px;
+}
+
+/* Chiffre mis en avant du tableau de bord : neutre, l'accent sur le chiffre. */
+.mdash .mdash-kpi.hero {
+    background: var(--surface);
+    color: var(--ink);
+}
+.mdash .mdash-kpi.hero .k-label,
+.mdash .mdash-kpi.hero .k-foot,
+.mdash .mdash-kpi.hero .k-val small {
+    color: var(--muted);
+    opacity: 1;
+}
+.mdash .mdash-kpi.hero .k-val {
+    color: var(--brand-text);
+}
+
+/* Boutons : plus discrets, coins réguliers. */
+.mdash .mdash-btn {
+    border-radius: 8px;
+    font-weight: 600;
+}
+.mdash .mdash-btn.ghost {
+    background: var(--surface);
+}
+
+/* Fiches clients : étapes et consentement en pastilles sur une ligne. */
+.mdash .mcust-funnel,
+.mdash .mact-lists {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-top: 14px;
+    margin-bottom: 0;
+}
+.mdash .mcust-step,
+.mdash .mact-lists button {
+    flex-direction: row;
+    align-items: center;
+    gap: 7px;
+    padding: 6px 12px;
+    border-radius: 999px;
+    background: var(--surface);
+    border: 1px solid var(--line);
+    box-shadow: none;
+    font-size: 13px;
+}
+.mdash .mcust-step span,
+.mdash .mact-lists button span {
+    font-size: 13px;
+    color: var(--ink);
+    opacity: 1;
+}
+.mdash .mcust-step b,
+.mdash .mact-lists button b {
+    order: 2;
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: 0;
+    line-height: 1;
+    padding: 3px 7px;
+    border-radius: 999px;
+    background: var(--surface-2);
+    color: var(--muted);
+}
+.mdash .mcust-step i {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+}
+.mdash .mcust-step:hover,
+.mdash .mact-lists button:hover {
+    border-color: var(--faint);
+}
+.mdash .mcust-step[aria-pressed='true'],
+.mdash .mact-lists button[aria-pressed='true'] {
+    border-color: var(--ink);
+    box-shadow: inset 0 0 0 1px var(--ink);
+}
+.mdash .mcust-step[aria-pressed='true'] b,
+.mdash .mact-lists button[aria-pressed='true'] b {
+    background: var(--ink);
+    color: var(--surface);
+}
+.mdash .mact-lists button.empty {
+    opacity: 0.6;
+}
+.mdash .mact-lists button.empty b {
+    opacity: 1;
+}
+.mdash .mcust-consent {
+    margin-top: 10px;
+}
+.mdash .mcust-consent-label {
+    font-size: 12.5px;
+    letter-spacing: 0;
+    text-transform: none;
+    font-weight: 500;
+}
+
+/* Tableaux : lignes cliquables, en-têtes discrets. */
+.mdash .mdash-tbl th {
+    font-size: 11.5px;
+    letter-spacing: 0.02em;
+    text-transform: none;
+    font-weight: 600;
+    color: var(--muted);
+}
+.mdash tr.mrow-link {
+    cursor: pointer;
+}
+.mdash tr.mrow-link:hover td {
+    background: var(--surface-2);
+}
+
+/* Encarts d'explication : plus petits et gris. */
+.mdash .mpage-note {
+    font-size: 12.5px;
+    background: transparent;
+    border: 0;
+    padding: 4px 2px;
+    color: var(--muted);
+}
+
+/* Bouton « Ouvrir WhatsApp » (lien wa.me) : contour, icône et texte verts. */
+.mdash .mdash-btn.wa {
+    background: var(--surface);
+    border-color: var(--line);
+    color: var(--ok);
+}
+.mdash .mdash-btn.wa:hover {
+    border-color: var(--ok);
+    background: var(--ok-soft);
+}
+.mdash .mact-preview {
+    color: var(--muted);
+}
+
+/* Chiffres clés : autant de colonnes que d'indicateurs affichés. */
+.mdash .mdash-kpis {
+    grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+    border-radius: 10px;
+}
+
+/* Téléphone : les pastilles de filtre défilent sur une seule ligne. */
+@media (max-width: 640px) {
+    .mdash .mcust-funnel,
+    .mdash .mact-lists {
+        flex-wrap: nowrap;
+        overflow-x: auto;
+        padding-bottom: 4px;
+        scrollbar-width: none;
+    }
+    .mdash .mcust-step,
+    .mdash .mact-lists button {
+        flex: none;
+    }
+}

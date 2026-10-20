@@ -10,6 +10,7 @@ use App\Models\Purchase;
 use App\Models\Store;
 use App\Models\User;
 use App\Services\CustomerScoring;
+use App\Services\NotificationService;
 
 beforeEach(function () {
     $this->travelTo(now()->setDate(2026, 10, 19)->setTime(9, 0));
@@ -257,4 +258,14 @@ it('starts a newly registered company without the WhatsApp API', function () {
 
     expect(Organization::where('name', 'Institut Nyota')->sole()->usesWhatsAppApi())->toBeFalse()
         ->and(Customer::count())->toBe(4);
+});
+
+it('shows follow-ups and appointments to handle, without WhatsApp items when the API is off', function () {
+    Appointment::factory()->create(['store_id' => $this->store->id, 'customer_id' => $this->carine->customer_id, 'starts_at' => now()->setTime(16, 0)]);
+
+    $keys = collect(app(NotificationService::class)->forUser($this->admin)['items'])->pluck('count', 'key');
+
+    expect($keys['customers_to_follow_up'])->toBe(1)
+        ->and($keys['appointments_today'])->toBe(1)
+        ->and($keys->has('pending_welcome'))->toBeFalse();
 });

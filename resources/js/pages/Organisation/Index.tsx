@@ -57,13 +57,15 @@ function OrganisationIndex() {
 
     return (
         <Page
-            title="Organisation"
-            subtitle="Nom du Groupe, marques et boutiques, règles du parcours client"
+            title="Entreprise"
+            subtitle="Nom, marques et boutiques, règles du parcours client"
             actions={
                 <>
-                    <Link href="/stores" className="mdash-btn ghost">
-                        Connexions WhatsApp
-                    </Link>
+                    {whatsappApiEnabled && (
+                        <Link href="/settings/whatsapp" className="mdash-btn ghost">
+                            Connexions WhatsApp
+                        </Link>
+                    )}
                     <button type="button" className="mdash-btn brand" onClick={() => setModalBrand(null)}>
                         <PlusIcon />
                         Nouvelle marque

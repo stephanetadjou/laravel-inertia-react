@@ -118,7 +118,7 @@ function ActionsIndex() {
     return (
         <Page
             title="Actions du jour"
-            subtitle={`${total} relance${total > 1 ? 's' : ''} à faire · WhatsApp s'ouvre avec le message prérempli, vous l'envoyez depuis le téléphone de l'établissement`}
+            subtitle={`${total} client${total > 1 ? 's' : ''} à relancer`}
             actions={
                 canEditMessages && (
                     <button type="button" className="mdash-btn ghost" onClick={() => setEditing((v) => !v)}>
@@ -155,10 +155,10 @@ function ActionsIndex() {
                                         </Link>
                                         <span className="mono">{row.phone_e164}</span>
                                         <span className="mact-tags">
-                                            <span className={`mdash-pill ${stage.pill}`}>{stage.label}</span>
                                             {row.churn_risk && <span className={`mdash-pill ${row.churn_risk === 'high' ? 'bad' : 'warn'}`}>{row.churn_risk === 'high' ? 'Risque élevé' : 'Risque moyen'}</span>}
-                                            {row.score !== null && <span className="mdash-pill idle">Score {row.score}</span>}
-                                            {stores.length > 1 && <span className="mdash-pill idle">{row.store_name}</span>}
+                                            <span className="mact-meta">
+                                                {[stage.label, row.score !== null ? `score ${row.score}` : null, stores.length > 1 ? row.store_name : null].filter(Boolean).join(' · ')}
+                                            </span>
                                         </span>
                                     </div>
                                     <div className="mact-why">
@@ -179,14 +179,14 @@ function ActionsIndex() {
                                                     href={whatsappUrl(row)}
                                                     target="_blank"
                                                     rel="noopener noreferrer"
-                                                    className="mdash-btn brand sm"
+                                                    className="mdash-btn wa sm"
                                                     onClick={() => record(row, 'whatsapp_manual', drafts[row.key] ?? row.message)}
                                                 >
                                                     <WhatsAppIcon />
                                                     Ouvrir WhatsApp
                                                 </a>
                                                 <button type="button" className="mdash-btn ghost sm" onClick={() => record(row, 'call')} title="Client joint autrement (appel, visite) : il sort de la liste">
-                                                    Fait autrement
+                                                    Fait
                                                 </button>
                                             </>
                                         )}
@@ -200,9 +200,9 @@ function ActionsIndex() {
             </Panel>
 
             <div className="mpage-note">
-                <b>Comment ça marche ?</b> « Ouvrir WhatsApp » ouvre la discussion avec le message prérempli (lien wa.me) sur le téléphone ou l'ordinateur de
-                l'établissement : relisez, puis envoyez. La relance est notée sur la fiche du client. Les clients qui ont répondu « Stop » n'apparaissent jamais.
-                {!apiEnabled && ' Les campagnes automatiques par l’API WhatsApp pourront être activées dans Organisation une fois votre compte Meta vérifié.'}
+                « Ouvrir WhatsApp » ouvre la discussion avec le message prérempli : relisez, puis envoyez depuis le téléphone de l'établissement. La relance
+                est notée sur la fiche. Les clients qui ont répondu « Stop » n'apparaissent jamais.
+                {!apiEnabled && ' Les campagnes automatiques s’activeront dans Paramètres une fois votre compte Meta vérifié.'}
             </div>
         </Page>
     );

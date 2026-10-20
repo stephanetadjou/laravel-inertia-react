@@ -218,15 +218,12 @@ function CustomersIndex() {
                     <div className="mcust-title">
                         <div>
                             <h1>Fiches clients</h1>
-                            <small>Filtrez par étape, segment RFM ou risque de churn : une fiche par personne pour tout le Groupe</small>
+                            <small>Une fiche par personne, pour tous vos établissements</small>
                         </div>
                         <div className="mcust-actions">
                             <a href={exportUrl} className="mdash-btn ghost">
                                 Exporter (CSV)
                             </a>
-                            <Link href="/imports" className="mdash-btn ghost">
-                                Importer un fichier
-                            </Link>
                             <button type="button" className="mdash-btn brand" disabled={stores.length === 0} onClick={() => setIsNewContactOpen(true)}>
                                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" aria-hidden="true">
                                     <path d="M12 5v14M5 12h14" />
@@ -424,7 +421,15 @@ function CustomersIndex() {
                                     const stage = stageInfo(c.stage);
                                     const checked = allMatching || selected.has(c.id);
                                     return (
-                                        <tr key={c.id} aria-selected={checked} className={checked ? 'selected' : undefined}>
+                                        <tr
+                                            key={c.id}
+                                            aria-selected={checked}
+                                            className={`mrow-link ${checked ? 'selected' : ''}`}
+                                            onClick={(e) => {
+                                                // Toute la ligne ouvre la fiche, sauf la case à cocher et les boutons.
+                                                if (!(e.target as HTMLElement).closest('input, button, a')) router.visit(`/customers/${c.id}`);
+                                            }}
+                                        >
                                             <td className="mcust-check">
                                                 <input type="checkbox" aria-label={`Sélectionner ${c.name}`} checked={checked} onChange={() => toggleOne(c.id)} />
                                             </td>
@@ -464,9 +469,6 @@ function CustomersIndex() {
                                             <td className="mono">{formatDate(c.last_purchase_at)}</td>
                                             <td className="r">
                                                 <span className="mcust-row-actions">
-                                                    <Link href={`/customers/${c.id}`} className="mdash-btn ghost sm">
-                                                        Consulter
-                                                    </Link>
                                                     {c.can_edit && (
                                                         <button type="button" className="mdash-btn ghost sm" onClick={() => setEditing(c)}>
                                                             Modifier

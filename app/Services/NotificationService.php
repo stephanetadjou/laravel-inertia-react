@@ -2,9 +2,11 @@
 
 namespace App\Services;
 
+use App\Models\Appointment;
 use App\Models\Campaign;
 use App\Models\CampaignMessage;
 use App\Models\Contact;
+use App\Models\Customer;
 use App\Models\Store;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Builder;
@@ -37,12 +39,17 @@ class NotificationService
             ->pluck('id')
             ->all();
 
+        // Sans l'API WhatsApp, rien à suivre côté campagnes, envois ni bienvenue.
+        $api = $user->organization?->usesWhatsAppApi() ?? true;
+
         $items = array_values(array_filter([
-            $this->stuckCampaigns($storeIds),
-            $this->failedSends($storeIds),
-            $this->disconnectedStores($storeIds),
-            $this->pendingWelcome($storeIds),
-            $this->runningCampaigns($storeIds),
+            $this->customersToFollowUp($user, $storeIds),
+            $this->appointmentsToday($storeIds),
+            $api ? $this->stuckCampaigns($storeIds) : null,
+            $api ? $this->failedSends($storeIds) : null,
+            $api ? $this->disconnectedStores($storeIds) : null,
+            $api ? $this->pendingWelcome($storeIds) : null,
+            $api ? $this->runningCampaigns($storeIds) : null,
         ]));
 
         $unread = $this->unreadMessages($storeIds);
@@ -64,6 +71,50 @@ class NotificationService
     public function unreadMessages(array $storeIds): ?int
     {
         return null;
+    }
+
+    /**
+     * Bons clients en retard sur leur rythme d'achat, pas relancés depuis le
+     * délai de la liste (même critère que la liste « Clients à risque »).
+     *
+     * @param  array<int, int>  $storeIds
+     */
+    private function customersToFollowUp(User $user, array $storeIds): ?array
+    {
+        $count = Customer::where('organization_id', $user->organization_id)
+            ->where(fn ($q) => $q->whereIn('churn_risk', ['medium', 'high'])->orWhere('lifecycle_stage', Customer::STAGE_AT_RISK))
+            ->where('lifecycle_stage', '!=', Customer::STAGE_CHURNED)
+            ->whereHas('contacts', fn ($q) => $q->whereIn('store_id', $storeIds)->where('consent_status', '!=', 'opt_out'))
+            ->whereDoesntHave('followUps', fn ($q) => $q->where('action', 'at_risk')
+                ->where('done_at', '>=', now()->subDays(ActionLists::LISTS['at_risk']['cooldown_days'])))
+            ->count();
+
+        return $count === 0 ? null : [
+            'key' => 'customers_to_follow_up',
+            'tone' => 'warn',
+            'count' => $count,
+            'title' => $count > 1 ? "{$count} clients à risque à relancer" : '1 client à risque à relancer',
+            'detail' => "En retard sur leur rythme d'achat habituel : un message WhatsApp prérempli vous attend.",
+            'href' => '/actions?list=at_risk',
+        ];
+    }
+
+    /** @param array<int, int> $storeIds */
+    private function appointmentsToday(array $storeIds): ?array
+    {
+        $count = Appointment::whereIn('store_id', $storeIds)
+            ->whereIn('status', Appointment::OPEN_STATUSES)
+            ->whereBetween('starts_at', [today(), today()->addDay()])
+            ->count();
+
+        return $count === 0 ? null : [
+            'key' => 'appointments_today',
+            'tone' => 'info',
+            'count' => $count,
+            'title' => $count > 1 ? "{$count} rendez-vous aujourd'hui" : "1 rendez-vous aujourd'hui",
+            'detail' => "Confirmez-les ou notez les absences dans l'agenda.",
+            'href' => '/appointments?view=day',
+        ];
     }
 
     /** @param array<int, int> $storeIds */

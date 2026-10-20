@@ -19,7 +19,7 @@ class EnsureWhatsAppApiEnabled
         $organization = $request->user()?->organization;
 
         if ($organization !== null && ! $organization->usesWhatsAppApi()) {
-            $message = "L'envoi automatique par l'API WhatsApp n'est pas activé pour votre entreprise. Relancez vos clients depuis les listes d'actions, ou activez l'API dans Organisation.";
+            $message = "L'envoi automatique par l'API WhatsApp n'est pas activé pour votre entreprise. Relancez vos clients depuis les listes d'actions, ou activez l'API dans Paramètres › Entreprise.";
 
             if ($request->expectsJson()) {
                 return response()->json(['message' => $message], 409);

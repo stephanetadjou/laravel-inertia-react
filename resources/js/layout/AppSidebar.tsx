@@ -1,111 +1,10 @@
-import { useCallback, useState } from 'react';
 import { Link, usePage } from '@inertiajs/react';
 
-import {
-    BoxCubeIcon,
-    CalenderIcon,
-    ChatIcon,
-    ChevronDownIcon,
-    DocsIcon,
-    DollarLineIcon,
-    GroupIcon,
-    HorizontaLDots,
-    ListIcon,
-    TaskIcon,
-    PageIcon,
-    PaperPlaneIcon,
-    PieChartIcon,
-    UserCircleIcon,
-    UserIcon,
-} from '../icons';
 import { useSidebar } from '../context/SidebarContext';
 import { MenentiaSymbol, MenentiaWordmark } from '../components/common/MenentiaLogo';
+import { buildSections, currentSection } from './navigation';
 
-type NavItem = {
-    name: string;
-    icon: React.ReactNode;
-    path: string;
-    /** Autres préfixes d'URL qui rendent l'entrée active (ex. /roles pour « Utilisateurs & rôles »). */
-    alsoActiveOn?: string[];
-};
-
-type NavGroup = {
-    label: string;
-    collapsible?: boolean;
-    items: NavItem[];
-};
-
-/**
- * Menu principal. Les routes /organisation, /users et /roles sont protégées
- * côté serveur par le middleware can-manage-organization : on n'affiche ces
- * entrées qu'aux rôles qui y ont accès. /stores et /categories restent
- * accessibles à tous les rôles, elles sont donc toujours visibles.
- */
-function buildNavGroups(canManageOrganization: boolean, whatsappApiEnabled: boolean): NavGroup[] {
-    const administrationItems: NavItem[] = [];
-
-    if (canManageOrganization) {
-        administrationItems.push({ icon: <PageIcon />, name: 'Organisation', path: '/organisation' });
-    }
-
-    administrationItems.push(
-        { icon: <BoxCubeIcon />, name: 'Marques & boutiques', path: '/stores' },
-        { icon: <ListIcon />, name: 'Catégories', path: '/categories' },
-    );
-
-    if (canManageOrganization) {
-        // Paramètres WhatsApp : seulement si l'API WhatsApp est activée (Organisation).
-        if (whatsappApiEnabled) {
-            administrationItems.push({ icon: <ChatIcon />, name: 'Paramètres WhatsApp', path: '/settings/whatsapp' });
-        }
-        administrationItems.push({ icon: <UserCircleIcon />, name: 'Utilisateurs & rôles', path: '/users', alsoActiveOn: ['/roles'] });
-    }
-
-    // Communication par l'API WhatsApp : masquée tant que l'entreprise ne l'a pas activée.
-    const communication: NavGroup[] = whatsappApiEnabled
-        ? [
-              {
-                  label: 'Communication',
-                  collapsible: true,
-                  items: [
-                      { icon: <PaperPlaneIcon />, name: 'Campagnes', path: '/campaigns' },
-                      { icon: <DocsIcon />, name: 'Modèles de messages', path: '/templates' },
-                      { icon: <ChatIcon />, name: 'Historique messages', path: '/chat' },
-                  ],
-              },
-          ]
-        : [];
-
-    return [
-        {
-            label: "Vue d'ensemble",
-            items: [
-                { icon: <PieChartIcon />, name: 'Tableau de bord', path: '/dashboard' },
-                // Relances manuelles par lien wa.me : disponibles avec ou sans l'API WhatsApp.
-                { icon: <TaskIcon />, name: 'Actions du jour', path: '/actions' },
-                { icon: <CalenderIcon />, name: 'Rendez-vous', path: '/appointments' },
-            ],
-        },
-        ...communication,
-        {
-            label: 'Clients',
-            collapsible: true,
-            items: [
-                // Une fiche par personne : filtres, groupes, import et campagnes depuis la sélection.
-                { icon: <UserIcon />, name: 'Fiches clients', path: '/customers', alsoActiveOn: ['/imports'] },
-                { icon: <GroupIcon />, name: 'Groupes', path: '/groups' },
-                { icon: <DollarLineIcon />, name: "Historique d'achat", path: '/purchases' },
-            ],
-        },
-        {
-            label: 'Administration',
-            collapsible: true,
-            items: administrationItems,
-        },
-    ];
-}
-
-interface SidebarAuthProps {
+interface SidebarProps {
     auth?: {
         user: { can_manage_organization?: boolean } | null;
         organization?: { whatsapp_api_enabled?: boolean } | null;
@@ -113,103 +12,55 @@ interface SidebarAuthProps {
     [key: string]: unknown;
 }
 
+/** Menu latéral clair et court : une entrée par grande rubrique (cf. navigation.tsx). */
 const AppSidebar: React.FC = () => {
     const { isExpanded, isMobileOpen, isHovered, setIsHovered } = useSidebar();
-    const { url, props } = usePage<SidebarAuthProps>();
+    const { url, props } = usePage<SidebarProps>();
 
-    const navGroups = buildNavGroups(props.auth?.user?.can_manage_organization ?? false, props.auth?.organization?.whatsapp_api_enabled ?? true);
-
-    const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(new Set());
-
-    function toggleGroup(label: string) {
-        setCollapsedGroups((prev) => {
-            const next = new Set(prev);
-            if (next.has(label)) {
-                next.delete(label);
-            } else {
-                next.add(label);
-            }
-            return next;
-        });
-    }
-
-    const isActive = useCallback(
-        (nav: NavItem) => [nav.path, ...(nav.alsoActiveOn ?? [])].some((path) => url === path || url.startsWith(path + '/') || url.startsWith(path + '?')),
-        [url],
-    );
-
+    const sections = buildSections({
+        canManageOrganization: props.auth?.user?.can_manage_organization ?? false,
+        whatsappApiEnabled: props.auth?.organization?.whatsapp_api_enabled ?? true,
+    });
+    const active = currentSection(sections, url);
     const showLabels = isExpanded || isHovered || isMobileOpen;
 
     return (
         <aside
-            className={`fixed top-0 left-0 z-50 mt-16 flex h-screen flex-col bg-ink-strong px-4 text-gray-100 transition-all duration-300 ease-in-out lg:mt-0 ${
-                isExpanded || isMobileOpen ? 'w-[290px]' : isHovered ? 'w-[290px]' : 'w-[90px]'
+            className={`fixed top-0 left-0 z-50 mt-14 flex h-screen flex-col border-r border-gray-200 bg-white px-3 text-gray-700 transition-all duration-300 ease-in-out lg:mt-0 dark:border-gray-800 dark:bg-gray-900 dark:text-gray-300 ${
+                showLabels ? 'w-[232px]' : 'w-[72px]'
             } ${isMobileOpen ? 'translate-x-0' : '-translate-x-full'} lg:translate-x-0`}
             onMouseEnter={() => !isExpanded && setIsHovered(true)}
             onMouseLeave={() => setIsHovered(false)}
         >
-            <div className={`flex py-6 ${!isExpanded && !isHovered ? 'lg:justify-center' : 'justify-start'}`}>
-                <Link href="/dashboard" className="flex items-center gap-2.5">
-                    <MenentiaSymbol className="h-9 w-9" />
-                    {showLabels && (
-                        <span className="leading-tight">
-                            <MenentiaWordmark onDark className="block text-[22px]" />
-                            <span className="mt-1 block text-[11px] text-gray-400">CRM relation client</span>
-                        </span>
-                    )}
+            <div className={`flex h-14 items-center ${showLabels ? 'px-2' : 'justify-center'}`}>
+                <Link href="/dashboard" className="flex items-center gap-2" aria-label="Menentia, accueil">
+                    <MenentiaSymbol className="h-8 w-8" />
+                    {showLabels && <MenentiaWordmark className="text-[20px]" />}
                 </Link>
             </div>
-            <div className="no-scrollbar flex flex-col overflow-y-auto pb-20 duration-300 ease-linear">
-                <nav className="mb-6">
-                    <div className="flex flex-col gap-3">
-                        {navGroups.map((group) => {
-                            const isCollapsed = group.collapsible && collapsedGroups.has(group.label);
 
-                            return (
-                                <div key={group.label}>
-                                    <h2
-                                        onClick={() => group.collapsible && showLabels && toggleGroup(group.label)}
-                                        className={`mb-1.5 flex items-center px-3 pt-1 text-[10.5px] leading-[20px] tracking-[0.08em] text-gray-400 uppercase ${
-                                            !isExpanded && !isHovered ? 'lg:justify-center' : 'justify-start'
-                                        } ${group.collapsible && showLabels ? 'cursor-pointer select-none' : ''}`}
-                                    >
-                                        {showLabels ? group.label : <HorizontaLDots className="size-6" />}
-                                        {group.collapsible && showLabels && (
-                                            <ChevronDownIcon
-                                                className={`ml-auto h-4 w-4 transition-transform duration-200 ${isCollapsed ? '-rotate-90' : ''}`}
-                                            />
-                                        )}
-                                    </h2>
-                                    {!isCollapsed && (
-                                        <ul className="flex flex-col gap-0.5">
-                                            {group.items.map((nav) => {
-                                                const active = isActive(nav);
+            <nav className="no-scrollbar mt-2 flex flex-col gap-0.5 overflow-y-auto pb-20" aria-label="Menu principal">
+                {sections.map((section) => {
+                    const isActive = active?.key === section.key;
 
-                                                return (
-                                                    <li key={nav.name}>
-                                                        <Link
-                                                            href={nav.path}
-                                                            aria-current={active ? 'page' : undefined}
-                                                            className={`flex w-full items-center gap-3 rounded-[9px] px-3 py-2 text-sm whitespace-nowrap transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent ${
-                                                                active
-                                                                    ? 'bg-brand-strong font-semibold text-white'
-                                                                    : 'text-gray-100 hover:bg-white/10'
-                                                            } ${!isExpanded && !isHovered ? 'lg:justify-center' : ''}`}
-                                                        >
-                                                            <span className={`shrink-0 [&_svg]:size-5 ${active ? '' : 'opacity-85'}`}>{nav.icon}</span>
-                                                            {showLabels && <span>{nav.name}</span>}
-                                                        </Link>
-                                                    </li>
-                                                );
-                                            })}
-                                        </ul>
-                                    )}
-                                </div>
-                            );
-                        })}
-                    </div>
-                </nav>
-            </div>
+                    return (
+                        <Link
+                            key={section.key}
+                            href={section.path}
+                            aria-current={isActive ? 'page' : undefined}
+                            title={showLabels ? undefined : section.name}
+                            className={`flex items-center gap-3 rounded-lg px-3 py-2.5 text-[14.5px] whitespace-nowrap transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-500 ${
+                                isActive
+                                    ? 'bg-brand-50 font-semibold text-brand-700 dark:bg-white/10 dark:text-white'
+                                    : 'hover:bg-gray-100 dark:hover:bg-white/5'
+                            } ${showLabels ? '' : 'justify-center'} ${section.key === 'settings' ? 'mt-4' : ''}`}
+                        >
+                            <span className={`shrink-0 [&_svg]:size-5 ${isActive ? 'text-brand-600 dark:text-white' : 'text-gray-500 dark:text-gray-400'}`}>{section.icon}</span>
+                            {showLabels && <span>{section.name}</span>}
+                        </Link>
+                    );
+                })}
+            </nav>
         </aside>
     );
 };
