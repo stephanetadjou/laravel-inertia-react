@@ -105,7 +105,7 @@ function CategoriesIndex() {
                 ]}
             />
             <div className="mpage-note">
-                La liste sert de référence pour l'import d'achats et le filtre « Catégorie » de l'<Link href="/purchases">Historique d'achat</Link>. Un
+                La liste sert de référence pour l'import d'achats et le filtre « Catégorie » de des <Link href="/purchases">Ventes</Link>. Un
                 achat importé avec une catégorie inconnue est conservé tel quel.
             </div>
 

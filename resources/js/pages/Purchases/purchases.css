@@ -131,3 +131,25 @@
 .mpur .mpur-actions .mpur-search {
     width: 260px;
 }
+
+/* Lignes d'une vente : prestation (bleu), produit (ambre), ligne libre (gris). */
+.mpur-lines {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+}
+.mpur-line {
+    display: inline-flex;
+    align-items: center;
+    padding: 1px 8px;
+    border-radius: 999px;
+    font-size: 12px;
+    background: var(--idle-soft);
+    color: var(--ink);
+}
+.mpur-line.service {
+    background: var(--data-soft);
+}
+.mpur-line.product {
+    background: var(--accent-soft);
+}

@@ -23,6 +23,7 @@ interface Filters {
     brands: { id: number; name: string }[];
     store: number | null;
     category: string | null;
+    kind: 'service' | 'product' | null;
     q: string;
     sort: 'date' | 'amount';
     dir: 'asc' | 'desc';
@@ -43,6 +44,7 @@ interface PurchaseRow {
     store_name: string;
     brand_name: string | null;
     product_category: string | null;
+    lines: { name: string; type: 'service' | 'product' | null; quantity: number }[];
     quantity: number | null;
     amount: number;
 }
@@ -113,6 +115,7 @@ function PurchasesIndex() {
             brand: filters.brand_locked ? null : filters.brand,
             store: filters.store,
             category: filters.category,
+            kind: filters.kind,
             q: filters.q || null,
             sort: filters.sort === 'date' ? null : filters.sort,
             dir: filters.dir === 'desc' ? null : filters.dir,
@@ -149,20 +152,20 @@ function PurchasesIndex() {
     const basket = current.purchases ? current.revenue / current.purchases : 0;
     const previousBasket = previous.purchases ? previous.revenue / previous.purchases : 0;
     const selectedBrandName = filters.brands.find((b) => b.id === filters.brand)?.name;
-    const hasFilters = Boolean(filters.store || filters.category || filters.q || (filters.brand && !filters.brand_locked));
+    const hasFilters = Boolean(filters.store || filters.category || filters.kind || filters.q || (filters.brand && !filters.brand_locked));
 
     const sortArrow = (column: 'date' | 'amount') => (filters.sort === column ? (filters.dir === 'desc' ? '↓' : '↑') : '↕');
 
     return (
         <div className="mdash mpur">
-            <Head title="Historique d'achat" />
+            <Head title="Ventes et prestations" />
 
             <header className="mdash-top" style={{ top: headerHeight }}>
                 <div className="mdash-top-in">
                     <div className="mpur-title">
                         <div>
-                            <h1>Historique d'achat</h1>
-                            <small>Achats clients importés, par boutique et catégorie</small>
+                            <h1>Ventes et prestations</h1>
+                            <small>Prestations encaissées et ventes de produits, par établissement</small>
                         </div>
                         <div className="mpur-actions">
                             <input
@@ -182,6 +185,22 @@ function PurchasesIndex() {
                         </div>
                     </div>
                     <div className="mdash-filters">
+                        <div className="mdash-fgroup">
+                            <span>Type de vente</span>
+                            <div className="mdash-seg" role="group" aria-label="Type de vente">
+                                {(
+                                    [
+                                        [null, 'Tout'],
+                                        ['service', 'Prestations'],
+                                        ['product', 'Produits'],
+                                    ] as [Filters['kind'], string][]
+                                ).map(([key, label]) => (
+                                    <button key={label} type="button" aria-pressed={filters.kind === key} onClick={() => visit({ kind: key })}>
+                                        {label}
+                                    </button>
+                                ))}
+                            </div>
+                        </div>
                         <div className="mdash-fgroup">
                             <span>Période</span>
                             <div className="mdash-seg" role="group" aria-label="Période">
@@ -223,7 +242,7 @@ function PurchasesIndex() {
                             <div className="mdash-fgroup">
                                 <label htmlFor="mpur-store">Boutique</label>
                                 <select id="mpur-store" value={filters.store ?? ''} onChange={(e) => visit({ store: e.target.value ? Number(e.target.value) : null })}>
-                                    <option value="">Toutes</option>
+                                    <option value="">Toutes les boutiques</option>
                                     {stores.map((s) => (
                                         <option key={s.id} value={s.id}>
                                             {s.name}
@@ -235,7 +254,7 @@ function PurchasesIndex() {
                         <div className="mdash-fgroup">
                             <label htmlFor="mpur-category">Catégorie</label>
                             <select id="mpur-category" value={filters.category ?? ''} onChange={(e) => visit({ category: e.target.value || null })}>
-                                <option value="">Toutes</option>
+                                <option value="">Toutes les catégories</option>
                                 {categories.map((c) => (
                                     <option key={c} value={c}>
                                         {c}
@@ -260,7 +279,7 @@ function PurchasesIndex() {
             {flash?.success && <div className="mdash-flash ok">{flash.success}</div>}
             {flash?.error && <div className="mdash-flash bad">{flash.error}</div>}
 
-            <section className="mdash-grid" aria-label="Historique d'achat">
+            <section className="mdash-grid" aria-label="Ventes et prestations">
                 <div className="c12 mdash-kpis four">
                     <Kpi
                         hero
@@ -270,7 +289,7 @@ function PurchasesIndex() {
                         delta={<Delta value={percentChange(current.revenue, previous.revenue)} />}
                     />
                     <Kpi
-                        label="Achats"
+                        label="Ventes"
                         value={formatNumber(current.purchases)}
                         delta={<Delta value={percentChange(current.purchases, previous.purchases)} />}
                         foot={plural(current.quantity, 'article')}
@@ -285,8 +304,8 @@ function PurchasesIndex() {
 
                 <article className="mdash-panel c12 mpur-table">
                     <div className="mdash-ph">
-                        <h2>Achats</h2>
-                        <span className="mdash-sub">{plural(purchases.total, 'achat')} sur la période</span>
+                        <h2>{filters.kind === 'service' ? 'Prestations' : filters.kind === 'product' ? 'Ventes de produits' : 'Ventes'}</h2>
+                        <span className="mdash-sub">{plural(purchases.total, 'vente')} sur la période</span>
                     </div>
                     {purchases.data.length === 0 ? (
                         <div className="mpur-empty">
@@ -294,7 +313,7 @@ function PurchasesIndex() {
                                 <path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z" />
                                 <path d="M3 6h18M16 10a4 4 0 0 1-8 0" />
                             </svg>
-                            <b>Aucun achat pour ces filtres</b>
+                            <b>Aucune vente pour ces filtres</b>
                             <span>
                                 {hasFilters ? 'Retirez un filtre ou élargissez la période.' : "Élargissez la période ou importez un historique d'achats."}
                             </span>
@@ -303,7 +322,7 @@ function PurchasesIndex() {
                                     Voir les 90 derniers jours
                                 </button>
                                 {hasFilters && (
-                                    <button type="button" className="mdash-btn ghost" onClick={() => visit({ brand: null, store: null, category: null, q: null })}>
+                                    <button type="button" className="mdash-btn ghost" onClick={() => visit({ brand: null, store: null, category: null, kind: null, q: null })}>
                                         Retirer les filtres
                                     </button>
                                 )}
@@ -321,7 +340,7 @@ function PurchasesIndex() {
                                         </th>
                                         <th>Client</th>
                                         <th>Boutique</th>
-                                        <th>Catégorie</th>
+                                        <th>Détail</th>
                                         <th className="r">Qté</th>
                                         <th className="r">
                                             <button type="button" className="mpur-sort" aria-pressed={filters.sort === 'amount'} onClick={() => toggleSort('amount')}>
@@ -344,7 +363,22 @@ function PurchasesIndex() {
                                                 <b style={{ fontWeight: 500 }}>{p.store_name}</b>
                                                 {p.brand_name && <span>{p.brand_name}</span>}
                                             </td>
-                                            <td>{p.product_category ? <span className="mpur-cat">{p.product_category}</span> : <span className="mdash-src">—</span>}</td>
+                                            <td className="wrap">
+                                                {p.lines.length > 0 ? (
+                                                    <span className="mpur-lines">
+                                                        {p.lines.map((l, i) => (
+                                                            <span key={i} className={`mpur-line ${l.type ?? 'free'}`} title={l.type === 'service' ? 'Prestation' : l.type === 'product' ? 'Produit' : 'Ligne libre'}>
+                                                                {l.name}
+                                                                {l.quantity > 1 ? ` × ${l.quantity}` : ''}
+                                                            </span>
+                                                        ))}
+                                                    </span>
+                                                ) : p.product_category ? (
+                                                    <span className="mpur-cat">{p.product_category}</span>
+                                                ) : (
+                                                    <span className="mdash-src">—</span>
+                                                )}
+                                            </td>
                                             <td className="r mono">{p.quantity ?? '—'}</td>
                                             <td className="mpur-amount">{formatNumber(p.amount)} F</td>
                                         </tr>

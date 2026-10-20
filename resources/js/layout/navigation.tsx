@@ -30,9 +30,8 @@ export interface NavContext {
 
 export function buildSections({ canManageOrganization, whatsappApiEnabled }: NavContext): NavSection[] {
     const settingsTabs: NavTab[] = [
-        ...(canManageOrganization ? [{ name: 'Entreprise', path: '/organisation' }, { name: 'Catalogue', path: '/catalog' }] : []),
+        ...(canManageOrganization ? [{ name: 'Entreprise', path: '/organisation' }] : []),
         { name: 'Marques & boutiques', path: '/stores' },
-        { name: 'Catégories', path: '/categories' },
         ...(canManageOrganization ? [{ name: 'Utilisateurs & rôles', path: '/users', alsoActiveOn: ['/roles'] }] : []),
         ...(canManageOrganization && whatsappApiEnabled ? [{ name: 'WhatsApp', path: '/settings/whatsapp' }] : []),
     ];
@@ -52,7 +51,17 @@ export function buildSections({ canManageOrganization, whatsappApiEnabled }: Nav
                 { name: 'Importer', path: '/imports' },
             ],
         },
-        { key: 'sales', name: 'Ventes', icon: <DollarLineIcon />, path: '/purchases', tabs: [] },
+        {
+            key: 'sales',
+            name: 'Ventes & prestations',
+            icon: <DollarLineIcon />,
+            path: '/purchases',
+            tabs: [
+                { name: 'Ventes', path: '/purchases' },
+                ...(canManageOrganization ? [{ name: 'Catalogue', path: '/catalog' }] : []),
+                { name: 'Catégories', path: '/categories' },
+            ],
+        },
     ];
 
     if (whatsappApiEnabled) {

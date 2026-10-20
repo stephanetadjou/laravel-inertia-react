@@ -141,3 +141,23 @@ it('keeps the catalogue to managers and to their own company', function () {
     $this->actingAs($manager)->get('/catalog')->assertForbidden();
     $this->actingAs($stranger)->put("/catalog/{$this->coupe->id}", ['type' => 'service', 'name' => 'X', 'price' => 1, 'duration_minutes' => 30])->assertForbidden();
 });
+
+it('filters sales by services or product sales', function () {
+    $service = Appointment::factory()->create(['store_id' => $this->store->id, 'customer_id' => $this->contact->customer_id, 'starts_at' => '2026-10-19 10:00']);
+    $mixed = Appointment::factory()->create(['store_id' => $this->store->id, 'customer_id' => $this->contact->customer_id, 'starts_at' => '2026-10-19 14:00']);
+
+    $this->actingAs($this->admin)->post("/appointments/{$service->id}/checkout", [
+        'lines' => [['catalog_item_id' => $this->coupe->id, 'name' => 'Coupe', 'quantity' => 1, 'unit_price' => 8000]],
+    ]);
+    $this->actingAs($this->admin)->post("/appointments/{$mixed->id}/checkout", [
+        'lines' => [['catalog_item_id' => $this->shampoing->id, 'name' => 'Shampoing', 'quantity' => 1, 'unit_price' => 6000]],
+    ]);
+    Purchase::factory()->create(['contact_id' => $this->contact->id, 'store_id' => $this->store->id, 'purchased_at' => '2026-10-18']);
+
+    $this->actingAs($this->admin)->get('/purchases?kind=service')
+        ->assertInertia(fn ($page) => $page->where('purchases.total', 1)->where('purchases.data.0.lines.0.name', 'Coupe'));
+    $this->actingAs($this->admin)->get('/purchases?kind=product')
+        ->assertInertia(fn ($page) => $page->where('purchases.total', 1)->where('filters.kind', 'product'));
+    $this->actingAs($this->admin)->get('/purchases')
+        ->assertInertia(fn ($page) => $page->where('purchases.total', 3));
+});

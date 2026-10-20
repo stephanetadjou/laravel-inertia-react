@@ -6,6 +6,7 @@ use App\Http\Controllers\Concerns\AnalyzesPeriods;
 use App\Http\Controllers\Concerns\ResolvesBrandFilter;
 use App\Http\Controllers\Concerns\ValidatesImportFile;
 use App\Models\Brand;
+use App\Models\CatalogItem;
 use App\Models\Category;
 use App\Models\Purchase;
 use App\Models\Store;
@@ -97,6 +98,9 @@ class PurchaseController extends Controller
         $storeIds = $storeId !== null ? [$storeId] : $brandStores->pluck('id')->all();
 
         $category = trim((string) $request->query('category', '')) ?: null;
+        // Prestations : ventes avec au moins une prestation ; produits : avec au moins un produit
+        // (une vente mixte figure dans les deux). Les ventes importées sans ligne n'y figurent pas.
+        $kind = in_array($request->query('kind'), [CatalogItem::TYPE_SERVICE, CatalogItem::TYPE_PRODUCT], true) ? (string) $request->query('kind') : null;
         $search = trim((string) $request->query('q', ''));
         $sort = $request->query('sort') === 'amount' ? 'amount' : 'date';
         $direction = $request->query('dir') === 'asc' ? 'asc' : 'desc';
@@ -105,11 +109,13 @@ class PurchaseController extends Controller
             ->whereIn('purchases.store_id', $storeIds)
             ->whereBetween('purchases.purchased_at', [$start, $end])
             ->when($category !== null, fn ($q) => $q->where('purchases.product_category', $category))
+            ->when($kind !== null, fn ($q) => $q->whereHas('items', fn ($i) => $i->where('type', $kind)))
             ->when($search !== '', function ($q) use ($search) {
                 $digits = ltrim(preg_replace('/\D+/', '', $search), '0'); // 0 du format local ignoré
 
                 $q->where(function ($q) use ($search, $digits) {
                     $q->where('purchases.product_category', 'like', "%{$search}%")
+                        ->orWhereHas('items', fn ($i) => $i->where('name', 'like', "%{$search}%"))
                         ->orWhereHas('contact', function ($q) use ($search, $digits) {
                             $q->where('name', 'like', "%{$search}%");
 
@@ -133,7 +139,7 @@ class PurchaseController extends Controller
         $perPage = in_array($perPage, [25, 50, 100], true) ? $perPage : 25;
 
         $page = $purchases($period['from'], $period['to'])
-            ->with(['contact', 'store.brand'])
+            ->with(['contact', 'store.brand', 'items:id,purchase_id,type,name,quantity'])
             ->when(
                 $sort === 'amount',
                 fn ($q) => $q->orderBy('amount', $direction),
@@ -156,6 +162,7 @@ class PurchaseController extends Controller
                     ->map(fn (Brand $brand) => ['id' => $brand->id, 'name' => $brand->name]),
                 'store' => $storeId,
                 'category' => $category,
+                'kind' => $kind,
                 'q' => $search,
                 'sort' => $sort,
                 'dir' => $direction,
@@ -185,6 +192,7 @@ class PurchaseController extends Controller
                 'store_name' => $purchase->store->name,
                 'brand_name' => $purchase->store->brand?->name,
                 'product_category' => $purchase->product_category,
+                'lines' => $purchase->items->map(fn ($item) => ['name' => $item->name, 'type' => $item->type, 'quantity' => $item->quantity])->values(),
                 'quantity' => $purchase->quantity,
                 'amount' => (int) $purchase->amount,
             ]),
