@@ -225,13 +225,14 @@ class CustomerController extends Controller
             'whatsappUrl' => ActionLists::whatsappUrl($customer->phone_e164, ''),
             'apiEnabled' => $user->organization->usesWhatsAppApi(),
             'appointments' => $customer->appointments()->whereIn('store_id', $storeIds)
-                ->with(['customer:id,name,phone_e164', 'store:id,name', 'staff:id,name'])
+                ->with(AppointmentController::RELATIONS)
                 ->orderByDesc('starts_at')
                 ->take(10)
                 ->get()
                 ->map(fn (Appointment $a) => AppointmentController::present($a, $user->organization->actionMessages())),
             'appointmentStores' => Store::whereIn('id', $contacts->pluck('store_id'))->orderBy('name')->get(['id', 'name']),
             'appointmentStatuses' => Appointment::STATUSES,
+            'catalog' => AppointmentController::catalogFor($user->organization_id),
             'staff' => User::where('organization_id', $user->organization_id)->orderBy('name')->get(['id', 'name']),
             'followUps' => $customer->followUps()->with(['user:id,name', 'store:id,name'])->latest('done_at')->take(10)->get()
                 ->map(fn (CustomerFollowUp $f) => [

@@ -7,6 +7,7 @@ use Database\Factories\PurchaseFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Purchase extends Model
 {
@@ -43,6 +44,11 @@ class Purchase extends Model
 
         static::saved($refresh);
         static::deleted($refresh);
+    }
+
+    public function items(): HasMany
+    {
+        return $this->hasMany(PurchaseItem::class);
     }
 
     public function contact(): BelongsTo

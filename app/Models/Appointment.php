@@ -6,6 +6,7 @@ use Database\Factories\AppointmentFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 /**
  * Rendez-vous d'un client dans un établissement.
@@ -36,6 +37,7 @@ class Appointment extends Model
         'service',
         'status',
         'notes',
+        'purchase_id',
     ];
 
     protected function casts(): array
@@ -58,6 +60,17 @@ class Appointment extends Model
     public function staff(): BelongsTo
     {
         return $this->belongsTo(User::class, 'staff_user_id');
+    }
+
+    public function items(): HasMany
+    {
+        return $this->hasMany(AppointmentItem::class);
+    }
+
+    /** Vente créée à l'encaissement. */
+    public function purchase(): BelongsTo
+    {
+        return $this->belongsTo(Purchase::class);
     }
 
     public function statusLabel(): string

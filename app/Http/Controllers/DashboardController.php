@@ -7,11 +7,13 @@ use App\Http\Controllers\Concerns\ResolvesBrandFilter;
 use App\Models\Brand;
 use App\Models\Campaign;
 use App\Models\CampaignMessage;
+use App\Models\CatalogItem;
 use App\Models\Contact;
 use App\Models\Customer;
 use App\Models\CustomerStageChange;
 use App\Models\MessageTemplate;
 use App\Models\Purchase;
+use App\Models\PurchaseItem;
 use App\Models\Store;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
@@ -148,6 +150,7 @@ class DashboardController extends Controller
                     'clients' => (int) $row->clients,
                     'purchases' => (int) $row->purchases,
                 ]),
+            'catalogMix' => $this->catalogMix($purchases($from, $to)),
             'newClients' => $contacts()
                 ->whereBetween('created_at', [$from, $to])
                 ->with('store')
@@ -366,5 +369,40 @@ class DashboardController extends Controller
             ])
             ->sortByDesc('revenue')
             ->values();
+    }
+
+    /**
+     * Prestations / produits sur la période, d'après les lignes des ventes
+     * (encaissements depuis l'agenda) : CA par type, prestations les plus
+     * demandées, panier moyen par visite. Les ventes sans ligne (imports)
+     * n'y figurent pas.
+     *
+     * @return array{services: int, products: int, other: int, visits: int, average: int, top: list<array{name: string, quantity: int, revenue: int}>}
+     */
+    private function catalogMix(Builder $purchases): array
+    {
+        $lines = PurchaseItem::query()->whereIn('purchase_id', (clone $purchases)->select('id'));
+
+        $byType = (clone $lines)->selectRaw('type, sum(amount) as revenue')->groupBy('type')->pluck('revenue', 'type');
+        $visits = (clone $lines)->distinct()->count('purchase_id');
+        $total = (int) $byType->sum();
+
+        return [
+            'services' => (int) ($byType[CatalogItem::TYPE_SERVICE] ?? 0),
+            'products' => (int) ($byType[CatalogItem::TYPE_PRODUCT] ?? 0),
+            'other' => (int) $byType->filter(fn ($v, $type) => ! in_array($type, [CatalogItem::TYPE_SERVICE, CatalogItem::TYPE_PRODUCT], true))->sum(),
+            'visits' => $visits,
+            'average' => $visits > 0 ? (int) round($total / $visits) : 0,
+            'top' => (clone $lines)
+                ->where('type', CatalogItem::TYPE_SERVICE)
+                ->selectRaw('name, sum(quantity) as quantity, sum(amount) as revenue')
+                ->groupBy('name')
+                ->orderByDesc('quantity')
+                ->orderByDesc('revenue')
+                ->limit(5)
+                ->get()
+                ->map(fn ($row) => ['name' => $row->name, 'quantity' => (int) $row->quantity, 'revenue' => (int) $row->revenue])
+                ->all(),
+        ];
     }
 }

@@ -30,7 +30,7 @@ export interface NavContext {
 
 export function buildSections({ canManageOrganization, whatsappApiEnabled }: NavContext): NavSection[] {
     const settingsTabs: NavTab[] = [
-        ...(canManageOrganization ? [{ name: 'Entreprise', path: '/organisation' }] : []),
+        ...(canManageOrganization ? [{ name: 'Entreprise', path: '/organisation' }, { name: 'Catalogue', path: '/catalog' }] : []),
         { name: 'Marques & boutiques', path: '/stores' },
         { name: 'Catégories', path: '/categories' },
         ...(canManageOrganization ? [{ name: 'Utilisateurs & rôles', path: '/users', alsoActiveOn: ['/roles'] }] : []),

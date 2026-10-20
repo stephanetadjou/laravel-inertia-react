@@ -4,7 +4,8 @@ import { useState } from 'react';
 import AppLayout from '../../layout/AppLayout';
 import { formatNumber } from '../../components/dashboard/Charts';
 import { VIP_PILL, stageInfo } from '../../components/dashboard/stages';
-import AppointmentFormModal, { APPOINTMENT_PILL, AppointmentRow } from '../../components/appointments/AppointmentFormModal';
+import AppointmentFormModal, { APPOINTMENT_PILL, AppointmentRow, CatalogEntry, formatPrice } from '../../components/appointments/AppointmentFormModal';
+import CheckoutModal from '../../components/appointments/CheckoutModal';
 import WhatsAppIcon from '../../components/common/WhatsAppIcon';
 import CustomerEditModal from './CustomerEditModal';
 import '../Dashboard/dashboard.css';
@@ -98,6 +99,7 @@ interface PageProps {
     appointments: AppointmentRow[];
     appointmentStores: { id: number; name: string }[];
     appointmentStatuses: Record<string, string>;
+    catalog: CatalogEntry[];
     staff: { id: number; name: string }[];
     followUps: { id: number; label: string; channel: string; user_name: string | null; store_name: string | null; at: string }[];
     flash?: { success: string | null; error: string | null };
@@ -204,12 +206,14 @@ function CustomerShow() {
         appointments,
         appointmentStores,
         appointmentStatuses,
+        catalog,
         staff,
         followUps,
         flash,
     } = usePage<PageProps>().props;
     const [editing, setEditing] = useState(false);
     const [appointmentModal, setAppointmentModal] = useState<AppointmentRow | null | undefined>(undefined);
+    const [checkout, setCheckout] = useState<AppointmentRow | null>(null);
     const [welcomeTemplate, setWelcomeTemplate] = useState(welcomeTemplates[0] ?? '');
     const [busy, setBusy] = useState<number | null>(null);
     const stage = stageInfo(customer.stage);
@@ -554,6 +558,15 @@ function CustomerShow() {
                                             {a.staff_name ? ` · avec ${a.staff_name}` : ''} · {formatDate(a.starts_at)} à {a.starts_at.slice(11, 16).replace(':', 'h')}
                                         </span>
                                     </span>
+                                    {a.paid_amount !== null ? (
+                                        <span className="mdash-pill ok" title="Encaissé">
+                                            {formatPrice(a.paid_amount)}
+                                        </span>
+                                    ) : a.status !== 'cancelled' && a.status !== 'no_show' ? (
+                                        <button type="button" className="mdash-btn ghost sm" onClick={() => setCheckout(a)}>
+                                            Encaisser
+                                        </button>
+                                    ) : null}
                                     <span className={`mdash-pill ${APPOINTMENT_PILL[a.status] ?? 'idle'}`}>{appointmentStatuses[a.status] ?? a.status}</span>
                                 </li>
                             ))}
@@ -632,8 +645,11 @@ function CustomerShow() {
                     stores={appointmentStores}
                     staff={staff}
                     statuses={appointmentStatuses}
+                    catalog={catalog}
                 />
             )}
+
+            {checkout && <CheckoutModal appointment={checkout} catalog={catalog} onClose={() => setCheckout(null)} />}
 
             {canEdit && <CustomerEditModal customer={customer} contacts={contacts} isOpen={editing} onClose={() => setEditing(false)} />}
         </div>

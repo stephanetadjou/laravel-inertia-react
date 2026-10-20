@@ -102,6 +102,7 @@ interface PageProps {
     salesSeries: (Bucket & { revenue: number; previous: number })[];
     pendingWelcome: number;
     topCategories: CategoryRow[];
+    catalogMix: { services: number; products: number; other: number; visits: number; average: number; top: { name: string; quantity: number; revenue: number }[] };
     newClients: NewClient[];
     brandContacts: BrandContacts[];
     lifecycle: {
@@ -169,6 +170,7 @@ function DashboardIndex() {
         salesSeries,
         pendingWelcome,
         topCategories,
+        catalogMix,
         newClients,
         brandContacts,
         lifecycle,
@@ -883,6 +885,74 @@ function DashboardIndex() {
                     )}
                 </article>
                 )}
+
+                <article className="mdash-panel c12">
+                    <div className="mdash-ph">
+                        <div>
+                            <h2>Prestations et produits</h2>
+                            <div className="mdash-sub">Ventes encaissées depuis l'agenda sur la période</div>
+                        </div>
+                        <Link href="/catalog" className="mdash-link">
+                            Catalogue
+                        </Link>
+                    </div>
+                    {catalogMix.visits === 0 ? (
+                        <div className="mdash-empty">Aucun encaissement sur la période. Encaissez un rendez-vous depuis l'agenda pour suivre prestations et produits.</div>
+                    ) : (
+                        <div className="mmix">
+                            <div className="mmix-split">
+                                {(() => {
+                                    const total = catalogMix.services + catalogMix.products + catalogMix.other || 1;
+                                    const parts = [
+                                        { key: 'services', label: 'Prestations', value: catalogMix.services, color: 'var(--data)' },
+                                        { key: 'products', label: 'Produits', value: catalogMix.products, color: 'var(--accent)' },
+                                        { key: 'other', label: 'Autres lignes', value: catalogMix.other, color: 'var(--faint)' },
+                                    ].filter((p) => p.value > 0);
+                                    return (
+                                        <>
+                                            <div className="mmix-bar" role="img" aria-label="Répartition du CA entre prestations et produits">
+                                                {parts.map((p) => (
+                                                    <i key={p.key} style={{ width: `${(p.value / total) * 100}%`, background: p.color }} />
+                                                ))}
+                                            </div>
+                                            <ul className="mmix-legend">
+                                                {parts.map((p) => (
+                                                    <li key={p.key}>
+                                                        <i style={{ background: p.color }} />
+                                                        <span>{p.label}</span>
+                                                        <b className="num">{formatNumber(p.value)} F</b>
+                                                        <small>{formatPercent((p.value / total) * 100)}</small>
+                                                    </li>
+                                                ))}
+                                                <li>
+                                                    <span>Panier moyen par visite</span>
+                                                    <b className="num">{formatNumber(catalogMix.average)} F</b>
+                                                    <small>{plural(catalogMix.visits, 'visite')}</small>
+                                                </li>
+                                            </ul>
+                                        </>
+                                    );
+                                })()}
+                            </div>
+                            <div className="mmix-top">
+                                <h3>Prestations les plus demandées</h3>
+                                {catalogMix.top.length === 0 ? (
+                                    <div className="mdash-empty">Aucune prestation encaissée.</div>
+                                ) : (
+                                    <ol>
+                                        {catalogMix.top.map((t) => (
+                                            <li key={t.name}>
+                                                <span>{t.name}</span>
+                                                <b className="num">× {formatNumber(t.quantity)}</b>
+                                                <small className="num">{formatNumber(t.revenue)} F</small>
+                                            </li>
+                                        ))}
+                                    </ol>
+                                )}
+                            </div>
+                        </div>
+                    )}
+                </article>
 
                 <article className="mdash-panel c12">
                     <div className="mdash-ph">

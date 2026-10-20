@@ -3,7 +3,8 @@ import { useEffect, useMemo, useState } from 'react';
 
 import AppLayout from '../../layout/AppLayout';
 import { Page, PlusIcon } from '../../components/page/Page';
-import AppointmentFormModal, { AppointmentRow } from '../../components/appointments/AppointmentFormModal';
+import AppointmentFormModal, { AppointmentRow, CatalogEntry, formatPrice } from '../../components/appointments/AppointmentFormModal';
+import CheckoutModal from '../../components/appointments/CheckoutModal';
 import WhatsAppIcon from '../../components/common/WhatsAppIcon';
 import './calendar.css';
 
@@ -27,6 +28,7 @@ interface PageProps {
     statuses: Record<string, string>;
     appointments: AppointmentRow[];
     upcoming: AppointmentRow[];
+    catalog: CatalogEntry[];
     [key: string]: unknown;
 }
 
@@ -110,7 +112,7 @@ function shift(view: View, date: string, direction: 1 | -1): string {
 }
 
 /** Fiche rapide d'un rendez-vous : statut, rappel WhatsApp, modifier, supprimer. */
-function EventCard({ appointment: a, statuses, multiStore, onClose, onEdit }: { appointment: AppointmentRow; statuses: Record<string, string>; multiStore: boolean; onClose: () => void; onEdit: () => void }) {
+function EventCard({ appointment: a, statuses, multiStore, onClose, onEdit, onCheckout }: { appointment: AppointmentRow; statuses: Record<string, string>; multiStore: boolean; onClose: () => void; onEdit: () => void; onCheckout: () => void }) {
     function setStatus(status: string) {
         router.patch(`/appointments/${a.id}/status`, { status }, { preserveScroll: true, onSuccess: onClose });
     }
@@ -141,6 +143,20 @@ function EventCard({ appointment: a, statuses, multiStore, onClose, onEdit }: { 
                         <>
                             <dt>Prestation</dt>
                             <dd>{a.service}</dd>
+                        </>
+                    )}
+                    {a.price > 0 && (
+                        <>
+                            <dt>Prix prévu</dt>
+                            <dd>{formatPrice(a.price)}</dd>
+                        </>
+                    )}
+                    {a.paid_amount !== null && (
+                        <>
+                            <dt>Encaissé</dt>
+                            <dd>
+                                <b>{formatPrice(a.paid_amount)}</b>
+                            </dd>
                         </>
                     )}
                     {a.staff_name && (
@@ -175,6 +191,11 @@ function EventCard({ appointment: a, statuses, multiStore, onClose, onEdit }: { 
                     </select>
                 </label>
                 <div className="mcal-card-actions">
+                    {a.purchase_id === null && a.status !== 'cancelled' && (
+                        <button type="button" className="mdash-btn brand sm" onClick={onCheckout}>
+                            Encaisser
+                        </button>
+                    )}
                     {a.whatsapp_url && ['planned', 'confirmed'].includes(a.status) && (
                         <a href={a.whatsapp_url} target="_blank" rel="noopener noreferrer" className="mdash-btn wa sm">
                             <WhatsAppIcon />
@@ -415,7 +436,8 @@ function MiniMonth({ date, view, marked, today, onPick }: { date: string; view: 
 }
 
 function AppointmentsIndex() {
-    const { view, date, from, store, stores, staff, statuses, appointments, upcoming } = usePage<PageProps>().props;
+    const { view, date, from, store, stores, staff, statuses, appointments, upcoming, catalog } = usePage<PageProps>().props;
+    const [checkout, setCheckout] = useState<AppointmentRow | null>(null);
     const [modal, setModal] = useState<{ appointment: AppointmentRow | null; start?: string } | null>(null);
     const [opened, setOpened] = useState<AppointmentRow | null>(null);
     const today = iso(new Date());
@@ -561,8 +583,14 @@ function AppointmentsIndex() {
                         setModal({ appointment: opened });
                         setOpened(null);
                     }}
+                    onCheckout={() => {
+                        setCheckout(opened);
+                        setOpened(null);
+                    }}
                 />
             )}
+
+            {checkout && <CheckoutModal appointment={checkout} catalog={catalog} onClose={() => setCheckout(null)} />}
 
             {modal && (
                 <AppointmentFormModal
@@ -573,6 +601,7 @@ function AppointmentsIndex() {
                     staff={staff}
                     statuses={statuses}
                     date={modal.start}
+                    catalog={catalog}
                 />
             )}
         </Page>

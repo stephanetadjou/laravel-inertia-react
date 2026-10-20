@@ -25,7 +25,29 @@ export interface AppointmentRow {
     customer_name: string | null;
     phone_e164: string | null;
     whatsapp_url: string | null;
+    items: { catalog_item_id: number | null; name: string; price: number; duration_minutes: number }[];
+    price: number;
+    purchase_id: number | null;
+    paid_amount: number | null;
 }
+
+/** Article du catalogue (cf. CatalogItem::present()). */
+export interface CatalogEntry {
+    id: number;
+    type: 'service' | 'product';
+    name: string;
+    category: string | null;
+    price: number;
+    duration_minutes: number | null;
+    store_ids: number[];
+}
+
+/** Articles proposés dans un établissement (aucun établissement choisi = tous). */
+export function availableIn(catalog: CatalogEntry[], storeId: number): CatalogEntry[] {
+    return catalog.filter((c) => c.store_ids.length === 0 || c.store_ids.includes(storeId));
+}
+
+export const formatPrice = (n: number) => `${n.toLocaleString('fr-FR')} F`;
 
 export const APPOINTMENT_PILL: Record<string, string> = {
     planned: 'info',
@@ -75,6 +97,7 @@ export default function AppointmentFormModal({
     staff,
     statuses,
     date,
+    catalog = [],
 }: {
     onClose: () => void;
     appointment: AppointmentRow | null;
@@ -84,6 +107,7 @@ export default function AppointmentFormModal({
     staff: Option[];
     statuses: Record<string, string>;
     date?: string;
+    catalog?: CatalogEntry[];
 }) {
     const isEditing = appointment !== null;
     const withCustomer = isEditing || customerId !== undefined;
@@ -99,7 +123,18 @@ export default function AppointmentFormModal({
         staff_user_id: appointment?.staff_user_id ? String(appointment.staff_user_id) : '',
         status: appointment?.status ?? 'planned',
         notes: appointment?.notes ?? '',
+        item_ids: (appointment?.items ?? []).map((i) => i.catalog_item_id).filter((id): id is number => id !== null),
     });
+
+    const services = availableIn(catalog, Number(data.store_id)).filter((c) => c.type === 'service');
+    const chosen = data.item_ids.map((id) => catalog.find((c) => c.id === id)).filter((c): c is CatalogEntry => c !== undefined);
+    const total = chosen.reduce((sum, c) => sum + c.price, 0);
+
+    // Choisir ou retirer une prestation recalcule la durée (modifiable ensuite).
+    function setItems(ids: number[]) {
+        const duration = ids.reduce((sum, id) => sum + (catalog.find((c) => c.id === id)?.duration_minutes ?? 0), 0);
+        setData((d) => ({ ...d, item_ids: ids, duration_minutes: duration > 0 ? String(duration) : d.duration_minutes }));
+    }
 
     const submit: FormEventHandler = (e) => {
         e.preventDefault();
@@ -153,7 +188,7 @@ export default function AppointmentFormModal({
                     </div>
                 </div>
 
-                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                {stores.length > 1 && (
                     <div>
                         <Label htmlFor="appt-store">Établissement</Label>
                         <select id="appt-store" value={data.store_id} onChange={(e) => setData('store_id', e.target.value)} className={fieldClasses()}>
@@ -165,11 +200,62 @@ export default function AppointmentFormModal({
                         </select>
                         <Err message={errors.store_id} />
                     </div>
-                    <div>
-                        <Label htmlFor="appt-service">Prestation</Label>
-                        <input id="appt-service" type="text" value={data.service} onChange={(e) => setData('service', e.target.value)} placeholder="ex. Coupe, Essayage, Consultation" className={fieldClasses()} />
-                        <Err message={errors.service} />
-                    </div>
+                )}
+
+                <div>
+                    <Label htmlFor="appt-service">Prestations</Label>
+                    {services.length > 0 && (
+                        <>
+                            {chosen.length > 0 && (
+                                <div className="mb-2 flex flex-wrap gap-1.5">
+                                    {chosen.map((c, index) => (
+                                        <span key={`${c.id}-${index}`} className="inline-flex items-center gap-1.5 rounded-full border border-gray-300 py-1 pr-1.5 pl-3 text-sm dark:border-gray-700">
+                                            {c.name}
+                                            <span className="text-xs text-gray-500">{formatPrice(c.price)}</span>
+                                            <button
+                                                type="button"
+                                                aria-label={`Retirer ${c.name}`}
+                                                className="flex h-5 w-5 items-center justify-center rounded-full text-gray-500 hover:bg-gray-100 dark:hover:bg-white/10"
+                                                onClick={() => setItems(data.item_ids.filter((_, i) => i !== index))}
+                                            >
+                                                ×
+                                            </button>
+                                        </span>
+                                    ))}
+                                </div>
+                            )}
+                            <select
+                                id="appt-service"
+                                value=""
+                                onChange={(e) => e.target.value && setItems([...data.item_ids, Number(e.target.value)])}
+                                className={fieldClasses()}
+                            >
+                                <option value="">{chosen.length ? '+ Ajouter une prestation' : 'Choisir une prestation du catalogue'}</option>
+                                {services.map((c) => (
+                                    <option key={c.id} value={c.id}>
+                                        {c.name} · {c.duration_minutes} min · {formatPrice(c.price)}
+                                    </option>
+                                ))}
+                            </select>
+                            {chosen.length > 0 && (
+                                <p className="mt-1.5 text-sm text-gray-600 dark:text-gray-400">
+                                    Total prévu : <b>{formatPrice(total)}</b>
+                                </p>
+                            )}
+                        </>
+                    )}
+                    {chosen.length === 0 && (
+                        <input
+                            id={services.length > 0 ? 'appt-service-free' : 'appt-service'}
+                            type="text"
+                            value={data.service}
+                            onChange={(e) => setData('service', e.target.value)}
+                            placeholder={services.length > 0 ? 'ou en texte libre' : 'ex. Coupe, Essayage, Consultation'}
+                            aria-label="Prestation en texte libre"
+                            className={`${fieldClasses()} ${services.length > 0 ? 'mt-2' : ''}`}
+                        />
+                    )}
+                    <Err message={errors.service} />
                 </div>
 
                 <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
