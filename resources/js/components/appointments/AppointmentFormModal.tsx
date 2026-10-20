@@ -58,6 +58,8 @@ function Err({ message }: { message?: string }) {
 
 /** Valeur par défaut : demain à 10 h, au format d'un champ datetime-local. */
 function defaultStart(date?: string): string {
+    // Créneau précis cliqué dans le calendrier (AAAA-MM-JJTHH:MM).
+    if (date && date.length > 10) return date;
     const d = date ? new Date(`${date}T10:00:00`) : new Date(Date.now() + 86400000);
     if (!date) d.setHours(10, 0, 0, 0);
     const pad = (n: number) => String(n).padStart(2, '0');

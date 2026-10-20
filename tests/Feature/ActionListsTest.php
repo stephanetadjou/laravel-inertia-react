@@ -269,3 +269,19 @@ it('shows follow-ups and appointments to handle, without WhatsApp items when the
         ->and($keys['appointments_today'])->toBe(1)
         ->and($keys->has('pending_welcome'))->toBeFalse();
 });
+
+it('shows whole weeks around the month in the calendar month view, and the next appointments', function () {
+    $customer = $this->carine->customer;
+    Appointment::factory()->create(['store_id' => $this->store->id, 'customer_id' => $customer->id, 'starts_at' => '2026-10-30 09:00']);
+    Appointment::factory()->create(['store_id' => $this->store->id, 'customer_id' => $customer->id, 'starts_at' => '2026-11-01 11:00']);
+    Appointment::factory()->create(['store_id' => $this->store->id, 'customer_id' => $customer->id, 'starts_at' => '2026-11-02 11:00']);
+
+    $this->actingAs($this->admin)->get('/appointments?view=month&date=2026-10-19')
+        ->assertOk()
+        ->assertInertia(fn ($page) => $page
+            ->where('view', 'month')
+            ->where('from', '2026-09-28')
+            ->where('to', '2026-11-01')
+            ->where('appointments', fn ($rows) => count($rows) === 2)
+            ->where('upcoming.0.starts_at', '2026-10-30T09:00'));
+});

@@ -32,13 +32,20 @@ class AppointmentController extends Controller
         $stores = $this->stores($request);
         $storeId = $stores->contains('id', $request->integer('store')) ? $request->integer('store') : null;
 
-        $view = in_array($request->query('view'), ['day', 'week'], true) ? (string) $request->query('view') : 'week';
+        // Mois : semaines complètes (lundi → dimanche) qui couvrent le mois, comme un calendrier mural.
+        $view = in_array($request->query('view'), ['day', 'week', 'month'], true) ? (string) $request->query('view') : 'week';
         $date = rescue(fn () => Carbon::parse((string) $request->query('date', today()->toDateString()))->startOfDay(), today(), false);
-        $from = $view === 'week' ? $date->copy()->startOfWeek() : $date->copy();
-        $to = $view === 'week' ? $from->copy()->addDays(7) : $from->copy()->addDay();
+        [$from, $to] = match ($view) {
+            'month' => [$date->copy()->startOfMonth()->startOfWeek(), $date->copy()->endOfMonth()->endOfWeek()->addDay()->startOfDay()],
+            'week' => [$date->copy()->startOfWeek(), $date->copy()->startOfWeek()->addDays(7)],
+            default => [$date->copy(), $date->copy()->addDay()],
+        };
+        $storeIds = $storeId ? [$storeId] : $stores->pluck('id')->all();
+        $messages = $user->organization->actionMessages();
 
-        $appointments = Appointment::whereIn('store_id', $storeId ? [$storeId] : $stores->pluck('id'))
-            ->whereBetween('starts_at', [$from, $to])
+        $appointments = Appointment::whereIn('store_id', $storeIds)
+            ->where('starts_at', '>=', $from)
+            ->where('starts_at', '<', $to)
             ->with(['customer:id,name,phone_e164', 'store:id,name', 'staff:id,name'])
             ->orderBy('starts_at')
             ->get();
@@ -52,7 +59,16 @@ class AppointmentController extends Controller
             'stores' => $stores->map(fn (Store $s) => ['id' => $s->id, 'name' => $s->name])->values(),
             'staff' => $this->staffOptions($request),
             'statuses' => Appointment::STATUSES,
-            'appointments' => $appointments->map(fn (Appointment $a) => $this->present($a, $user->organization->actionMessages())),
+            'appointments' => $appointments->map(fn (Appointment $a) => $this->present($a, $messages)),
+            // Colonne « À venir » : prochains rendez-vous, quelle que soit la période affichée.
+            'upcoming' => Appointment::whereIn('store_id', $storeIds)
+                ->whereIn('status', Appointment::OPEN_STATUSES)
+                ->where('starts_at', '>=', now())
+                ->with(['customer:id,name,phone_e164', 'store:id,name', 'staff:id,name'])
+                ->orderBy('starts_at')
+                ->take(6)
+                ->get()
+                ->map(fn (Appointment $a) => $this->present($a, $messages)),
             'counts' => [
                 'total' => $appointments->where('status', '!=', 'cancelled')->count(),
                 'confirmed' => $appointments->where('status', 'confirmed')->count(),
