@@ -36,8 +36,20 @@ class BookingController extends Controller
     /** Réservations en ligne encore à venir autorisées par numéro. */
     public const MAX_PENDING_PER_PHONE = 3;
 
-    public function show(Organization $organization): Response
+    public function show(Request $request, Organization $organization): Response
     {
+        // Page fermée (ou sans prestation réservable) : explication plutôt qu'une erreur 404,
+        // avec le chemin du réglage pour un membre de l'entreprise connecté.
+        $closed = ! $organization->bookingSettings()['enabled'] ? 'closed' : ($this->services($organization)->isEmpty() ? 'no_services' : null);
+
+        if ($closed !== null) {
+            return Inertia::render('Booking/Closed', [
+                'organization' => ['name' => $organization->name],
+                'reason' => $closed,
+                'isMember' => $request->user()?->organization_id === $organization->id,
+            ]);
+        }
+
         $settings = $this->settings($organization);
         $stores = $this->stores($organization);
 

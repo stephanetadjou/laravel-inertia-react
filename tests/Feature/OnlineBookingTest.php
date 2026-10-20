@@ -53,8 +53,19 @@ it('shows the public page only when online booking is open', function () {
             ->component('Booking/Show')
             ->where('services', fn ($services) => collect($services)->pluck('name')->all() === ['Coupe']));
 
+    // Page fermée : explication (et chemin du réglage pour un membre connecté), jamais de créneau.
     $this->organization->update(['booking_settings' => ['enabled' => false]]);
-    $this->get("/rdv/{$this->organization->slug}")->assertNotFound();
+    $this->get("/rdv/{$this->organization->slug}")
+        ->assertOk()
+        ->assertInertia(fn ($page) => $page->component('Booking/Closed')->where('reason', 'closed')->where('isMember', false));
+    $this->actingAs($this->admin)->get("/rdv/{$this->organization->slug}")
+        ->assertInertia(fn ($page) => $page->where('isMember', true));
+    $this->getJson("/rdv/{$this->organization->slug}/creneaux?store={$this->store->id}&items[]={$this->coupe->id}")->assertNotFound();
+
+    // Ouverte sans prestation réservable.
+    $this->organization->update(['booking_settings' => ['enabled' => true]]);
+    CatalogItem::query()->update(['bookable_online' => false]);
+    $this->get("/rdv/{$this->organization->slug}")->assertInertia(fn ($page) => $page->component('Booking/Closed')->where('reason', 'no_services'));
 });
 
 it('offers free slots inside opening hours, after the minimum notice', function () {
