@@ -53,7 +53,7 @@ export function buildSections({ canManageOrganization, whatsappApiEnabled }: Nav
         },
         {
             key: 'sales',
-            name: 'Ventes & prestations',
+            name: 'Ventes',
             icon: <DollarLineIcon />,
             path: '/purchases',
             tabs: [

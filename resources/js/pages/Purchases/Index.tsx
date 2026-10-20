@@ -158,13 +158,13 @@ function PurchasesIndex() {
 
     return (
         <div className="mdash mpur">
-            <Head title="Ventes et prestations" />
+            <Head title="Ventes" />
 
             <header className="mdash-top" style={{ top: headerHeight }}>
                 <div className="mdash-top-in">
                     <div className="mpur-title">
                         <div>
-                            <h1>Ventes et prestations</h1>
+                            <h1>Ventes</h1>
                             <small>Prestations encaissées et ventes de produits, par établissement</small>
                         </div>
                         <div className="mpur-actions">
@@ -279,7 +279,7 @@ function PurchasesIndex() {
             {flash?.success && <div className="mdash-flash ok">{flash.success}</div>}
             {flash?.error && <div className="mdash-flash bad">{flash.error}</div>}
 
-            <section className="mdash-grid" aria-label="Ventes et prestations">
+            <section className="mdash-grid" aria-label="Ventes">
                 <div className="c12 mdash-kpis four">
                     <Kpi
                         hero
