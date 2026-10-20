@@ -26,6 +26,7 @@ class Organization extends Model
         'privacy_extra',
         'whatsapp_api_enabled',
         'action_messages',
+        'booking_settings',
     ];
 
     /**
@@ -90,6 +91,7 @@ class Organization extends Model
             // Désactivé : le CRM fonctionne avec des relances manuelles par lien wa.me.
             'whatsapp_api_enabled' => 'boolean',
             'action_messages' => 'array',
+            'booking_settings' => 'array',
         ];
     }
 
@@ -126,6 +128,41 @@ class Organization extends Model
         );
 
         return [...ActionLists::DEFAULT_MESSAGES, ...$saved];
+    }
+
+    /**
+     * Réglages de la réservation en ligne (Paramètres › Réservation en ligne).
+     * Désactivée par défaut ; une réservation arrive « À confirmer » sauf si
+     * la confirmation automatique est choisie.
+     */
+    public const BOOKING_DEFAULTS = [
+        'enabled' => false,
+        'auto_confirm' => false,
+        'slot_step' => 30,
+        'min_notice_minutes' => 120,
+        'horizon_days' => 30,
+        'welcome' => '',
+    ];
+
+    /** @return array{enabled: bool, auto_confirm: bool, slot_step: int, min_notice_minutes: int, horizon_days: int, welcome: string} */
+    public function bookingSettings(): array
+    {
+        $saved = array_intersect_key($this->booking_settings ?? [], self::BOOKING_DEFAULTS);
+        $settings = [...self::BOOKING_DEFAULTS, ...$saved];
+
+        return [
+            'enabled' => (bool) $settings['enabled'],
+            'auto_confirm' => (bool) $settings['auto_confirm'],
+            'slot_step' => (int) $settings['slot_step'],
+            'min_notice_minutes' => (int) $settings['min_notice_minutes'],
+            'horizon_days' => (int) $settings['horizon_days'],
+            'welcome' => (string) $settings['welcome'],
+        ];
+    }
+
+    public function bookingUrl(): string
+    {
+        return route('booking.show', $this->slug);
     }
 
     public function customers(): HasMany

@@ -520,3 +520,29 @@
     gap: 6px;
     margin-top: 14px;
 }
+
+/* Réservation en ligne : à confirmer (ambre), pastille « En ligne ». */
+.mcal .st-requested {
+    --ev: var(--warn);
+    --ev-soft: var(--warn-soft);
+}
+.mcal-web {
+    display: inline-block;
+    width: 7px;
+    height: 7px;
+    margin: 0 4px 1px 0;
+    border-radius: 50%;
+    background: var(--warn);
+    vertical-align: middle;
+}
+.mcal-online {
+    display: inline-block;
+    margin-left: 8px;
+    padding: 1px 8px;
+    border-radius: 999px;
+    background: var(--warn-soft);
+    color: var(--warn);
+    font-size: 11.5px;
+    font-weight: 600;
+    vertical-align: middle;
+}

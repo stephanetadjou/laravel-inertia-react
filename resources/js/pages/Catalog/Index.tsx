@@ -23,6 +23,7 @@ export interface CatalogItem {
     duration_minutes: number | null;
     reference: string | null;
     active: boolean;
+    bookable_online: boolean;
     store_ids: number[];
     sold?: number;
     revenue?: number;
@@ -58,6 +59,7 @@ function ItemModal({ item, type, categories, stores, onClose }: { item: CatalogI
         duration_minutes: item?.duration_minutes ? String(item.duration_minutes) : '30',
         reference: item?.reference ?? '',
         store_ids: item?.store_ids ?? ([] as number[]),
+        bookable_online: item?.bookable_online ?? true,
     });
     const isService = data.type === 'service';
 
@@ -138,6 +140,13 @@ function ItemModal({ item, type, categories, stores, onClose }: { item: CatalogI
                         ))}
                     </select>
                 </div>
+
+                {isService && (
+                    <label className="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300">
+                        <input type="checkbox" checked={data.bookable_online} onChange={(e) => setData('bookable_online', e.target.checked)} />
+                        Réservable en ligne par les clients
+                    </label>
+                )}
 
                 {stores.length > 1 && (
                     <fieldset>

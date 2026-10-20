@@ -17,6 +17,8 @@ class Appointment extends Model
     use HasFactory;
 
     public const STATUSES = [
+        // Réservation en ligne en attente de validation par l'équipe.
+        'requested' => 'À confirmer',
         'planned' => 'Prévu',
         'confirmed' => 'Confirmé',
         'done' => 'Honoré',
@@ -25,7 +27,14 @@ class Appointment extends Model
     ];
 
     /** Statuts d'un rendez-vous encore à venir (à rappeler ou confirmer). */
-    public const OPEN_STATUSES = ['planned', 'confirmed'];
+    public const OPEN_STATUSES = ['requested', 'planned', 'confirmed'];
+
+    /** Statuts qui occupent un créneau (capacité de l'établissement). */
+    public const BLOCKING_STATUSES = ['requested', 'planned', 'confirmed', 'done'];
+
+    public const SOURCE_STAFF = 'staff';
+
+    public const SOURCE_ONLINE = 'online';
 
     protected $fillable = [
         'store_id',
@@ -38,6 +47,8 @@ class Appointment extends Model
         'status',
         'notes',
         'purchase_id',
+        'source',
+        'cancel_token',
     ];
 
     protected function casts(): array

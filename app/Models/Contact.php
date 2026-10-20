@@ -50,6 +50,7 @@ class Contact extends Model
         'campagne_import' => 'Déclaré à l\'import d\'une campagne',
         'whatsapp_stop' => 'Réponse « Stop » sur WhatsApp',
         'historique' => 'Antérieur au suivi',
+        'reservation_en_ligne' => 'Réservation en ligne',
     ];
 
     /**

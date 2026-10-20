@@ -44,6 +44,7 @@ class NotificationService
 
         $items = array_values(array_filter([
             $this->customersToFollowUp($user, $storeIds),
+            $this->bookingRequests($storeIds),
             $this->appointmentsToday($storeIds),
             $api ? $this->stuckCampaigns($storeIds) : null,
             $api ? $this->failedSends($storeIds) : null,
@@ -96,6 +97,24 @@ class NotificationService
             'title' => $count > 1 ? "{$count} clients à risque à relancer" : '1 client à risque à relancer',
             'detail' => "En retard sur leur rythme d'achat habituel : un message WhatsApp prérempli vous attend.",
             'href' => '/actions?list=at_risk',
+        ];
+    }
+
+    /** @param array<int, int> $storeIds */
+    private function bookingRequests(array $storeIds): ?array
+    {
+        $count = Appointment::whereIn('store_id', $storeIds)
+            ->where('status', 'requested')
+            ->where('starts_at', '>=', now())
+            ->count();
+
+        return $count === 0 ? null : [
+            'key' => 'booking_requests',
+            'tone' => 'warn',
+            'count' => $count,
+            'title' => $count > 1 ? "{$count} réservations en ligne à confirmer" : '1 réservation en ligne à confirmer',
+            'detail' => 'Prises sur votre page de réservation : confirmez-les dans l’agenda.',
+            'href' => '/appointments?view=week',
         ];
     }
 

@@ -94,6 +94,7 @@ class CatalogController extends Controller
             'price' => ['required', 'integer', 'min:0', 'max:100000000'],
             'duration_minutes' => ['nullable', 'integer', 'min:5', 'max:600', 'required_if:type,service'],
             'reference' => ['nullable', 'string', 'max:100'],
+            'bookable_online' => ['nullable', 'boolean'],
             'store_ids' => ['nullable', 'array'],
             'store_ids.*' => ['integer', Rule::exists('stores', 'id')->where('organization_id', $organizationId)],
         ], [
@@ -113,6 +114,7 @@ class CatalogController extends Controller
             'price' => $data['price'],
             'duration_minutes' => $service ? $data['duration_minutes'] : null,
             'reference' => $service ? null : ($data['reference'] ?? null),
+            'bookable_online' => $service && ($data['bookable_online'] ?? true),
         ];
     }
 

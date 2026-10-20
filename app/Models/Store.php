@@ -32,6 +32,23 @@ class Store extends Model
         'whatsapp_registered_at',
         'webhook_key',
         'webhook_verify_token',
+        'booking_hours',
+        'booking_capacity',
+        'booking_phone',
+    ];
+
+    /**
+     * Horaires par défaut de la réservation en ligne (jour ISO 1 = lundi) :
+     * du lundi au samedi de 9 h à 18 h, fermé le dimanche.
+     */
+    public const DEFAULT_BOOKING_HOURS = [
+        1 => ['open' => '09:00', 'close' => '18:00'],
+        2 => ['open' => '09:00', 'close' => '18:00'],
+        3 => ['open' => '09:00', 'close' => '18:00'],
+        4 => ['open' => '09:00', 'close' => '18:00'],
+        5 => ['open' => '09:00', 'close' => '18:00'],
+        6 => ['open' => '09:00', 'close' => '18:00'],
+        7 => null,
     ];
 
     /**
@@ -46,6 +63,8 @@ class Store extends Model
             'whatsapp_app_secret' => 'encrypted',
             'webhook_verify_token' => 'encrypted',
             'whatsapp_checked_at' => 'datetime',
+            'booking_hours' => 'array',
+            'booking_capacity' => 'integer',
             'whatsapp_registered_at' => 'datetime',
         ];
     }
@@ -168,5 +187,35 @@ class Store extends Model
     {
         return $this->mayUseSharedAccount()
             && blank($this->whatsapp_access_token) && blank($this->whatsapp_phone_number_id);
+    }
+
+    /**
+     * Horaires d'ouverture pour la réservation en ligne, jour par jour
+     * (1 = lundi … 7 = dimanche) ; null = fermé.
+     *
+     * @return array<int, array{open: string, close: string}|null>
+     */
+    public function bookingHours(): array
+    {
+        $saved = $this->booking_hours ?? [];
+        $hours = [];
+
+        foreach (self::DEFAULT_BOOKING_HOURS as $day => $default) {
+            // Clés JSON « 1 »…« 7 » : entiers une fois décodées.
+            $value = array_key_exists($day, $saved) ? $saved[$day] : $default;
+            $hours[$day] = is_array($value) && isset($value['open'], $value['close']) && $value['open'] < $value['close']
+                ? ['open' => (string) $value['open'], 'close' => (string) $value['close']]
+                : null;
+        }
+
+        return $hours;
+    }
+
+    /** Numéro WhatsApp à afficher au client (récapitulatif wa.me). */
+    public function bookingPhone(): ?string
+    {
+        $phone = preg_replace('/\D+/', '', (string) ($this->booking_phone ?: $this->whatsapp_display_phone_number));
+
+        return $phone !== '' ? $phone : null;
     }
 }

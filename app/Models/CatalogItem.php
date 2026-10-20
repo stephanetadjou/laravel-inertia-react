@@ -37,6 +37,7 @@ class CatalogItem extends Model
         'duration_minutes',
         'reference',
         'active',
+        'bookable_online',
     ];
 
     protected function casts(): array
@@ -45,6 +46,7 @@ class CatalogItem extends Model
             'price' => 'integer',
             'duration_minutes' => 'integer',
             'active' => 'boolean',
+            'bookable_online' => 'boolean',
         ];
     }
 
@@ -82,6 +84,7 @@ class CatalogItem extends Model
             'duration_minutes' => $this->duration_minutes,
             'reference' => $this->reference,
             'active' => $this->active,
+            'bookable_online' => $this->bookable_online ?? true,
             'store_ids' => $this->stores->pluck('id')->values(),
         ];
     }

@@ -253,6 +253,7 @@ class AppointmentController extends Controller
             ])->values(),
             'price' => (int) $a->items->sum('price'),
             'purchase_id' => $a->purchase_id,
+            'source' => $a->source ?? Appointment::SOURCE_STAFF,
             'paid_amount' => $a->purchase ? (int) $a->purchase->amount : null,
         ];
     }

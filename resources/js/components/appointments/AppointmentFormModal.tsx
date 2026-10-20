@@ -29,6 +29,8 @@ export interface AppointmentRow {
     price: number;
     purchase_id: number | null;
     paid_amount: number | null;
+    /** staff (pris par l'équipe) ou online (page de réservation). */
+    source: 'staff' | 'online';
 }
 
 /** Article du catalogue (cf. CatalogItem::present()). */
@@ -50,6 +52,7 @@ export function availableIn(catalog: CatalogEntry[], storeId: number): CatalogEn
 export const formatPrice = (n: number) => `${n.toLocaleString('fr-FR')} F`;
 
 export const APPOINTMENT_PILL: Record<string, string> = {
+    requested: 'warn',
     planned: 'info',
     confirmed: 'ok',
     done: 'ok',

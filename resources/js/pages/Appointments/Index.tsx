@@ -134,6 +134,7 @@ function EventCard({ appointment: a, statuses, multiStore, onClose, onEdit, onCh
                 <span className={`mcal-dot st-${a.status}`} />
                 <h3>
                     <Link href={`/customers/${a.customer_id}`}>{a.customer_name}</Link>
+                    {a.source === 'online' && <span className="mcal-online">En ligne</span>}
                 </h3>
                 <p className="mcal-card-when">
                     {day} · {hhmm(a)} ({a.duration_minutes} min)
@@ -191,7 +192,12 @@ function EventCard({ appointment: a, statuses, multiStore, onClose, onEdit, onCh
                     </select>
                 </label>
                 <div className="mcal-card-actions">
-                    {a.purchase_id === null && a.status !== 'cancelled' && (
+                    {a.status === 'requested' && (
+                        <button type="button" className="mdash-btn brand sm" onClick={() => setStatus('confirmed')}>
+                            Confirmer
+                        </button>
+                    )}
+                    {a.purchase_id === null && a.status !== 'cancelled' && a.status !== 'requested' && (
                         <button type="button" className="mdash-btn brand sm" onClick={onCheckout}>
                             Encaisser
                         </button>
@@ -226,6 +232,7 @@ function Chip({ a, onOpen, compact }: { a: AppointmentRow; onOpen: (a: Appointme
             title={`${hhmm(a)} · ${a.customer_name}${a.service ? ` · ${a.service}` : ''}`}
         >
             <b>{hhmm(a)}</b> {compact ? shortName(a.customer_name) : a.customer_name}
+            {a.source === 'online' && <i className="mcal-web" title="Réservé en ligne" />}
         </button>
     );
 }
@@ -365,6 +372,7 @@ function TimeGrid({ days, byDay, today, onOpen, onNew, wide }: { days: string[];
                                     }}
                                 >
                                     <b>
+                                        {a.source === 'online' && <i className="mcal-web" title="Réservé en ligne" />}
                                         {hhmm(a)} {wide ? a.customer_name : shortName(a.customer_name)}
                                     </b>
                                     {height > 34 && <span>{[a.service, wide ? a.staff_name : null].filter(Boolean).join(' · ')}</span>}

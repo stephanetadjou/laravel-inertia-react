@@ -4,6 +4,8 @@ use App\Http\Controllers\ActionController;
 use App\Http\Controllers\AppointmentController;
 use App\Http\Controllers\Auth\AuthenticatedSessionController;
 use App\Http\Controllers\Auth\RegisteredOrganizationController;
+use App\Http\Controllers\BookingController;
+use App\Http\Controllers\BookingSettingsController;
 use App\Http\Controllers\BrandController;
 use App\Http\Controllers\CampaignController;
 use App\Http\Controllers\CatalogController;
@@ -32,6 +34,13 @@ Route::post('/webhooks/whatsapp/{key}', [WhatsAppWebhookController::class, 'rece
 
 // Politique de confidentialité publique de chaque entreprise (URL à donner à Meta).
 Route::get('/confidentialite/{organization:slug}', [PrivacyPolicyController::class, 'show'])->name('privacy-policy');
+
+// Réservation en ligne publique (sans compte), limitée en nombre de demandes par appareil.
+Route::get('/rdv/{organization:slug}', [BookingController::class, 'show'])->name('booking.show');
+Route::get('/rdv/{organization:slug}/creneaux', [BookingController::class, 'slots'])->middleware('throttle:booking-slots')->name('booking.slots');
+Route::post('/rdv/{organization:slug}', [BookingController::class, 'store'])->middleware('throttle:booking-submit')->name('booking.store');
+Route::get('/rdv/{organization:slug}/c/{token}', [BookingController::class, 'confirmation'])->name('booking.confirmation');
+Route::post('/rdv/{organization:slug}/c/{token}/annuler', [BookingController::class, 'cancel'])->middleware('throttle:booking-submit')->name('booking.cancel');
 
 Route::middleware('guest')->group(function () {
     Route::get('/login', [AuthenticatedSessionController::class, 'create'])->name('login');
@@ -103,6 +112,10 @@ Route::middleware('auth')->group(function () {
         Route::put('/organisation/privacy', [OrganizationController::class, 'updatePrivacy'])->name('organisation.privacy');
         Route::put('/organisation/whatsapp-api', [OrganizationController::class, 'updateWhatsAppApi'])->name('organisation.whatsapp-api');
         Route::put('/actions/messages', [ActionController::class, 'updateMessages'])->name('actions.messages');
+
+        Route::get('/settings/booking', [BookingSettingsController::class, 'index'])->name('settings.booking');
+        Route::put('/settings/booking', [BookingSettingsController::class, 'update'])->name('settings.booking.update');
+        Route::put('/settings/booking/stores/{store}', [BookingSettingsController::class, 'updateStore'])->name('settings.booking.store');
 
         Route::get('/catalog', [CatalogController::class, 'index'])->name('catalog.index');
         Route::post('/catalog', [CatalogController::class, 'store'])->name('catalog.store');
