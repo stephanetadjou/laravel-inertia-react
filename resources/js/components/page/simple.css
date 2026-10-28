@@ -6,8 +6,8 @@
  */
 
 .mdash {
-    --bg: #f7f8fa;
-    --line: #e6e8ec;
+    --bg: #f4f8fb;
+    --line: #dfe7ee;
     font-size: 14px;
 }
 .dark .mdash {

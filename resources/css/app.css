@@ -37,36 +37,39 @@
     --text-theme-xs: 12px;
     --text-theme-xs--line-height: 18px;
 
-    /* Marque Menentia (design system) : rouge pour la marque, anthracite pour
-       les titres et le menu latéral. Le vert n'est plus une couleur de marque :
-       il reste uniquement dans l'échelle success-* (succès, opt-in). */
-    --color-brand: #ef4444; /* logo, grands aplats, titres colorés de 24 px et plus */
-    --color-brand-strong: #dc2626; /* boutons principaux, texte blanc dessus */
-    --color-brand-text: #b91c1c; /* petit texte rouge, liens, sur fond clair */
-    --color-ink-strong: #1f2937; /* titres, menu latéral */
-    --color-ink: #111827;
-    --color-ink-muted: #4b5563;
-    --color-accent: #fca5a5; /* décor, élément actif sur anthracite ; jamais de texte rose sur blanc */
-    --color-tint: #fee2e2;
-    --color-surface-soft: #fef2f2;
-    --color-line: #f3d9d9;
-    --color-focus: #1f2937;
-    --color-focus-dark: #fca5a5;
+    /* Marque Menentia bleu-vert (cahier de cadrage du 28/10/2026) : bleu
+       #0E7BD6 pour la marque et les boutons, vert #00C896 en accent (logo,
+       dégradé), bleu nuit #0B2D4A pour les titres, fond #F4F8FB. En petit
+       texte sur fond blanc : bleu foncé #0A66B2 et vert foncé #007A5C. */
+    --color-brand: #0e7bd6; /* logo, grands aplats, titres colorés de 24 px et plus */
+    --color-brand-strong: #0e7bd6; /* boutons principaux, texte blanc dessus */
+    --color-brand-text: #0a66b2; /* petit texte, liens, sur fond clair */
+    --color-brand-green: #00c896; /* accent, dégradé du logo */
+    --color-brand-green-text: #007a5c; /* petit texte vert sur fond blanc */
+    --color-ink-strong: #0b2d4a; /* titres, bleu nuit */
+    --color-ink: #0b2d4a;
+    --color-ink-muted: #4a5d70;
+    --color-accent: #00c896; /* décor, élément actif */
+    --color-tint: #d3e8fa;
+    --color-surface-soft: #f4f8fb;
+    --color-line: #dbe6ef;
+    --color-focus: #0b2d4a;
+    --color-focus-dark: #6fb3ee;
 
     /* Échelle brand-* des classes existantes (bg-brand-500 pour les boutons,
        text-brand-text pour les liens…), alignée sur les tokens ci-dessus. */
-    --color-brand-25: #fffafa;
-    --color-brand-50: #fef2f2;
-    --color-brand-100: #fee2e2;
-    --color-brand-200: #fecaca;
-    --color-brand-300: #fca5a5;
-    --color-brand-400: #f87171;
-    --color-brand-500: #dc2626;
-    --color-brand-600: #b91c1c;
-    --color-brand-700: #991b1b;
-    --color-brand-800: #7f1d1d;
-    --color-brand-900: #631a1a;
-    --color-brand-950: #450a0a;
+    --color-brand-25: #f5faff;
+    --color-brand-50: #eaf4fd;
+    --color-brand-100: #d3e8fa;
+    --color-brand-200: #a8d1f5;
+    --color-brand-300: #6fb3ee;
+    --color-brand-400: #3896e3;
+    --color-brand-500: #0e7bd6;
+    --color-brand-600: #0a66b2;
+    --color-brand-700: #08518e;
+    --color-brand-800: #0a426f;
+    --color-brand-900: #0b2d4a;
+    --color-brand-950: #071d31;
 
     --color-blue-light-25: #f5fbff;
     --color-blue-light-50: #f0f9ff;

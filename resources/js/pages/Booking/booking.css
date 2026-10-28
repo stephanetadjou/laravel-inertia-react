@@ -1,11 +1,12 @@
 /* Page publique de réservation (téléphone d'abord). Toujours en thème clair. */
 
 .mbook {
-    --ink: #1d2126;
+    --ink: #0b2d4a;
     --muted: #5f6770;
     --line: #e4e7ec;
     --soft: #f6f7f9;
-    --brand: #dc2626;
+    --brand: #0e7bd6;
+    --brand-green: #00c896;
     --ok: #1f8a4f;
     min-height: 100vh;
     max-width: 560px;
@@ -31,7 +32,7 @@
     width: 52px;
     height: 52px;
     border-radius: 14px;
-    background: var(--brand);
+    background: linear-gradient(135deg, var(--brand-green), var(--brand));
     color: #fff;
     font-size: 24px;
     font-weight: 700;

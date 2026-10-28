@@ -1,6 +1,11 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 100" role="img" aria-label="Menentia">
-  <rect width="100" height="100" rx="28" fill="#EF4444"/>
-  <path d="M27 77 V52 A11.5 11.5 0 0 1 50 52 V77 M50 52 A11.5 11.5 0 0 1 73 52 V77" fill="none" stroke="#FFFFFF" stroke-width="10.5" stroke-linecap="round" stroke-linejoin="round"/>
-  <circle cx="50" cy="24" r="8" fill="#1F2937"/>
-  <text x="122" y="70" fill="#EF4444" font-family="'Bricolage Grotesque', 'Outfit', sans-serif" font-weight="800" font-size="56" letter-spacing="-1">menentia</text>
+  <defs>
+    <linearGradient id="menentia-gradient" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#00C896"/>
+      <stop offset="1" stop-color="#0E7BD6"/>
+    </linearGradient>
+  </defs>
+  <rect width="100" height="100" rx="28" fill="url(#menentia-gradient)"/>
+  <path d="M25 74 V46 A12.5 12.5 0 0 1 50 46 V74 M50 46 A12.5 12.5 0 0 1 75 46 V74" fill="none" stroke="#FFFFFF" stroke-width="11" stroke-linecap="round" stroke-linejoin="round"/>
+  <text x="122" y="70" fill="#0B2D4A" font-family="'Bricolage Grotesque', 'Outfit', sans-serif" font-weight="800" font-size="56" letter-spacing="-1">menentia</text>
 </svg>
