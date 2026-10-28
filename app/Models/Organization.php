@@ -28,6 +28,7 @@ class Organization extends Model
         'action_messages',
         'booking_settings',
         'report_settings',
+        'loyalty_settings',
     ];
 
     /**
@@ -94,6 +95,7 @@ class Organization extends Model
             'action_messages' => 'array',
             'booking_settings' => 'array',
             'report_settings' => 'array',
+            'loyalty_settings' => 'array',
         ];
     }
 
@@ -185,6 +187,40 @@ class Organization extends Model
             'send_at' => (string) $settings['send_at'],
             'monthly_target' => (int) $settings['monthly_target'],
             'last_sent_on' => $settings['last_sent_on'] ?: null,
+        ];
+    }
+
+    /**
+     * Programme de fidélité (Paramètres › Fidélité) : 1 point par tranche de
+     * « fcfa_per_point » FCFA, à partir de « starts_on » ; paliers selon les
+     * points gagnés sur 12 mois.
+     */
+    public const LOYALTY_DEFAULTS = [
+        'enabled' => false,
+        'fcfa_per_point' => 1000,
+        'starts_on' => null,
+        'tiers' => [
+            ['name' => 'Bronze', 'min_points' => 0],
+            ['name' => 'Argent', 'min_points' => 300],
+            ['name' => 'Or', 'min_points' => 1000],
+        ],
+    ];
+
+    /** @return array{enabled: bool, fcfa_per_point: int, starts_on: string|null, tiers: list<array{name: string, min_points: int}>} */
+    public function loyaltySettings(): array
+    {
+        $settings = [...self::LOYALTY_DEFAULTS, ...array_intersect_key($this->loyalty_settings ?? [], self::LOYALTY_DEFAULTS)];
+
+        return [
+            'enabled' => (bool) $settings['enabled'],
+            'fcfa_per_point' => max(1, (int) $settings['fcfa_per_point']),
+            'starts_on' => $settings['starts_on'] ?: null,
+            'tiers' => collect((array) $settings['tiers'])
+                ->filter(fn ($t) => is_array($t) && trim((string) ($t['name'] ?? '')) !== '')
+                ->map(fn ($t) => ['name' => trim((string) $t['name']), 'min_points' => max(0, (int) ($t['min_points'] ?? 0))])
+                ->sortBy('min_points')
+                ->values()
+                ->all(),
         ];
     }
 

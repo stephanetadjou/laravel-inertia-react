@@ -16,6 +16,7 @@ use App\Http\Controllers\CustomerController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\GroupController;
 use App\Http\Controllers\ImportController;
+use App\Http\Controllers\LoyaltyController;
 use App\Http\Controllers\MessageTemplateController;
 use App\Http\Controllers\OrganizationController;
 use App\Http\Controllers\PrivacyPolicyController;
@@ -88,6 +89,8 @@ Route::middleware('auth')->group(function () {
     Route::get('/customers/audience', [CustomerController::class, 'audience'])->name('customers.audience');
     Route::get('/customers/{customer}', [CustomerController::class, 'show'])->name('customers.show');
     Route::put('/customers/{customer}', [CustomerController::class, 'update'])->name('customers.update');
+    Route::post('/customers/{customer}/loyalty/redeem', [LoyaltyController::class, 'redeem'])->name('customers.loyalty.redeem');
+    Route::post('/customers/{customer}/loyalty/adjust', [LoyaltyController::class, 'adjust'])->name('customers.loyalty.adjust');
 
     Route::get('/chat', [ChatController::class, 'index'])->middleware('whatsapp-api')->name('chat.index');
     Route::get('/chat/{contact}', [ChatController::class, 'show'])->middleware('whatsapp-api')->name('chat.show');
@@ -114,6 +117,12 @@ Route::middleware('auth')->group(function () {
         Route::put('/organisation/privacy', [OrganizationController::class, 'updatePrivacy'])->name('organisation.privacy');
         Route::put('/organisation/whatsapp-api', [OrganizationController::class, 'updateWhatsAppApi'])->name('organisation.whatsapp-api');
         Route::put('/actions/messages', [ActionController::class, 'updateMessages'])->name('actions.messages');
+
+        Route::get('/settings/loyalty', [LoyaltyController::class, 'settings'])->name('settings.loyalty');
+        Route::put('/settings/loyalty', [LoyaltyController::class, 'update'])->name('settings.loyalty.update');
+        Route::post('/settings/loyalty/rewards', [LoyaltyController::class, 'storeReward'])->name('settings.loyalty.rewards.store');
+        Route::put('/settings/loyalty/rewards/{reward}', [LoyaltyController::class, 'updateReward'])->name('settings.loyalty.rewards.update');
+        Route::post('/settings/loyalty/rewards/{reward}/toggle', [LoyaltyController::class, 'toggleReward'])->name('settings.loyalty.rewards.toggle');
 
         Route::get('/reports/daily', [ReportController::class, 'daily'])->name('reports.daily');
         Route::get('/settings/reports', [ReportController::class, 'settings'])->name('settings.reports');

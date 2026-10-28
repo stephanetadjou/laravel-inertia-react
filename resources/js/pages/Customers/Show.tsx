@@ -8,6 +8,7 @@ import AppointmentFormModal, { APPOINTMENT_PILL, AppointmentRow, CatalogEntry, f
 import CheckoutModal from '../../components/appointments/CheckoutModal';
 import WhatsAppIcon from '../../components/common/WhatsAppIcon';
 import CustomerEditModal from './CustomerEditModal';
+import LoyaltyPanel, { LoyaltyData } from './LoyaltyPanel';
 import '../Dashboard/dashboard.css';
 import './customers.css';
 
@@ -101,6 +102,7 @@ interface PageProps {
     appointmentStatuses: Record<string, string>;
     catalog: CatalogEntry[];
     paymentMethods: Record<string, string>;
+    loyalty: LoyaltyData | null;
     staff: { id: number; name: string; store_id: number; color: string | null }[];
     followUps: { id: number; label: string; channel: string; user_name: string | null; store_name: string | null; at: string }[];
     flash?: { success: string | null; error: string | null };
@@ -209,6 +211,7 @@ function CustomerShow() {
         appointmentStatuses,
         catalog,
         paymentMethods,
+        loyalty,
         staff,
         followUps,
         flash,
@@ -534,6 +537,8 @@ function CustomerShow() {
                         </ul>
                     )}
                 </article>
+
+                {loyalty && <LoyaltyPanel customerId={customer.id} customerName={customer.name} loyalty={loyalty} />}
 
                 <article className="mdash-panel c6">
                     <div className="mdash-ph">

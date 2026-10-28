@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Services\CustomerLifecycle;
+use App\Services\Loyalty;
 use Database\Factories\PurchaseFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -57,6 +58,18 @@ class Purchase extends Model
 
         static::saved($refresh);
         static::deleted($refresh);
+
+        // Fidélité : points gagnés (ou ajustés) à chaque achat, retirés si l'achat est supprimé.
+        static::saved(function (Purchase $purchase) {
+            if ($organization = Store::whereKey($purchase->store_id)->first()?->organization) {
+                Loyalty::for($organization)->syncPurchase($purchase);
+            }
+        });
+        static::deleting(function (Purchase $purchase) {
+            if ($organization = Store::whereKey($purchase->store_id)->first()?->organization) {
+                Loyalty::for($organization)->reversePurchase($purchase, Contact::whereKey($purchase->contact_id)->value('customer_id'));
+            }
+        });
     }
 
     public function items(): HasMany

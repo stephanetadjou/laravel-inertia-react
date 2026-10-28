@@ -9,14 +9,18 @@ use App\Models\Contact;
 use App\Models\Customer;
 use App\Models\CustomerFollowUp;
 use App\Models\Group;
+use App\Models\LoyaltyReward;
+use App\Models\LoyaltyTransaction;
 use App\Models\MessageTemplate;
 use App\Models\Purchase;
 use App\Models\StaffMember;
 use App\Models\Store;
+use App\Models\User;
 use App\Services\ActionLists;
 use App\Services\CustomerLifecycle;
 use App\Services\CustomerScoring;
 use App\Services\CustomerSearch;
+use App\Services\Loyalty;
 use App\Services\PhoneNormalizer;
 use App\Services\RfmCalculator;
 use Illuminate\Http\JsonResponse;
@@ -233,6 +237,7 @@ class CustomerController extends Controller
             'appointmentStores' => Store::whereIn('id', $contacts->pluck('store_id'))->orderBy('name')->get(['id', 'name']),
             'appointmentStatuses' => Appointment::STATUSES,
             'paymentMethods' => Purchase::PAYMENT_METHODS,
+            'loyalty' => $this->loyalty($customer, $user),
             'catalog' => AppointmentController::catalogFor($user->organization_id),
             'staff' => StaffMember::whereIn('store_id', $contacts->pluck('store_id'))->where('active', true)->orderBy('name')->get(['id', 'name', 'store_id', 'color']),
             'followUps' => $customer->followUps()->with(['user:id,name', 'store:id,name'])->latest('done_at')->take(10)->get()
@@ -293,6 +298,43 @@ class CustomerController extends Controller
                 ->orderBy('name')
                 ->pluck('name'),
         ]);
+    }
+
+    /**
+     * Fidélité de la fiche : solde, palier, récompenses échangeables, derniers mouvements.
+     *
+     * @return array<string, mixed>|null null si le programme n'est pas actif
+     */
+    private function loyalty(Customer $customer, User $user): ?array
+    {
+        $organization = $user->organization;
+        $settings = $organization->loyaltySettings();
+
+        if (! $settings['enabled'] && ! $customer->loyaltyTransactions()->exists()) {
+            return null;
+        }
+
+        $loyalty = Loyalty::for($organization);
+        $tier = $loyalty->tier($customer);
+
+        return [
+            'enabled' => $settings['enabled'],
+            'fcfa_per_point' => $settings['fcfa_per_point'],
+            'balance' => $loyalty->balance($customer),
+            'tier' => $tier['current']['name'] ?? null,
+            'next_tier' => $tier['next'],
+            'earned_12m' => $tier['earned'],
+            'can_adjust' => $user->canManageOrganization(),
+            'rewards' => LoyaltyReward::where('organization_id', $organization->id)->where('active', true)->orderBy('points_cost')->get(['id', 'name', 'points_cost']),
+            'history' => $customer->loyaltyTransactions()->with('user:id,name')->latest('id')->take(8)->get()->map(fn (LoyaltyTransaction $t) => [
+                'id' => $t->id,
+                'type' => LoyaltyTransaction::TYPES[$t->type] ?? $t->type,
+                'points' => $t->points,
+                'note' => $t->note,
+                'user' => $t->user?->name,
+                'at' => $t->created_at->toIso8601String(),
+            ]),
+        ];
     }
 
     /**
