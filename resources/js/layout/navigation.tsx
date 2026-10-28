@@ -36,6 +36,7 @@ export function buildSections({ canManageOrganization, whatsappApiEnabled }: Nav
                   { name: 'Réservation en ligne', path: '/settings/booking' },
                   { name: 'Intervenants', path: '/settings/staff' },
                   { name: 'Fermetures', path: '/settings/closures' },
+                  { name: 'Rapports', path: '/settings/reports' },
               ]
             : []),
         { name: 'Marques & boutiques', path: '/stores' },

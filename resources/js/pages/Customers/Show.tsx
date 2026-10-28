@@ -100,6 +100,7 @@ interface PageProps {
     appointmentStores: { id: number; name: string }[];
     appointmentStatuses: Record<string, string>;
     catalog: CatalogEntry[];
+    paymentMethods: Record<string, string>;
     staff: { id: number; name: string; store_id: number; color: string | null }[];
     followUps: { id: number; label: string; channel: string; user_name: string | null; store_name: string | null; at: string }[];
     flash?: { success: string | null; error: string | null };
@@ -207,6 +208,7 @@ function CustomerShow() {
         appointmentStores,
         appointmentStatuses,
         catalog,
+        paymentMethods,
         staff,
         followUps,
         flash,
@@ -649,7 +651,7 @@ function CustomerShow() {
                 />
             )}
 
-            {checkout && <CheckoutModal appointment={checkout} catalog={catalog} onClose={() => setCheckout(null)} />}
+            {checkout && <CheckoutModal appointment={checkout} catalog={catalog} paymentMethods={paymentMethods} onClose={() => setCheckout(null)} />}
 
             {canEdit && <CustomerEditModal customer={customer} contacts={contacts} isOpen={editing} onClose={() => setEditing(false)} />}
         </div>

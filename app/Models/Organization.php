@@ -27,6 +27,7 @@ class Organization extends Model
         'whatsapp_api_enabled',
         'action_messages',
         'booking_settings',
+        'report_settings',
     ];
 
     /**
@@ -92,6 +93,7 @@ class Organization extends Model
             'whatsapp_api_enabled' => 'boolean',
             'action_messages' => 'array',
             'booking_settings' => 'array',
+            'report_settings' => 'array',
         ];
     }
 
@@ -157,6 +159,32 @@ class Organization extends Model
             'min_notice_minutes' => (int) $settings['min_notice_minutes'],
             'horizon_days' => (int) $settings['horizon_days'],
             'welcome' => (string) $settings['welcome'],
+        ];
+    }
+
+    /**
+     * Rapport quotidien au dirigeant (Paramètres › Rapports) : désactivé par
+     * défaut, envoyé chaque soir à l'heure choisie aux adresses indiquées.
+     */
+    public const REPORT_DEFAULTS = [
+        'enabled' => false,
+        'recipients' => [],
+        'send_at' => '21:00',
+        'monthly_target' => 0,
+        'last_sent_on' => null,
+    ];
+
+    /** @return array{enabled: bool, recipients: list<string>, send_at: string, monthly_target: int, last_sent_on: string|null} */
+    public function reportSettings(): array
+    {
+        $settings = [...self::REPORT_DEFAULTS, ...array_intersect_key($this->report_settings ?? [], self::REPORT_DEFAULTS)];
+
+        return [
+            'enabled' => (bool) $settings['enabled'],
+            'recipients' => array_values(array_filter((array) $settings['recipients'], 'is_string')),
+            'send_at' => (string) $settings['send_at'],
+            'monthly_target' => (int) $settings['monthly_target'],
+            'last_sent_on' => $settings['last_sent_on'] ?: null,
         ];
     }
 

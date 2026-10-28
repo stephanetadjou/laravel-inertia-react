@@ -32,6 +32,7 @@ interface PageProps {
     appointments: AppointmentRow[];
     upcoming: AppointmentRow[];
     catalog: CatalogEntry[];
+    paymentMethods: Record<string, string>;
     [key: string]: unknown;
 }
 
@@ -501,7 +502,7 @@ function MiniMonth({ date, view, marked, today, onPick }: { date: string; view: 
 }
 
 function AppointmentsIndex() {
-    const { view, date, from, store, stores, staff, staffFilter, closures, breaks, statuses, appointments, upcoming, catalog } = usePage<PageProps>().props;
+    const { view, date, from, store, stores, staff, staffFilter, closures, breaks, statuses, appointments, upcoming, catalog, paymentMethods } = usePage<PageProps>().props;
     // Jour fermé (férié, congés) : libellé, sinon null.
     const closedOn = (day: string) => closures.find((c) => c.starts_on <= day && c.ends_on >= day)?.label ?? null;
     const [checkout, setCheckout] = useState<AppointmentRow | null>(null);
@@ -669,7 +670,7 @@ function AppointmentsIndex() {
                 />
             )}
 
-            {checkout && <CheckoutModal appointment={checkout} catalog={catalog} onClose={() => setCheckout(null)} />}
+            {checkout && <CheckoutModal appointment={checkout} catalog={catalog} paymentMethods={paymentMethods} onClose={() => setCheckout(null)} />}
 
             {modal && (
                 <AppointmentFormModal

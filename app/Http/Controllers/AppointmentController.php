@@ -87,6 +87,7 @@ class AppointmentController extends Controller
                 ]),
             'breaks' => Store::whereKey($storeIds)->get()->map(fn (Store $s) => $s->bookingBreak())->filter()->unique()->values(),
             'statuses' => Appointment::STATUSES,
+            'paymentMethods' => Purchase::PAYMENT_METHODS,
             'catalog' => self::catalogFor($user->organization_id),
             'appointments' => $appointments->map(fn (Appointment $a) => $this->present($a, $messages)),
             // Colonne « À venir » : prochains rendez-vous, quelle que soit la période affichée.
@@ -168,6 +169,7 @@ class AppointmentController extends Controller
 
         $data = $request->validate([
             'purchased_at' => ['nullable', 'date'],
+            'payment_method' => ['nullable', Rule::in(array_keys(Purchase::PAYMENT_METHODS))],
             'lines' => ['required', 'array', 'min:1'],
             'lines.*.catalog_item_id' => ['nullable', 'integer', Rule::exists('catalog_items', 'id')->where('organization_id', $organizationId)],
             'lines.*.name' => ['required', 'string', 'max:255'],
@@ -214,6 +216,7 @@ class AppointmentController extends Controller
                 // Catégorie de la vente (top catégories) : celle de la première ligne qui en a une.
                 'product_category' => $lines->pluck('category')->filter()->first() ?? $lines->first()['name'],
                 'purchased_at' => isset($data['purchased_at']) ? Carbon::parse($data['purchased_at'])->toDateString() : $appointment->starts_at->toDateString(),
+                'payment_method' => $data['payment_method'] ?? null,
             ]);
             $purchase->items()->createMany($lines->map(fn ($line) => collect($line)->except('category')->all())->all());
 

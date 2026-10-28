@@ -24,7 +24,17 @@ function fieldClasses() {
     return 'w-full rounded-lg border border-gray-300 px-2.5 py-2 text-sm text-gray-800 focus:border-brand-300 focus:outline-hidden dark:border-gray-700 dark:bg-white/[0.03] dark:text-white/90';
 }
 
-export default function CheckoutModal({ appointment, catalog, onClose }: { appointment: AppointmentRow; catalog: CatalogEntry[]; onClose: () => void }) {
+export default function CheckoutModal({
+    appointment,
+    catalog,
+    paymentMethods = {},
+    onClose,
+}: {
+    appointment: AppointmentRow;
+    catalog: CatalogEntry[];
+    paymentMethods?: Record<string, string>;
+    onClose: () => void;
+}) {
     const initial: Line[] = appointment.items.length
         ? appointment.items.map((i) => ({ catalog_item_id: i.catalog_item_id, name: i.name, quantity: 1, unit_price: i.price, type: 'service' }))
         : appointment.service
@@ -33,6 +43,7 @@ export default function CheckoutModal({ appointment, catalog, onClose }: { appoi
 
     const { data, setData, post, processing, errors } = useForm({
         purchased_at: appointment.starts_at.slice(0, 10),
+        payment_method: 'cash',
         lines: initial,
     });
 
@@ -142,6 +153,18 @@ export default function CheckoutModal({ appointment, catalog, onClose }: { appoi
                         Date de la vente
                         <input type="date" value={data.purchased_at} onChange={(e) => setData('purchased_at', e.target.value)} className={`${fieldClasses()} mt-1 w-44`} />
                     </label>
+                    {Object.keys(paymentMethods).length > 0 && (
+                        <label className="text-sm text-gray-600 dark:text-gray-400">
+                            Paiement
+                            <select value={data.payment_method} onChange={(e) => setData('payment_method', e.target.value)} className={`${fieldClasses()} mt-1 w-44`}>
+                                {Object.entries(paymentMethods).map(([key, label]) => (
+                                    <option key={key} value={key}>
+                                        {label}
+                                    </option>
+                                ))}
+                            </select>
+                        </label>
+                    )}
                     <div className="text-right">
                         <span className="block text-xs text-gray-500">Total</span>
                         <b className="text-2xl tabular-nums text-gray-900 dark:text-white">{formatPrice(total)}</b>

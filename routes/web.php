@@ -20,6 +20,7 @@ use App\Http\Controllers\MessageTemplateController;
 use App\Http\Controllers\OrganizationController;
 use App\Http\Controllers\PrivacyPolicyController;
 use App\Http\Controllers\PurchaseController;
+use App\Http\Controllers\ReportController;
 use App\Http\Controllers\RoleController;
 use App\Http\Controllers\ScheduleSettingsController;
 use App\Http\Controllers\StoreController;
@@ -113,6 +114,11 @@ Route::middleware('auth')->group(function () {
         Route::put('/organisation/privacy', [OrganizationController::class, 'updatePrivacy'])->name('organisation.privacy');
         Route::put('/organisation/whatsapp-api', [OrganizationController::class, 'updateWhatsAppApi'])->name('organisation.whatsapp-api');
         Route::put('/actions/messages', [ActionController::class, 'updateMessages'])->name('actions.messages');
+
+        Route::get('/reports/daily', [ReportController::class, 'daily'])->name('reports.daily');
+        Route::get('/settings/reports', [ReportController::class, 'settings'])->name('settings.reports');
+        Route::put('/settings/reports', [ReportController::class, 'update'])->name('settings.reports.update');
+        Route::post('/settings/reports/test', [ReportController::class, 'test'])->middleware('throttle:5,1')->name('settings.reports.test');
 
         Route::get('/settings/staff', [ScheduleSettingsController::class, 'staff'])->name('settings.staff');
         Route::post('/settings/staff', [ScheduleSettingsController::class, 'storeStaff'])->name('settings.staff.store');

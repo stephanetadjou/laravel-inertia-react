@@ -21,6 +21,19 @@ class Purchase extends Model
         'quantity',
         'product_category',
         'purchased_at',
+        'payment_method',
+    ];
+
+    /** Moyens de paiement proposés à l'encaissement. */
+    public const PAYMENT_METHODS = [
+        'cash' => 'Espèces',
+        'airtel_money' => 'Airtel Money',
+        'moov_money' => 'Moov Money',
+        'mtn_momo' => 'MTN Mobile Money',
+        'orange_money' => 'Orange Money',
+        'card' => 'Carte bancaire',
+        'transfer' => 'Virement',
+        'other' => 'Autre',
     ];
 
     protected function casts(): array
