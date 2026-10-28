@@ -6,6 +6,7 @@ use App\Models\Appointment;
 use App\Models\CatalogItem;
 use App\Models\Contact;
 use App\Models\Organization;
+use App\Models\StaffMember;
 use App\Models\Store;
 use App\Services\BookingAvailability;
 use App\Services\PhoneNormalizer;
@@ -65,6 +66,19 @@ class BookingController extends Controller
                 'duration_minutes' => (int) $item->duration_minutes,
                 'store_ids' => $item->stores->pluck('id')->values(),
             ])->values(),
+            // Intervenants proposés au choix (« Peu importe » par défaut), par établissement.
+            'staff' => StaffMember::whereIn('store_id', $stores->pluck('id'))
+                ->where('active', true)
+                ->where('bookable_online', true)
+                ->with('services:id')
+                ->orderBy('name')
+                ->get()
+                ->map(fn (StaffMember $s) => [
+                    'id' => $s->id,
+                    'name' => $s->name,
+                    'store_id' => $s->store_id,
+                    'service_ids' => $s->services->pluck('id')->values(),
+                ])->values(),
             'privacyUrl' => $organization->privacyPolicyUrl(),
         ]);
     }
@@ -78,19 +92,25 @@ class BookingController extends Controller
             'items' => ['required', 'array', 'min:1', 'max:5'],
             'items.*' => ['integer'],
             'date' => ['nullable', 'date'],
+            'staff' => ['nullable', 'integer'],
         ]);
 
         $store = $this->stores($organization)->firstWhere('id', (int) $data['store']) ?? throw new NotFoundHttpException;
-        $duration = $this->duration($organization, $store, $data['items']);
+        $items = $this->items($organization, $store, $data['items']);
+        $serviceIds = $items->pluck('id')->all();
+        $duration = max(5, (int) $items->sum('duration_minutes'));
         $availability = new BookingAvailability($store, $settings);
-        $days = $availability->openDays($duration);
+        $staffId = $this->staffId($availability, $serviceIds, $data['staff'] ?? null);
+        $days = $availability->openDays($duration, $serviceIds, $staffId);
         $date = isset($data['date']) ? Carbon::parse($data['date'])->toDateString() : ($days[0] ?? today()->toDateString());
 
         return response()->json([
             'days' => $days,
             'date' => $date,
-            'slots' => $availability->slots(Carbon::parse($date), $duration),
+            'slots' => $availability->slots(Carbon::parse($date), $duration, $serviceIds, $staffId),
             'duration' => $duration,
+            // Intervenants capables de réaliser ces prestations.
+            'staff' => $availability->staffFor($serviceIds)->map(fn (StaffMember $s) => ['id' => $s->id, 'name' => $s->name])->values(),
         ]);
     }
 
@@ -108,6 +128,7 @@ class BookingController extends Controller
             'phone' => ['required', 'string', 'max:30'],
             'consent' => ['nullable', 'boolean'],
             'notes' => ['nullable', 'string', 'max:500'],
+            'staff' => ['nullable', 'integer'],
             // Piège à robots : champ caché, toujours vide pour un humain.
             'website' => ['nullable', 'max:0'],
         ], [
@@ -134,14 +155,21 @@ class BookingController extends Controller
             throw ValidationException::withMessages(['phone' => 'Vous avez déjà plusieurs rendez-vous à venir : contactez l’établissement pour en prendre un autre.']);
         }
 
-        $appointment = DB::transaction(function () use ($store, $settings, $start, $duration, $items, $data, $phone) {
+        $serviceIds = $items->pluck('id')->all();
+
+        $appointment = DB::transaction(function () use ($store, $settings, $start, $duration, $items, $serviceIds, $data, $phone) {
             // Verrou de l'établissement : deux réservations simultanées sont traitées l'une après l'autre.
             $locked = Store::whereKey($store->id)->lockForUpdate()->first();
             $locked->touch();
 
-            if (! (new BookingAvailability($locked, $settings))->isFree($start, $duration)) {
+            $availability = new BookingAvailability($locked, $settings);
+            $staffId = $this->staffId($availability, $serviceIds, $data['staff'] ?? null);
+
+            if (! $availability->isFree($start, $duration, $serviceIds, $staffId)) {
                 throw ValidationException::withMessages(['time' => 'Ce créneau vient d’être pris. Choisissez un autre horaire.']);
             }
+
+            $staff = $availability->assign($start, $duration, $serviceIds, $staffId);
 
             $contact = Contact::where('store_id', $store->id)->where('phone_e164', $phone)->first()
                 ?? Contact::create([
@@ -166,6 +194,7 @@ class BookingController extends Controller
                 'notes' => $data['notes'] ?? null,
                 'source' => Appointment::SOURCE_ONLINE,
                 'cancel_token' => Str::random(40),
+                'staff_member_id' => $staff?->id,
             ]);
             $appointment->items()->createMany($items->map(fn (CatalogItem $item) => [
                 'catalog_item_id' => $item->id,
@@ -197,6 +226,7 @@ class BookingController extends Controller
                 'status' => $appointment->status,
                 'price' => (int) $appointment->items->sum('price'),
                 'customer_name' => $appointment->customer->name,
+                'staff_name' => $appointment->staffMember?->name,
                 'cancellable' => in_array($appointment->status, Appointment::OPEN_STATUSES, true) && $appointment->starts_at->isFuture(),
             ],
             'whatsappUrl' => $store->bookingPhone() ? 'https://wa.me/'.$store->bookingPhone().'?text='.rawurlencode($text) : null,
@@ -267,17 +297,23 @@ class BookingController extends Controller
         return $items;
     }
 
-    /** @param array<int, int|string> $ids */
-    private function duration(Organization $organization, Store $store, array $ids): int
+    /**
+     * Intervenant choisi, s'il est proposé pour ces prestations (sinon « peu importe »).
+     *
+     * @param  array<int, int>  $serviceIds
+     */
+    private function staffId(BookingAvailability $availability, array $serviceIds, mixed $requested): ?int
     {
-        return max(5, (int) $this->items($organization, $store, $ids)->sum('duration_minutes'));
+        $id = (int) $requested;
+
+        return $id > 0 && $availability->staffFor($serviceIds)->contains('id', $id) ? $id : null;
     }
 
     private function byToken(Organization $organization, string $token): Appointment
     {
         return Appointment::where('cancel_token', $token)
             ->whereHas('store', fn ($q) => $q->where('organization_id', $organization->id))
-            ->with(['store', 'customer', 'items'])
+            ->with(['store', 'customer', 'items', 'staffMember'])
             ->firstOrFail();
     }
 }

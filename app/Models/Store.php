@@ -35,6 +35,7 @@ class Store extends Model
         'booking_hours',
         'booking_capacity',
         'booking_phone',
+        'booking_break',
     ];
 
     /**
@@ -65,6 +66,7 @@ class Store extends Model
             'whatsapp_checked_at' => 'datetime',
             'booking_hours' => 'array',
             'booking_capacity' => 'integer',
+            'booking_break' => 'array',
             'whatsapp_registered_at' => 'datetime',
         ];
     }
@@ -209,6 +211,21 @@ class Store extends Model
         }
 
         return $hours;
+    }
+
+    /** Pause quotidienne (ex. déjeuner 12:00 – 14:00), ou null. */
+    public function bookingBreak(): ?array
+    {
+        $break = $this->booking_break;
+
+        return is_array($break) && isset($break['start'], $break['end']) && $break['start'] < $break['end']
+            ? ['start' => (string) $break['start'], 'end' => (string) $break['end']]
+            : null;
+    }
+
+    public function staffMembers(): HasMany
+    {
+        return $this->hasMany(StaffMember::class);
     }
 
     /** Numéro WhatsApp à afficher au client (récapitulatif wa.me). */

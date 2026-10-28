@@ -44,7 +44,10 @@ export default function BookingShow({ organization, welcome, stores, services, p
         consent: false,
         notes: '',
         website: '',
+        // 0 = peu importe (le moins chargé des intervenants libres).
+        staff: 0,
     });
+    const [team, setTeam] = useState<{ id: number; name: string }[]>([]);
     const [days, setDays] = useState<string[]>([]);
     const [slots, setSlots] = useState<string[]>([]);
     const [loading, setLoading] = useState(false);
@@ -65,10 +68,13 @@ export default function BookingShow({ organization, welcome, stores, services, p
         const params = new URLSearchParams({ store: String(data.store) });
         data.items.forEach((id) => params.append('items[]', String(id)));
         if (data.date) params.set('date', data.date);
+        if (data.staff) params.set('staff', String(data.staff));
         setLoading(true);
         fetch(`/rdv/${organization.slug}/creneaux?${params}`, { headers: { Accept: 'application/json' } })
             .then((r) => r.json())
-            .then((json: { days: string[]; date: string; slots: string[] }) => {
+            .then((json: { days: string[]; date: string; slots: string[]; staff: { id: number; name: string }[] }) => {
+                setTeam(json.staff ?? []);
+                if (data.staff && !(json.staff ?? []).some((s) => s.id === data.staff)) setData((d) => ({ ...d, staff: 0 }));
                 setDays(json.days);
                 setSlots(json.slots);
                 if (json.date !== data.date) setData((d) => ({ ...d, date: json.days.includes(json.date) ? json.date : (json.days[0] ?? '') }));
@@ -76,7 +82,7 @@ export default function BookingShow({ organization, welcome, stores, services, p
             })
             .finally(() => setLoading(false));
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [data.store, data.items.join(','), data.date, refresh]);
+    }, [data.store, data.items.join(','), data.date, data.staff, refresh]);
 
     function toggle(id: number) {
         setData((d) => ({ ...d, items: d.items.includes(id) ? d.items.filter((i) => i !== id) : [...d.items, id], time: '' }));
@@ -152,6 +158,18 @@ export default function BookingShow({ organization, welcome, stores, services, p
                         <h2>
                             <span>2</span> Le jour et l’heure
                         </h2>
+                        {team.length > 1 && (
+                            <div className="mbook-pills" role="group" aria-label="Avec qui">
+                                <button type="button" aria-pressed={data.staff === 0} onClick={() => setData((d) => ({ ...d, staff: 0, time: '' }))}>
+                                    Peu importe
+                                </button>
+                                {team.map((m) => (
+                                    <button key={m.id} type="button" aria-pressed={data.staff === m.id} onClick={() => setData((d) => ({ ...d, staff: m.id, time: '' }))}>
+                                        {m.name}
+                                    </button>
+                                ))}
+                            </div>
+                        )}
                         {days.length === 0 && !loading ? (
                             <p className="mbook-muted">Aucun créneau libre dans les prochains jours. Contactez directement l’établissement.</p>
                         ) : (

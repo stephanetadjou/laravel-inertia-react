@@ -32,6 +32,7 @@ class BookingSettingsController extends Controller
                 'name' => $s->name,
                 'hours' => $s->bookingHours(),
                 'capacity' => max(1, (int) $s->booking_capacity),
+                'break' => $s->bookingBreak(),
                 'phone' => $s->booking_phone ?? '',
                 'whatsapp_display_phone' => $s->whatsapp_display_phone_number,
             ]),
@@ -82,6 +83,12 @@ class BookingSettingsController extends Controller
             'hours.*.close' => ['required_with:hours.*', 'date_format:H:i'],
             'capacity' => ['required', 'integer', 'min:1', 'max:50'],
             'phone' => ['nullable', 'string', 'max:30'],
+            // Pause quotidienne (déjeuner), facultative.
+            'break' => ['nullable', 'array'],
+            'break.start' => ['required_with:break', 'date_format:H:i'],
+            'break.end' => ['required_with:break', 'date_format:H:i', 'after:break.start'],
+        ], [
+            'break.end.after' => 'La fin de la pause doit suivre son début.',
         ]);
 
         $hours = [];
@@ -99,7 +106,12 @@ class BookingSettingsController extends Controller
                 ?? throw ValidationException::withMessages(['phone' => 'Numéro invalide : attendu '.PhoneNormalizer::EXPECTED_FORMAT.'.']);
         }
 
-        $store->update(['booking_hours' => $hours, 'booking_capacity' => $data['capacity'], 'booking_phone' => $phone]);
+        $store->update([
+            'booking_hours' => $hours,
+            'booking_capacity' => $data['capacity'],
+            'booking_phone' => $phone,
+            'booking_break' => isset($data['break']) ? ['start' => $data['break']['start'], 'end' => $data['break']['end']] : null,
+        ]);
 
         return back()->with('success', "Horaires de « {$store->name} » enregistrés.");
     }

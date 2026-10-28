@@ -49,6 +49,7 @@ class Appointment extends Model
         'purchase_id',
         'source',
         'cancel_token',
+        'staff_member_id',
     ];
 
     protected function casts(): array
@@ -71,6 +72,12 @@ class Appointment extends Model
     public function staff(): BelongsTo
     {
         return $this->belongsTo(User::class, 'staff_user_id');
+    }
+
+    /** Intervenant du rendez-vous. */
+    public function staffMember(): BelongsTo
+    {
+        return $this->belongsTo(StaffMember::class);
     }
 
     public function items(): HasMany

@@ -3,7 +3,7 @@ import { useEffect, useMemo, useState } from 'react';
 
 import AppLayout from '../../layout/AppLayout';
 import { Page, PlusIcon } from '../../components/page/Page';
-import AppointmentFormModal, { AppointmentRow, CatalogEntry, formatPrice } from '../../components/appointments/AppointmentFormModal';
+import AppointmentFormModal, { AppointmentRow, CatalogEntry, StaffOption, formatPrice } from '../../components/appointments/AppointmentFormModal';
 import CheckoutModal from '../../components/appointments/CheckoutModal';
 import WhatsAppIcon from '../../components/common/WhatsAppIcon';
 import './calendar.css';
@@ -24,7 +24,10 @@ interface PageProps {
     to: string;
     store: number | null;
     stores: { id: number; name: string }[];
-    staff: { id: number; name: string }[];
+    staff: StaffOption[];
+    staffFilter: number | null;
+    closures: { label: string; starts_on: string; ends_on: string; all_stores: boolean }[];
+    breaks: { start: string; end: string }[];
     statuses: Record<string, string>;
     appointments: AppointmentRow[];
     upcoming: AppointmentRow[];
@@ -237,7 +240,25 @@ function Chip({ a, onOpen, compact }: { a: AppointmentRow; onOpen: (a: Appointme
     );
 }
 
-function MonthGrid({ date, from, byDay, today, onOpen, onNew, onDay }: { date: string; from: string; byDay: Record<string, AppointmentRow[]>; today: string; onOpen: (a: AppointmentRow) => void; onNew: (start: string) => void; onDay: (day: string) => void }) {
+function MonthGrid({
+    date,
+    from,
+    byDay,
+    today,
+    onOpen,
+    onNew,
+    onDay,
+    closedOn,
+}: {
+    date: string;
+    from: string;
+    byDay: Record<string, AppointmentRow[]>;
+    today: string;
+    onOpen: (a: AppointmentRow) => void;
+    onNew: (start: string) => void;
+    onDay: (day: string) => void;
+    closedOn: (day: string) => string | null;
+}) {
     const month = parseDay(date).getMonth();
     const start = parseDay(from);
     const days = Array.from({ length: 42 }, (_, i) => addDays(start, i));
@@ -256,10 +277,11 @@ function MonthGrid({ date, from, byDay, today, onOpen, onNew, onDay }: { date: s
                     {week.map((d) => {
                         const day = iso(d);
                         const items = byDay[day] ?? [];
+                        const closed = closedOn(day);
                         return (
                             <div
                                 key={day}
-                                className={`mcal-cell ${d.getMonth() !== month ? 'out' : ''} ${day === today ? 'today' : ''}`}
+                                className={`mcal-cell ${d.getMonth() !== month ? 'out' : ''} ${day === today ? 'today' : ''} ${closed ? 'closed' : ''}`}
                                 onClick={() => onNew(`${day}T10:00`)}
                                 role="gridcell"
                                 aria-label={d.toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' })}
@@ -275,6 +297,7 @@ function MonthGrid({ date, from, byDay, today, onOpen, onNew, onDay }: { date: s
                                 >
                                     {d.getDate()}
                                 </button>
+                                {closed && <span className="mcal-closed">{closed}</span>}
                                 <div className="mcal-chips">
                                     {items.slice(0, 3).map((a) => (
                                         <Chip key={a.id} a={a} onOpen={onOpen} compact />
@@ -301,7 +324,25 @@ function MonthGrid({ date, from, byDay, today, onOpen, onNew, onDay }: { date: s
     );
 }
 
-function TimeGrid({ days, byDay, today, onOpen, onNew, wide }: { days: string[]; byDay: Record<string, AppointmentRow[]>; today: string; onOpen: (a: AppointmentRow) => void; onNew: (start: string) => void; wide: boolean }) {
+function TimeGrid({
+    days,
+    byDay,
+    today,
+    onOpen,
+    onNew,
+    wide,
+    closedOn,
+    breaks,
+}: {
+    days: string[];
+    byDay: Record<string, AppointmentRow[]>;
+    today: string;
+    onOpen: (a: AppointmentRow) => void;
+    onNew: (start: string) => void;
+    wide: boolean;
+    closedOn: (day: string) => string | null;
+    breaks: { start: string; end: string }[];
+}) {
     const all = days.flatMap((d) => byDay[d] ?? []);
     // Plage horaire : 8 h – 20 h, élargie aux rendez-vous plus tôt ou plus tard.
     const first = Math.min(8, ...all.map((a) => Math.floor(minutesOf(a) / 60)));
@@ -341,7 +382,7 @@ function TimeGrid({ days, byDay, today, onOpen, onNew, wide }: { days: string[];
                 {days.map((day) => (
                     <div
                         key={day}
-                        className={`mcal-col ${day === today ? 'today' : ''}`}
+                        className={`mcal-col ${day === today ? 'today' : ''} ${closedOn(day) ? 'closed' : ''}`}
                         style={{ height: hours.length * HOUR_HEIGHT }}
                         onClick={(e) => {
                             // Créneau cliqué, arrondi à la demi-heure.
@@ -353,6 +394,22 @@ function TimeGrid({ days, byDay, today, onOpen, onNew, wide }: { days: string[];
                         {hours.map((h) => (
                             <i key={h} style={{ top: (h - first) * HOUR_HEIGHT }} />
                         ))}
+                        {closedOn(day) ? (
+                            <span className="mcal-closed-col">{closedOn(day)}</span>
+                        ) : (
+                            breaks.map((b) => {
+                                const toMin = (t: string) => Number(t.slice(0, 2)) * 60 + Number(t.slice(3, 5));
+                                return (
+                                    <span
+                                        key={`${b.start}-${b.end}`}
+                                        className="mcal-break"
+                                        style={{ top: ((toMin(b.start) - first * 60) / 60) * HOUR_HEIGHT, height: ((toMin(b.end) - toMin(b.start)) / 60) * HOUR_HEIGHT }}
+                                    >
+                                        Pause
+                                    </span>
+                                );
+                            })
+                        )}
                         {day === today && nowMinutes >= first * 60 && nowMinutes <= last * 60 && (
                             <em className="mcal-now" style={{ top: ((nowMinutes - first * 60) / 60) * HOUR_HEIGHT }} />
                         )}
@@ -444,7 +501,9 @@ function MiniMonth({ date, view, marked, today, onPick }: { date: string; view: 
 }
 
 function AppointmentsIndex() {
-    const { view, date, from, store, stores, staff, statuses, appointments, upcoming, catalog } = usePage<PageProps>().props;
+    const { view, date, from, store, stores, staff, staffFilter, closures, breaks, statuses, appointments, upcoming, catalog } = usePage<PageProps>().props;
+    // Jour fermé (férié, congés) : libellé, sinon null.
+    const closedOn = (day: string) => closures.find((c) => c.starts_on <= day && c.ends_on >= day)?.label ?? null;
     const [checkout, setCheckout] = useState<AppointmentRow | null>(null);
     const [modal, setModal] = useState<{ appointment: AppointmentRow | null; start?: string } | null>(null);
     const [opened, setOpened] = useState<AppointmentRow | null>(null);
@@ -465,9 +524,9 @@ function AppointmentsIndex() {
         [appointments],
     );
 
-    function go(changes: Partial<{ view: View; date: string; store: number | null }>) {
+    function go(changes: Partial<{ view: View; date: string; store: number | null; staff: number | null }>) {
         const params: Record<string, string | number> = {};
-        Object.entries({ view, date, store, ...changes }).forEach(([k, v]) => {
+        Object.entries({ view, date, store, staff: staffFilter, ...changes }).forEach(([k, v]) => {
             if (v !== null && v !== undefined && v !== '') params[k] = v as string | number;
         });
         router.get('/appointments', params, { preserveScroll: true, preserveState: true, replace: true });
@@ -503,6 +562,16 @@ function AppointmentsIndex() {
                             </button>
                         </div>
                         <div className="mcal-tools">
+                            {staff.length > 0 && (
+                                <select aria-label="Intervenant" value={staffFilter ?? ''} onChange={(e) => go({ staff: e.target.value ? Number(e.target.value) : null })}>
+                                    <option value="">Tous les intervenants</option>
+                                    {staff.map((m) => (
+                                        <option key={m.id} value={m.id}>
+                                            {m.name}
+                                        </option>
+                                    ))}
+                                </select>
+                            )}
                             {stores.length > 1 && (
                                 <select aria-label="Établissement" value={store ?? ''} onChange={(e) => go({ store: e.target.value ? Number(e.target.value) : null })}>
                                     <option value="">Tous les établissements</option>
@@ -530,7 +599,7 @@ function AppointmentsIndex() {
                     </div>
 
                     {view === 'month' ? (
-                        <MonthGrid date={date} from={from} byDay={byDay} today={today} onOpen={setOpened} onNew={(start) => setModal({ appointment: null, start })} onDay={(day) => go({ view: 'day', date: day })} />
+                        <MonthGrid date={date} from={from} byDay={byDay} today={today} onOpen={setOpened} onNew={(start) => setModal({ appointment: null, start })} onDay={(day) => go({ view: 'day', date: day })} closedOn={closedOn} />
                     ) : (
                         <TimeGrid
                             days={view === 'week' ? weekDays : [date]}
@@ -539,6 +608,8 @@ function AppointmentsIndex() {
                             onOpen={setOpened}
                             onNew={(start) => setModal({ appointment: null, start })}
                             wide={view === 'day'}
+                            closedOn={closedOn}
+                            breaks={breaks}
                         />
                     )}
                 </section>

@@ -100,7 +100,7 @@ interface PageProps {
     appointmentStores: { id: number; name: string }[];
     appointmentStatuses: Record<string, string>;
     catalog: CatalogEntry[];
-    staff: { id: number; name: string }[];
+    staff: { id: number; name: string; store_id: number; color: string | null }[];
     followUps: { id: number; label: string; channel: string; user_name: string | null; store_name: string | null; at: string }[];
     flash?: { success: string | null; error: string | null };
     [key: string]: unknown;

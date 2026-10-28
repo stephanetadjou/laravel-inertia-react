@@ -20,6 +20,8 @@ export interface AppointmentRow {
     store_id: number;
     store_name: string | null;
     staff_user_id: number | null;
+    staff_member_id: number | null;
+    staff_color: string | null;
     staff_name: string | null;
     customer_id: number;
     customer_name: string | null;
@@ -65,6 +67,14 @@ interface Option {
     name: string;
 }
 
+/** Intervenant d'un établissement (cf. Paramètres › Intervenants). */
+export interface StaffOption {
+    id: number;
+    name: string;
+    store_id: number;
+    color?: string | null;
+}
+
 function fieldClasses() {
     return 'w-full rounded-lg border border-gray-300 px-3 py-2.5 text-sm text-gray-800 focus:border-brand-300 focus:outline-hidden dark:border-gray-700 dark:bg-white/[0.03] dark:text-white/90';
 }
@@ -107,7 +117,7 @@ export default function AppointmentFormModal({
     customerId?: number;
     customerName?: string;
     stores: Option[];
-    staff: Option[];
+    staff: StaffOption[];
     statuses: Record<string, string>;
     date?: string;
     catalog?: CatalogEntry[];
@@ -124,6 +134,7 @@ export default function AppointmentFormModal({
         duration_minutes: String(appointment?.duration_minutes ?? 30),
         service: appointment?.service ?? '',
         staff_user_id: appointment?.staff_user_id ? String(appointment.staff_user_id) : '',
+        staff_member_id: appointment?.staff_member_id ? String(appointment.staff_member_id) : '',
         status: appointment?.status ?? 'planned',
         notes: appointment?.notes ?? '',
         item_ids: (appointment?.items ?? []).map((i) => i.catalog_item_id).filter((id): id is number => id !== null),
@@ -263,14 +274,16 @@ export default function AppointmentFormModal({
 
                 <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                     <div>
-                        <Label htmlFor="appt-staff">Reçu par</Label>
-                        <select id="appt-staff" value={data.staff_user_id} onChange={(e) => setData('staff_user_id', e.target.value)} className={fieldClasses()}>
+                        <Label htmlFor="appt-staff">Intervenant</Label>
+                        <select id="appt-staff" value={data.staff_member_id} onChange={(e) => setData('staff_member_id', e.target.value)} className={fieldClasses()}>
                             <option value="">Non attribué</option>
-                            {staff.map((u) => (
-                                <option key={u.id} value={u.id}>
-                                    {u.name}
-                                </option>
-                            ))}
+                            {staff
+                                .filter((m) => m.store_id === Number(data.store_id))
+                                .map((m) => (
+                                    <option key={m.id} value={m.id}>
+                                        {m.name}
+                                    </option>
+                                ))}
                         </select>
                     </div>
                     <div>

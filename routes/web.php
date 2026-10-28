@@ -21,6 +21,7 @@ use App\Http\Controllers\OrganizationController;
 use App\Http\Controllers\PrivacyPolicyController;
 use App\Http\Controllers\PurchaseController;
 use App\Http\Controllers\RoleController;
+use App\Http\Controllers\ScheduleSettingsController;
 use App\Http\Controllers\StoreController;
 use App\Http\Controllers\UserController;
 use App\Http\Controllers\WhatsAppSettingsController;
@@ -112,6 +113,15 @@ Route::middleware('auth')->group(function () {
         Route::put('/organisation/privacy', [OrganizationController::class, 'updatePrivacy'])->name('organisation.privacy');
         Route::put('/organisation/whatsapp-api', [OrganizationController::class, 'updateWhatsAppApi'])->name('organisation.whatsapp-api');
         Route::put('/actions/messages', [ActionController::class, 'updateMessages'])->name('actions.messages');
+
+        Route::get('/settings/staff', [ScheduleSettingsController::class, 'staff'])->name('settings.staff');
+        Route::post('/settings/staff', [ScheduleSettingsController::class, 'storeStaff'])->name('settings.staff.store');
+        Route::put('/settings/staff/{staff}', [ScheduleSettingsController::class, 'updateStaff'])->name('settings.staff.update');
+        Route::post('/settings/staff/{staff}/toggle', [ScheduleSettingsController::class, 'toggleStaff'])->name('settings.staff.toggle');
+        Route::get('/settings/closures', [ScheduleSettingsController::class, 'closures'])->name('settings.closures');
+        Route::post('/settings/closures', [ScheduleSettingsController::class, 'storeClosure'])->name('settings.closures.store');
+        Route::post('/settings/closures/holidays', [ScheduleSettingsController::class, 'holidays'])->name('settings.closures.holidays');
+        Route::delete('/settings/closures/{closure}', [ScheduleSettingsController::class, 'destroyClosure'])->name('settings.closures.destroy');
 
         Route::get('/settings/booking', [BookingSettingsController::class, 'index'])->name('settings.booking');
         Route::put('/settings/booking', [BookingSettingsController::class, 'update'])->name('settings.booking.update');

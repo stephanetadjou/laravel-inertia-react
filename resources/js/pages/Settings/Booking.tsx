@@ -18,6 +18,7 @@ interface StoreRow {
     hours: Hours;
     capacity: number;
     phone: string;
+    break: { start: string; end: string } | null;
     whatsapp_display_phone: string | null;
 }
 
@@ -40,6 +41,7 @@ function StoreHours({ store }: { store: StoreRow }) {
         hours: store.hours,
         capacity: String(store.capacity),
         phone: store.phone,
+        break: store.break,
     });
 
     function setDay(day: number, value: { open: string; close: string } | null) {
@@ -84,11 +86,26 @@ function StoreHours({ store }: { store: StoreRow }) {
                         })}
                     </tbody>
                 </table>
+                <div className="text-sm">
+                    <label className="flex items-center gap-2 font-medium text-gray-700 dark:text-gray-300">
+                        <input type="checkbox" checked={data.break !== null} onChange={(e) => setData('break', e.target.checked ? { start: '12:00', end: '14:00' } : null)} />
+                        Pause chaque jour (déjeuner)
+                    </label>
+                    {data.break && (
+                        <span className="mt-2 flex items-center gap-1.5">
+                            <input type="time" aria-label="Début de la pause" value={data.break.start} onChange={(e) => setData('break', { ...data.break!, start: e.target.value })} className={fieldClasses()} />
+                            <span className="text-gray-400">–</span>
+                            <input type="time" aria-label="Fin de la pause" value={data.break.end} onChange={(e) => setData('break', { ...data.break!, end: e.target.value })} className={fieldClasses()} />
+                        </span>
+                    )}
+                    {(errors as Record<string, string>)['break.end'] && <p className="mt-1 text-xs text-error-500">{(errors as Record<string, string>)['break.end']}</p>}
+                    <span className="mt-1 block text-xs text-gray-500">Aucun rendez-vous en ligne pendant la pause. Jours fériés et congés : Paramètres › Fermetures.</span>
+                </div>
                 <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                     <label className="text-sm">
                         <span className="mb-1 block font-medium text-gray-700 dark:text-gray-300">Rendez-vous en même temps</span>
                         <input type="number" min={1} max={50} value={data.capacity} onChange={(e) => setData('capacity', e.target.value)} className={fieldClasses()} />
-                        <span className="mt-1 block text-xs text-gray-500">postes ou personnes qui reçoivent</span>
+                        <span className="mt-1 block text-xs text-gray-500">sans intervenants déclarés ; sinon, un rendez-vous par intervenant libre</span>
                     </label>
                     <label className="text-sm">
                         <span className="mb-1 block font-medium text-gray-700 dark:text-gray-300">Numéro WhatsApp de l'établissement</span>

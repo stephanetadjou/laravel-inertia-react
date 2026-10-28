@@ -13,6 +13,7 @@ interface PageProps {
         status: string;
         price: number;
         customer_name: string;
+        staff_name: string | null;
         cancellable: boolean;
     };
     whatsappUrl: string | null;
@@ -66,6 +67,12 @@ export default function BookingConfirmation({ organization, appointment: a, what
                         <>
                             <dt>Prix</dt>
                             <dd>{a.price.toLocaleString('fr-FR')} F</dd>
+                        </>
+                    )}
+                    {a.staff_name && (
+                        <>
+                            <dt>Avec</dt>
+                            <dd>{a.staff_name}</dd>
                         </>
                     )}
                     <dt>Au nom de</dt>

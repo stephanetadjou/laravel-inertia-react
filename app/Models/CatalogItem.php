@@ -60,6 +60,12 @@ class CatalogItem extends Model
         return $this->belongsToMany(Store::class);
     }
 
+    /** Intervenants qui réalisent la prestation (aucun = tous). */
+    public function staffMembers(): BelongsToMany
+    {
+        return $this->belongsToMany(StaffMember::class);
+    }
+
     /** Articles proposés dans un établissement (aucun établissement choisi = tous). */
     public function scopeAvailableIn(Builder $query, int $storeId): Builder
     {

@@ -5,9 +5,11 @@ namespace App\Http\Controllers;
 use App\Models\Appointment;
 use App\Models\AppointmentItem;
 use App\Models\CatalogItem;
+use App\Models\Closure;
 use App\Models\Contact;
 use App\Models\Customer;
 use App\Models\Purchase;
+use App\Models\StaffMember;
 use App\Models\Store;
 use App\Models\User;
 use App\Services\ActionLists;
@@ -32,7 +34,7 @@ use Symfony\Component\HttpKernel\Exception\HttpException;
 class AppointmentController extends Controller
 {
     /** Relations lues par present(). */
-    public const RELATIONS = ['customer:id,name,phone_e164', 'store:id,name', 'staff:id,name', 'items', 'purchase:id,amount'];
+    public const RELATIONS = ['customer:id,name,phone_e164', 'store:id,name', 'staff:id,name', 'staffMember:id,name,color', 'items', 'purchase:id,amount'];
 
     public function index(Request $request): Response
     {
@@ -50,8 +52,11 @@ class AppointmentController extends Controller
         };
         $storeIds = $storeId ? [$storeId] : $stores->pluck('id')->all();
         $messages = $user->organization->actionMessages();
+        $staffMembers = $this->staffMembers($request);
+        $staffId = $staffMembers->contains('id', $request->integer('staff')) ? $request->integer('staff') : null;
 
         $appointments = Appointment::whereIn('store_id', $storeIds)
+            ->when($staffId !== null, fn ($q) => $q->where('staff_member_id', $staffId))
             ->where('starts_at', '>=', $from)
             ->where('starts_at', '<', $to)
             ->with(self::RELATIONS)
@@ -64,8 +69,23 @@ class AppointmentController extends Controller
             'from' => $from->toDateString(),
             'to' => $to->copy()->subDay()->toDateString(),
             'store' => $storeId,
+            'staffFilter' => $staffId,
             'stores' => $stores->map(fn (Store $s) => ['id' => $s->id, 'name' => $s->name])->values(),
-            'staff' => $this->staffOptions($request),
+            'staff' => $staffMembers,
+            // Jours fermés et pauses de la période, grisés dans le calendrier.
+            'closures' => Closure::where('organization_id', $user->organization_id)
+                ->where(fn ($q) => $q->whereNull('store_id')->orWhereIn('store_id', $storeIds))
+                ->whereDate('starts_on', '<', $to->toDateString())
+                ->whereDate('ends_on', '>=', $from->toDateString())
+                ->with('store:id,name')
+                ->get()
+                ->map(fn (Closure $c) => [
+                    'label' => $c->label.($c->store ? " · {$c->store->name}" : ''),
+                    'starts_on' => $c->starts_on->toDateString(),
+                    'ends_on' => $c->ends_on->toDateString(),
+                    'all_stores' => $c->store_id === null || $storeId !== null || count($storeIds) === 1,
+                ]),
+            'breaks' => Store::whereKey($storeIds)->get()->map(fn (Store $s) => $s->bookingBreak())->filter()->unique()->values(),
             'statuses' => Appointment::STATUSES,
             'catalog' => self::catalogFor($user->organization_id),
             'appointments' => $appointments->map(fn (Appointment $a) => $this->present($a, $messages)),
@@ -240,7 +260,9 @@ class AppointmentController extends Controller
             'store_id' => $a->store_id,
             'store_name' => $a->store?->name,
             'staff_user_id' => $a->staff_user_id,
-            'staff_name' => $a->staff?->name,
+            'staff_member_id' => $a->staff_member_id,
+            'staff_color' => $a->staffMember?->color,
+            'staff_name' => $a->staffMember?->name ?? $a->staff?->name,
             'customer_id' => $a->customer_id,
             'customer_name' => $a->customer?->name,
             'phone_e164' => $a->customer?->phone_e164,
@@ -290,6 +312,7 @@ class AppointmentController extends Controller
             'duration_minutes' => ['nullable', 'integer', 'min:5', 'max:600'],
             'service' => ['nullable', 'string', 'max:255'],
             'staff_user_id' => ['nullable', 'integer', Rule::in($this->staffOptions($request)->pluck('id'))],
+            'staff_member_id' => ['nullable', 'integer', Rule::in($this->staffMembers($request)->pluck('id'))],
             'status' => ['nullable', Rule::in(array_keys(Appointment::STATUSES))],
             'notes' => ['nullable', 'string', 'max:2000'],
             // Prestations du catalogue choisies pour le rendez-vous.
@@ -356,6 +379,7 @@ class AppointmentController extends Controller
             'duration_minutes' => max(5, $duration),
             'service' => $label ?? ($data['service'] ?? null),
             'staff_user_id' => $data['staff_user_id'] ?? null,
+            'staff_member_id' => $data['staff_member_id'] ?? null,
             'notes' => $data['notes'] ?? null,
         ];
     }
@@ -409,6 +433,21 @@ class AppointmentController extends Controller
             ->when($visible !== null, fn ($q) => $q->whereIn('id', $visible))
             ->orderBy('name')
             ->get(['id', 'name']);
+    }
+
+    /**
+     * Intervenants actifs des établissements du périmètre.
+     *
+     * @return Collection<int, array{id: int, name: string, store_id: int, color: string|null}>
+     */
+    private function staffMembers(Request $request): Collection
+    {
+        return StaffMember::whereIn('store_id', $this->stores($request)->pluck('id'))
+            ->where('active', true)
+            ->orderBy('name')
+            ->get(['id', 'name', 'store_id', 'color'])
+            ->map(fn (StaffMember $s) => ['id' => $s->id, 'name' => $s->name, 'store_id' => $s->store_id, 'color' => $s->color])
+            ->values();
     }
 
     /** @return Collection<int, array{id: int, name: string}> */

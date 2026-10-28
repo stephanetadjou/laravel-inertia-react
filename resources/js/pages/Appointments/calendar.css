@@ -546,3 +546,39 @@
     font-weight: 600;
     vertical-align: middle;
 }
+
+/* Fermetures (fériés, congés) et pause quotidienne. */
+.mcal-cell.closed {
+    background: repeating-linear-gradient(135deg, var(--surface-2) 0 6px, transparent 6px 12px);
+}
+.mcal-closed {
+    font-size: 11.5px;
+    font-weight: 600;
+    color: var(--muted);
+}
+.mcal-col.closed {
+    background: repeating-linear-gradient(135deg, var(--surface-2) 0 6px, transparent 6px 12px);
+    cursor: default;
+}
+.mcal-closed-col {
+    position: absolute;
+    top: 12px;
+    left: 6px;
+    right: 6px;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--muted);
+    text-align: center;
+}
+.mcal-break {
+    position: absolute;
+    left: 0;
+    right: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: repeating-linear-gradient(135deg, var(--surface-2) 0 5px, transparent 5px 10px);
+    color: var(--faint);
+    font-size: 11px;
+    pointer-events: none;
+}
