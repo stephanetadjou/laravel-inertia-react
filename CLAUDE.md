@@ -49,6 +49,7 @@ php artisan test          # suite Pest/PHPUnit
 vendor/bin/pint           # formatage du code PHP
 php artisan whatsapp:test-send {numero}   # vérifie la connexion API WhatsApp et envoie un template de test
 php artisan crm:refresh-lifecycle         # recalcule toutes les fiches clients (compteurs + étape du parcours)
+php artisan demo:pilot                    # recrée l'entreprise pilote fictive « Institut Élégance » (données de test, jamais en production)
 ```
 
 **Développer sans compte Meta** : `WHATSAPP_DRIVER=log` dans `.env` active la simulation de `WhatsAppClient` (aucun appel externe, envois écrits dans les logs, numéros finissant par `000` = échec simulé). Ignoré en production ; les tests forcent `cloud` (`phpunit.xml`).

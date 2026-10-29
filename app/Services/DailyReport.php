@@ -462,7 +462,7 @@ class DailyReport
 
         if ($k['no_shows'] > 0) {
             $worst = collect($r['absents'])->sortByDesc('count')->first();
-            $parts[] = ($k['no_show_rate'] > self::NO_SHOW_TARGET ? 'Point noir : ' : '')."{$k['no_shows']} absence".($k['no_shows'] > 1 ? 's' : '')." ({$k['no_show_rate']} %)"
+            $parts[] = ($k['no_show_rate'] > self::NO_SHOW_TARGET ? 'Point noir : ' : '')."{$k['no_shows']} absence".($k['no_shows'] > 1 ? 's' : '').' ('.number_format($k['no_show_rate'], 1, ',', ' ').' %)'
                 .($worst && $worst['count'] >= 3 ? ", dont {$worst['name']} pour la {$worst['count']}e fois." : '.');
         }
 
@@ -498,7 +498,7 @@ class DailyReport
 
         if (count($r['absents']) > 0) {
             $repeat = collect($r['absents'])->firstWhere('count', '>=', 3);
-            $actions[] = '**Reprogrammer les '.count($r['absents']).' absent'.(count($r['absents']) > 1 ? 's' : '').'**'
+            $actions[] = '**Reprogrammer '.(count($r['absents']) > 1 ? 'les '.count($r['absents']).' absents' : 'l’absent du jour').'**'
                 .($repeat ? " ; pour {$repeat['name']} ({$repeat['count']}e absence), demander un acompte à la prochaine réservation." : '.');
         }
 
