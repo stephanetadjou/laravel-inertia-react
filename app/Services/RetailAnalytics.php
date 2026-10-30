@@ -312,7 +312,6 @@ class RetailAnalytics
     /** Marque où les nouveaux clients reviennent le moins dans les 90 jours. */
     private function insightNewCustomers(): ?array
     {
-        $end = $this->to->toDateString();
         $from = $this->to->copy()->subDays(270)->toDateString();
         $until = $this->to->copy()->subDays(90)->toDateString();
 
@@ -320,21 +319,27 @@ class RetailAnalytics
         $metrics = DB::table('customer_brand_metrics')->whereIn('brand_id', $this->scopeBrands()->keys()->all() ?: [0])
             ->whereBetween('first_purchase_at', [$from, $until])->get(['customer_id', 'brand_id', 'first_purchase_at']);
 
+        // Dates d'achat de ces clients dans leurs marques, en une requête.
+        $days = DB::table('purchases')->join('contacts', 'contacts.id', '=', 'purchases.contact_id')
+            ->join('stores', 'stores.id', '=', 'purchases.store_id')
+            ->whereIn('contacts.customer_id', $metrics->pluck('customer_id')->unique()->all() ?: [0])
+            ->whereIn('stores.brand_id', $metrics->pluck('brand_id')->unique()->all() ?: [0])
+            ->where('purchases.status', Purchase::STATUS_VALID)->where('purchases.type', '!=', Purchase::TYPE_RETURN)
+            ->selectRaw('contacts.customer_id as customer_id, stores.brand_id as brand_id, substr(purchases.purchased_at, 1, 10) as day')
+            ->distinct()->get()
+            ->groupBy(fn ($r) => $r->customer_id.'-'.$r->brand_id);
+
         foreach ($metrics->groupBy('brand_id') as $brandId => $rows) {
             if ($rows->count() < 15) {
                 continue;
             }
 
-            $returned = 0;
-            foreach ($rows as $row) {
-                $returned += DB::table('purchases')->join('contacts', 'contacts.id', '=', 'purchases.contact_id')
-                    ->join('stores', 'stores.id', '=', 'purchases.store_id')
-                    ->where('contacts.customer_id', $row->customer_id)->where('stores.brand_id', $brandId)
-                    ->where('purchases.status', Purchase::STATUS_VALID)->where('purchases.type', '!=', Purchase::TYPE_RETURN)
-                    ->whereRaw('substr(purchases.purchased_at, 1, 10) > ?', [$row->first_purchase_at])
-                    ->whereRaw('substr(purchases.purchased_at, 1, 10) <= ?', [Carbon::parse($row->first_purchase_at)->addDays(90)->toDateString()])
-                    ->exists() ? 1 : 0;
-            }
+            $returned = $rows->filter(function ($row) use ($days, $brandId) {
+                $limit = Carbon::parse($row->first_purchase_at)->addDays(90)->toDateString();
+
+                return ($days[$row->customer_id.'-'.$brandId] ?? collect())
+                    ->contains(fn ($d) => $d->day > $row->first_purchase_at && $d->day <= $limit);
+            })->count();
 
             $rate = (int) round($returned / $rows->count() * 100);
 
