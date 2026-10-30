@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Brand;
+use App\Services\Audit;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
@@ -21,7 +22,8 @@ class BrandController extends Controller
             ],
         ]);
 
-        $request->user()->organization->brands()->create($data);
+        $brand = $request->user()->organization->brands()->create($data);
+        Audit::record('brand.created', $brand, "Marque « {$brand->name} »");
 
         return back()->with('success', "Marque « {$data['name']} » créée.");
     }
@@ -39,7 +41,9 @@ class BrandController extends Controller
             ],
         ]);
 
+        $old = $brand->name;
         $brand->update($data);
+        Audit::record('brand.updated', $brand, "Marque « {$old} » renommée en « {$brand->name} »");
 
         return back()->with('success', "Marque renommée en « {$brand->name} ».");
     }
@@ -52,6 +56,7 @@ class BrandController extends Controller
             return back()->with('error', "Supprimez ou déplacez d'abord les boutiques de « {$brand->name} ».");
         }
 
+        Audit::record('brand.deleted', $brand, "Marque « {$brand->name} »");
         $brand->delete();
 
         return back()->with('success', 'Marque supprimée.');

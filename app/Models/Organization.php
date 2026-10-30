@@ -30,6 +30,9 @@ class Organization extends Model
         'report_settings',
         'loyalty_settings',
         'sector',
+        'currency',
+        'timezone',
+        'product_analysis_level',
     ];
 
     /**
@@ -155,6 +158,48 @@ class Organization extends Model
             'agenda' => true,
         ],
     ];
+
+    /** Devises proposées dans Paramètres › Entreprise (code ISO => libellé). */
+    public const CURRENCIES = [
+        'XAF' => 'FCFA (XAF, Afrique centrale)',
+        'XOF' => 'FCFA (XOF, Afrique de l’Ouest)',
+        'EUR' => 'Euro (EUR)',
+        'USD' => 'Dollar US (USD)',
+        'CDF' => 'Franc congolais (CDF)',
+        'GNF' => 'Franc guinéen (GNF)',
+        'MAD' => 'Dirham marocain (MAD)',
+    ];
+
+    /** Fuseaux horaires proposés (Afrique francophone d'abord). */
+    public const TIMEZONES = [
+        'Africa/Libreville', 'Africa/Douala', 'Africa/Brazzaville', 'Africa/Kinshasa', 'Africa/Lubumbashi',
+        'Africa/Abidjan', 'Africa/Dakar', 'Africa/Bamako', 'Africa/Ouagadougou', 'Africa/Lome', 'Africa/Porto-Novo',
+        'Africa/Niamey', 'Africa/Ndjamena', 'Africa/Bangui', 'Africa/Conakry', 'Africa/Casablanca', 'Africa/Tunis',
+        'Africa/Algiers', 'Indian/Antananarivo', 'Europe/Paris', 'UTC',
+    ];
+
+    /**
+     * Niveau d'analyse des ventes choisi par l'entreprise : par article (libellé
+     * vu dans les imports), par famille ou par catégorie (niveau au-dessus des
+     * familles, ex. Boissons › Sodas). Analyses, filtres, ciblage et rapports
+     * travaillent à ce niveau.
+     */
+    public const ANALYSIS_LEVELS = [
+        'product' => 'Article',
+        'family' => 'Famille',
+        'category' => 'Catégorie',
+    ];
+
+    public function analysisLevel(): string
+    {
+        return array_key_exists((string) $this->product_analysis_level, self::ANALYSIS_LEVELS) ? $this->product_analysis_level : 'family';
+    }
+
+    /** Symbole affiché des montants : FCFA pour XAF / XOF, sinon le code. */
+    public function currencySymbol(): string
+    {
+        return in_array($this->currency ?? 'XAF', ['XAF', 'XOF'], true) ? 'FCFA' : (string) $this->currency;
+    }
 
     /** Agenda et réservation affichés (organisation historique sans secteur : oui). */
     public function hasAgenda(): bool

@@ -51,6 +51,8 @@ class HandleInertiaRequests extends Middleware
                     'email' => $user->email,
                     'role_name' => $user->role?->name,
                     'can_manage_organization' => $user->canManageOrganization(),
+                    'can_import' => $user->canImport(),
+                    'can_export' => $user->canExport(),
                 ] : null,
                 'organization' => $user?->organization ? [
                     'name' => $user->organization->name,
@@ -59,6 +61,9 @@ class HandleInertiaRequests extends Middleware
                     'sector' => $user->organization->sector,
                     'has_agenda' => $user->organization->hasAgenda(),
                     'sells_products' => $user->organization->sellsProducts(),
+                    'currency' => $user->organization->currency ?? 'XAF',
+                    'currency_symbol' => $user->organization->currencySymbol(),
+                    'analysis_level' => $user->organization->analysisLevel(),
                 ] : null,
             ],
             // Tarifs indicatifs par message, pour le coût estimé avant envoi d'une campagne.

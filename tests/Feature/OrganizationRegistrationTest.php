@@ -37,7 +37,8 @@ it('creates the organization, its first store and an admin account', function ()
         ->and($user->organization_id)->toBe($organization->id)
         ->and($user->role->name)->toBe('Super administrateur')
         ->and($user->canManageOrganization())->toBeTrue()
-        ->and($organization->roles()->count())->toBe(4);
+        // Commerce : les 4 rôles par défaut + les 6 rôles types Retail (dont 2 noms communs).
+        ->and($organization->roles()->count())->toBe($organization->sector === 'commerce' ? 8 : 4);
 
     $this->assertAuthenticatedAs($user);
 });

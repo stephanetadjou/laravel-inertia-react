@@ -36,6 +36,9 @@ class Store extends Model
         'booking_capacity',
         'booking_phone',
         'booking_break',
+        'code',
+        'city',
+        'is_active',
     ];
 
     /**
@@ -68,6 +71,7 @@ class Store extends Model
             'booking_capacity' => 'integer',
             'booking_break' => 'array',
             'whatsapp_registered_at' => 'datetime',
+            'is_active' => 'boolean',
         ];
     }
 

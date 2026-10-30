@@ -51,6 +51,7 @@ export function buildSections({ canManageOrganization, whatsappApiEnabled, hasAg
         { name: 'Marques & boutiques', path: '/stores' },
         ...(canManageOrganization ? [{ name: 'Utilisateurs & rôles', path: '/users', alsoActiveOn: ['/roles'] }] : []),
         ...(canManageOrganization && whatsappApiEnabled ? [{ name: 'WhatsApp', path: '/settings/whatsapp' }] : []),
+        ...(canManageOrganization ? [{ name: 'Journal', path: '/settings/audit' }] : []),
     ];
 
     const sections: NavSection[] = [

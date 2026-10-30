@@ -48,6 +48,18 @@ class User extends Authenticatable
         return $this->role?->can_manage_organization ?? false;
     }
 
+    /** Peut déposer et annuler des imports de ventes. */
+    public function canImport(): bool
+    {
+        return $this->canManageOrganization() || ($this->role?->can_import ?? false);
+    }
+
+    /** Peut exporter des données (listes de clients, ventes, tableaux). */
+    public function canExport(): bool
+    {
+        return $this->canManageOrganization() || ($this->role?->can_export ?? false);
+    }
+
     /**
      * @return array<int, int>|null Liste d'IDs de boutiques visibles,
      *                              ou null si aucune restriction (org entière).

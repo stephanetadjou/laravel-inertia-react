@@ -6,6 +6,7 @@ use App\Models\Brand;
 use App\Models\Role;
 use App\Models\Store;
 use App\Models\User;
+use App\Services\Audit;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
@@ -48,7 +49,7 @@ class UserController extends Controller
     {
         ['data' => $data, 'role' => $role] = $this->validateUser($request);
 
-        User::create([
+        $created = User::create([
             'organization_id' => $request->user()->organization_id,
             'name' => $data['name'],
             'email' => $data['email'],
@@ -57,6 +58,8 @@ class UserController extends Controller
             'brand_id' => $role->scope === Role::SCOPE_BRAND ? $data['brand_id'] : null,
             'store_id' => $role->scope === Role::SCOPE_STORE ? $data['store_id'] : null,
         ]);
+
+        Audit::record('user.created', $created, "Utilisateur « {$created->name} » ({$role->name})");
 
         return back()->with('success', "Utilisateur « {$data['name']} » créé.");
     }
@@ -81,7 +84,12 @@ class UserController extends Controller
             $user->password = Hash::make($data['password']);
         }
 
+        $changed = array_keys($user->getDirty());
         $user->save();
+
+        if ($changed !== []) {
+            Audit::record('user.updated', $user, "Utilisateur « {$user->name} »", ['fields' => $changed]);
+        }
 
         return back()->with('success', "Utilisateur « {$user->name} » mis à jour.");
     }
@@ -99,6 +107,7 @@ class UserController extends Controller
         }
 
         $name = $user->name;
+        Audit::record('user.deleted', $user, "Utilisateur « {$name} » ({$user->email})");
         $user->delete();
 
         return back()->with('success', "Utilisateur « {$name} » supprimé.");

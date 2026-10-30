@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Brand;
 use App\Models\Organization;
+use App\Services\Audit;
 use App\Services\CustomerLifecycle;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -19,7 +20,7 @@ class OrganizationController extends Controller
 
         $brands = Brand::where('organization_id', $organization->id)
             ->withCount('stores')
-            ->with('stores:id,brand_id,name')
+            ->with('stores:id,brand_id,name,code,city,is_active')
             ->orderBy('name')
             ->get();
 
@@ -28,7 +29,13 @@ class OrganizationController extends Controller
                 'id' => $organization->id,
                 'name' => $organization->name,
                 'sector' => $organization->sector,
+                'currency' => $organization->currency ?? 'XAF',
+                'timezone' => $organization->timezone ?? 'Africa/Libreville',
+                'product_analysis_level' => $organization->analysisLevel(),
             ],
+            'currencies' => collect(Organization::CURRENCIES)->map(fn ($label, $code) => ['value' => $code, 'label' => $label])->values(),
+            'timezones' => Organization::TIMEZONES,
+            'analysisLevels' => collect(Organization::ANALYSIS_LEVELS)->map(fn ($label, $key) => ['value' => $key, 'label' => $label])->values(),
             'sectors' => collect(Organization::SECTORS)->map(fn ($sector, $key) => [
                 'key' => $key,
                 'label' => $sector['label'],
@@ -52,6 +59,9 @@ class OrganizationController extends Controller
                 'stores' => $brand->stores->map(fn ($store) => [
                     'id' => $store->id,
                     'name' => $store->name,
+                    'code' => $store->code,
+                    'city' => $store->city,
+                    'is_active' => $store->is_active ?? true,
                 ]),
             ]),
         ]);
@@ -129,9 +139,22 @@ class OrganizationController extends Controller
             'name' => ['required', 'string', 'max:255'],
             // Secteur facultatif ici : les organisations historiques n'en ont pas.
             'sector' => ['nullable', Rule::in(array_keys(Organization::SECTORS))],
+            'currency' => ['sometimes', 'required', Rule::in(array_keys(Organization::CURRENCIES))],
+            'timezone' => ['sometimes', 'required', Rule::in(Organization::TIMEZONES)],
+            'product_analysis_level' => ['sometimes', 'required', Rule::in(array_keys(Organization::ANALYSIS_LEVELS))],
         ]);
 
-        $request->user()->organization->update($request->has('sector') ? $data : ['name' => $data['name']]);
+        if (! $request->has('sector')) {
+            unset($data['sector']);
+        }
+
+        $organization = $request->user()->organization;
+        $organization->update($data);
+
+        if ($organization->wasChanged(array_keys($data))) {
+            $changes = array_intersect_key($organization->getChanges(), $data);
+            Audit::record('settings.updated', $organization, 'Entreprise : '.implode(', ', array_keys($changes)), $changes);
+        }
 
         return back()->with('success', 'Organisation mise à jour.');
     }

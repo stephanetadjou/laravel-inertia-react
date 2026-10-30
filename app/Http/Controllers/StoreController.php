@@ -3,7 +3,9 @@
 namespace App\Http\Controllers;
 
 use App\Models\Brand;
+use App\Models\Purchase;
 use App\Models\Store;
+use App\Services\Audit;
 use App\Services\WhatsAppApiException;
 use App\Services\WhatsAppClient;
 use Illuminate\Http\Client\ConnectionException;
@@ -11,6 +13,7 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\Rules\Unique;
 use Inertia\Inertia;
 use Inertia\Response;
 use Symfony\Component\HttpKernel\Exception\HttpException;
@@ -65,6 +68,8 @@ class StoreController extends Controller
         $data = $request->validate([
             'brand_id' => ['required', 'integer'],
             'name' => ['required', 'string', 'max:255'],
+            'code' => ['nullable', 'string', 'max:50', $this->uniqueCode($request)],
+            'city' => ['nullable', 'string', 'max:100'],
         ]);
 
         $brand = Brand::where('organization_id', $request->user()->organization_id)->find($data['brand_id']);
@@ -73,11 +78,15 @@ class StoreController extends Controller
             return back()->with('error', 'Marque invalide.');
         }
 
-        Store::create([
+        $store = Store::create([
             'organization_id' => $brand->organization_id,
             'brand_id' => $brand->id,
             'name' => $data['name'],
+            'code' => filled($data['code'] ?? null) ? trim($data['code']) : null,
+            'city' => filled($data['city'] ?? null) ? trim($data['city']) : null,
         ]);
+
+        Audit::record('store.created', $store, "Point de vente « {$store->name} » ({$brand->name})");
 
         return back()->with('success', "Boutique « {$data['name']} » créée sous « {$brand->name} ».");
     }
@@ -97,9 +106,16 @@ class StoreController extends Controller
                 'sometimes', 'required', 'integer',
                 Rule::exists('brands', 'id')->where('organization_id', $store->organization_id),
             ],
+            'code' => ['sometimes', 'nullable', 'string', 'max:50', $this->uniqueCode($request, $store)],
+            'city' => ['sometimes', 'nullable', 'string', 'max:100'],
+            'is_active' => ['sometimes', 'boolean'],
         ]);
 
         $store->update($data);
+
+        if ($store->wasChanged(array_keys($data))) {
+            Audit::record('store.updated', $store, "Point de vente « {$store->name} »", array_intersect_key($store->getChanges(), $data));
+        }
 
         return back()->with('success', "Boutique {$store->name} mise à jour.");
     }
@@ -112,7 +128,12 @@ class StoreController extends Controller
             return back()->with('error', "Impossible de supprimer « {$store->name} » : des contacts y sont rattachés.");
         }
 
+        if ($store->hasMany(Purchase::class)->exists()) {
+            return back()->with('error', "Impossible de supprimer « {$store->name} » : des ventes y sont rattachées. Marquez-le plutôt comme fermé.");
+        }
+
         $name = $store->name;
+        Audit::record('store.deleted', $store, "Point de vente « {$name} »");
         $store->delete();
 
         return back()->with('success', "Boutique « {$name} » supprimée.");
@@ -176,6 +197,14 @@ class StoreController extends Controller
         Cache::put($key, $number, now()->addDay());
 
         return $number;
+    }
+
+    /** Code de point de vente unique dans l'organisation (il sert à reconnaître la boutique à l'import). */
+    private function uniqueCode(Request $request, ?Store $store = null): Unique
+    {
+        return Rule::unique('stores', 'code')
+            ->where(fn ($q) => $q->where('organization_id', $request->user()->organization_id))
+            ->ignore($store?->id);
     }
 
     private function authorizeSameOrganization(Request $request, Store $store): void

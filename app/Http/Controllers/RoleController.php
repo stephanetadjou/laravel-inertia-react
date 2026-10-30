@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Role;
+use App\Services\Audit;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
@@ -25,9 +26,28 @@ class RoleController extends Controller
                 'name' => $role->name,
                 'scope' => $role->scope,
                 'can_manage_organization' => $role->can_manage_organization,
+                'can_import' => $role->can_import ?? true,
+                'can_export' => $role->can_export ?? true,
                 'users_count' => $role->users_count,
             ]),
+            'presets' => collect(Role::retailDefinitions())->map(fn ($d) => [
+                'name' => $d['name'],
+                'description' => $d['description'],
+                'exists' => $roles->contains('name', $d['name']),
+            ]),
         ]);
+    }
+
+    /** Ajoute les rôles types d'un réseau de vente (Admin groupe, Direction, Marketing…). */
+    public function presets(Request $request): RedirectResponse
+    {
+        $created = Role::seedRetailFor($request->user()->organization);
+
+        if ($created > 0) {
+            Audit::record('settings.updated', $request->user()->organization, "{$created} rôle(s) type(s) ajouté(s)");
+        }
+
+        return back()->with('success', $created > 0 ? "{$created} rôle(s) type(s) ajouté(s)." : 'Les rôles types existent déjà.');
     }
 
     public function store(Request $request): RedirectResponse
@@ -81,9 +101,13 @@ class RoleController extends Controller
             ],
             'scope' => ['required', Rule::in(Role::SCOPES)],
             'can_manage_organization' => ['nullable', 'boolean'],
+            'can_import' => ['nullable', 'boolean'],
+            'can_export' => ['nullable', 'boolean'],
         ]);
 
         $data['can_manage_organization'] = $request->boolean('can_manage_organization');
+        $data['can_import'] = $request->boolean('can_import', true);
+        $data['can_export'] = $request->boolean('can_export', true);
 
         return $data;
     }

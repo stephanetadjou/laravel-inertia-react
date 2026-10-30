@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\ActionController;
 use App\Http\Controllers\AppointmentController;
+use App\Http\Controllers\AuditLogController;
 use App\Http\Controllers\Auth\AuthenticatedSessionController;
 use App\Http\Controllers\Auth\RegisteredOrganizationController;
 use App\Http\Controllers\BookingController;
@@ -172,6 +173,9 @@ Route::middleware('auth')->group(function () {
         Route::delete('/users/{user}', [UserController::class, 'destroy'])->name('users.destroy');
 
         Route::get('/roles', [RoleController::class, 'index'])->name('roles.index');
+        Route::post('/roles/presets', [RoleController::class, 'presets'])->name('roles.presets');
+
+        Route::get('/settings/audit', [AuditLogController::class, 'index'])->name('settings.audit');
         Route::post('/roles', [RoleController::class, 'store'])->name('roles.store');
         Route::put('/roles/{role}', [RoleController::class, 'update'])->name('roles.update');
         Route::delete('/roles/{role}', [RoleController::class, 'destroy'])->name('roles.destroy');

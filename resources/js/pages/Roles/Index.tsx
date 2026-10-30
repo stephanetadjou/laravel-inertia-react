@@ -13,11 +13,20 @@ interface RoleRow {
     name: string;
     scope: Scope;
     can_manage_organization: boolean;
+    can_import: boolean;
+    can_export: boolean;
     users_count: number;
+}
+
+interface Preset {
+    name: string;
+    description: string;
+    exists: boolean;
 }
 
 interface PageProps {
     roles: RoleRow[];
+    presets: Preset[];
     flash?: {
         success: string | null;
         error: string | null;
@@ -41,6 +50,8 @@ function RoleFormModal({ isOpen, onClose, role }: { isOpen: boolean; onClose: ()
         name: role?.name ?? '',
         scope: role?.scope ?? ('organization' as Scope),
         can_manage_organization: role?.can_manage_organization ?? false,
+        can_import: role?.can_import ?? true,
+        can_export: role?.can_export ?? true,
     });
 
     const submit: FormEventHandler = (e) => {
@@ -106,6 +117,26 @@ function RoleFormModal({ isOpen, onClose, role }: { isOpen: boolean; onClose: ()
                     </label>
                 </div>
 
+                {(['can_import', 'can_export'] as const).map((key) => (
+                    <div key={key} className="flex items-start gap-2">
+                        <input
+                            id={key}
+                            type="checkbox"
+                            checked={data[key]}
+                            onChange={(e) => setData(key, e.target.checked)}
+                            className="mt-1 h-4 w-4 rounded border-gray-300 text-brand-text focus:ring-brand-300"
+                        />
+                        <label htmlFor={key} className="text-sm text-gray-700 dark:text-gray-300">
+                            {key === 'can_import' ? 'Peut importer des ventes' : 'Peut exporter des données'}
+                            <span className="block text-xs text-gray-500 dark:text-gray-400">
+                                {key === 'can_import'
+                                    ? 'Dépôt, suivi et annulation des imports de ventes, dans son périmètre.'
+                                    : 'Exports CSV / Excel de clients, de ventes et des tableaux de bord (chaque export est journalisé).'}
+                            </span>
+                        </label>
+                    </div>
+                ))}
+
                 <div className="flex justify-end gap-2 border-t border-gray-100 pt-4 dark:border-gray-800">
                     <Button type="button" variant="outline" onClick={onClose}>
                         Annuler
@@ -118,7 +149,8 @@ function RoleFormModal({ isOpen, onClose, role }: { isOpen: boolean; onClose: ()
 }
 
 function RolesIndex() {
-    const { roles } = usePage<PageProps>().props;
+    const { roles, presets } = usePage<PageProps>().props;
+    const missingPresets = presets.filter((p) => !p.exists);
     const [modalRole, setModalRole] = useState<RoleRow | null | undefined>(undefined);
 
     function destroy(role: RoleRow) {
@@ -148,6 +180,26 @@ function RolesIndex() {
                 rôles. Un rôle encore attribué à un utilisateur ne peut pas être supprimé.
             </div>
 
+            {missingPresets.length > 0 && (
+                <Panel
+                    title="Rôles types d’un réseau de vente"
+                    sub="Proposés pour les groupes à plusieurs marques ou points de vente"
+                    actions={
+                        <button type="button" className="mdash-btn ghost" onClick={() => router.post('/roles/presets', {}, { preserveScroll: true })}>
+                            Ajouter les {missingPresets.length} rôles types
+                        </button>
+                    }
+                >
+                    <ul className="mpage-list">
+                        {missingPresets.map((p) => (
+                            <li key={p.name}>
+                                <b>{p.name}</b> — <span className="mpage-muted">{p.description}</span>
+                            </li>
+                        ))}
+                    </ul>
+                </Panel>
+            )}
+
             <Panel>
                 {roles.length === 0 ? (
                     <Empty title="Aucun rôle" />
@@ -159,6 +211,8 @@ function RolesIndex() {
                                     <th>Rôle</th>
                                     <th>Périmètre</th>
                                     <th>Administre l'organisation</th>
+                                    <th>Import</th>
+                                    <th>Export</th>
                                     <th className="r">Utilisateurs</th>
                                     <th className="r">Actions</th>
                                 </tr>
@@ -171,6 +225,8 @@ function RolesIndex() {
                                         </td>
                                         <td>{scopeLabel[role.scope]}</td>
                                         <td>{role.can_manage_organization ? <span className="mdash-pill ok">Oui</span> : <span className="mdash-pill idle">Non</span>}</td>
+                                        <td>{role.can_import || role.can_manage_organization ? 'Oui' : 'Non'}</td>
+                                        <td>{role.can_export || role.can_manage_organization ? 'Oui' : 'Non'}</td>
                                         <td className="r num">{role.users_count}</td>
                                         <td className="r">
                                             <span className="mpage-rowlinks">

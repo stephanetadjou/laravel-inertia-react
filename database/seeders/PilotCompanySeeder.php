@@ -38,7 +38,6 @@ use Illuminate\Support\Str;
  *
  *   php artisan demo:pilot
  */
-
 class PilotCompanySeeder extends Seeder
 {
     public const SLUG = 'institut-elegance';
