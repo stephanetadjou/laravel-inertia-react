@@ -4,6 +4,7 @@ import AppLayout from '../../layout/AppLayout';
 import { formatNumber } from '../../components/dashboard/Charts';
 import { customersUrl } from '../../components/families/families';
 import { Empty, Page, Panel, Seg, StatStrip } from '../../components/page/Page';
+import AudienceActions from '../../components/audience/AudienceActions';
 
 interface PerBrand {
     id: number;
@@ -21,7 +22,8 @@ interface PageProps {
     months: number;
     brands: { id: number; name: string }[];
     kpis: { customers: number; multi: number; multi_share: number; multi_spend: number; mono_spend: number; multi_orders: number; multi_avg_spend: number; mono_avg_spend: number };
-    matrix: { brand: string; customers: number; shared: (number | null)[] }[];
+    matrix: { brand_id: number; brand: string; customers: number; shared: (number | null)[] }[];
+    since: string | null;
     perBrand: PerBrand[];
     segments: { key: string; label: string }[];
     currency: string;
@@ -29,8 +31,9 @@ interface PageProps {
 }
 
 function MultibrandIndex() {
-    const { months, brands, kpis, matrix, perBrand, segments, currency } = usePage<PageProps>().props;
+    const { months, brands, kpis, matrix, perBrand, segments, currency, since } = usePage<PageProps>().props;
     const money = (n: number) => `${formatNumber(n)} ${currency}`;
+    const windowFilter = since ? { bought_from: since } : {};
 
     return (
         <Page
@@ -58,6 +61,16 @@ function MultibrandIndex() {
                     { label: 'CA moyen multimarque', value: money(kpis.multi_avg_spend), hint: `mono-marque : ${money(kpis.mono_avg_spend)}` },
                 ]}
             />
+
+            <div className="mpage-note" style={{ display: 'flex', gap: 14, flexWrap: 'wrap', alignItems: 'center' }}>
+                <b>Exporter ou relancer :</b>
+                <span>
+                    Multimarques <AudienceActions compact filters={{ brands: 'multi', ...windowFilter }} label="Clients multimarques" />
+                </span>
+                <span>
+                    Mono-marque <AudienceActions compact filters={{ brands: 'mono', ...windowFilter }} label="Clients mono-marque" />
+                </span>
+            </div>
 
             <div className="mdash-grid">
                 <Panel title="Clients communs entre marques" sub="Lecture : parmi les clients de la marque en ligne, combien ont aussi acheté dans la marque en colonne" className="c12">
@@ -87,6 +100,15 @@ function MultibrandIndex() {
                                             {row.shared.map((n, i) => (
                                                 <td key={i} className="r num">
                                                     {n === null ? '—' : `${formatNumber(n)} (${row.customers ? Math.round((n / row.customers) * 100) : 0} %)`}
+                                                    {n ? (
+                                                        <div>
+                                                            <AudienceActions
+                                                                compact
+                                                                filters={{ brand: row.brand_id, with_brand: brands[i].id, ...windowFilter }}
+                                                                label={`Clients ${row.brand} et ${brands[i].name}`}
+                                                            />
+                                                        </div>
+                                                    ) : null}
                                                 </td>
                                             ))}
                                         </tr>
@@ -110,6 +132,7 @@ function MultibrandIndex() {
                                     <th className="r">CA net</th>
                                     <th className="r">Tickets</th>
                                     <th>Vente croisée</th>
+                                    <th className="r">Clients</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -130,6 +153,9 @@ function MultibrandIndex() {
                                             <Link href={`/actions?list=cross_sell&brand=${b.id}`} className="mdash-link">
                                                 Fidèles à conquérir ailleurs
                                             </Link>
+                                        </td>
+                                        <td className="r">
+                                            <AudienceActions compact filters={{ brand: b.id, ...windowFilter }} label={`Clients ${b.name}`} />
                                         </td>
                                     </tr>
                                 ))}
@@ -160,9 +186,14 @@ function MultibrandIndex() {
                                         {perBrand.map((b) => (
                                             <td key={b.id} className="r num">
                                                 {b.segments[s.key] ? (
-                                                    <Link href={customersUrl({ brand: b.id, segment: s.key })} className="mdash-link">
-                                                        {formatNumber(b.segments[s.key])}
-                                                    </Link>
+                                                    <>
+                                                        <Link href={customersUrl({ brand: b.id, segment: s.key })} className="mdash-link">
+                                                            {formatNumber(b.segments[s.key])}
+                                                        </Link>
+                                                        <div>
+                                                            <AudienceActions compact filters={{ brand: b.id, segment: s.key }} label={`${s.label} ${b.name}`} />
+                                                        </div>
+                                                    </>
                                                 ) : (
                                                     '—'
                                                 )}

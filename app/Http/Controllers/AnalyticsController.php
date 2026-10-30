@@ -185,6 +185,8 @@ class AnalyticsController extends Controller
                 'currency' => $organization->currencySymbol(),
                 'scopeLabel' => collect([$storeName ?? $brandName ?? ($visible === null ? 'Tout le groupe' : 'Votre périmètre'), $family?->name])->filter()->implode(' · '),
                 'analysisLevel' => $organization->analysisLevel(),
+                // Filtres de base des audiences (export / relance des clients d'un chiffre) : le périmètre choisi.
+                'audienceBase' => array_filter(['brand' => $brandFilter['locked'] ? null : $brandFilter['selected'], 'store' => $storeId]),
             ],
         ];
     }

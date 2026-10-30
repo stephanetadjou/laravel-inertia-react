@@ -101,10 +101,13 @@ class CustomerController extends Controller
             ])->values());
 
         return Inertia::render('Customers/Index', [
+            // Libellé de la sélection (nom du groupe proposé à la relance, titre de l'export).
+            'audienceLabel' => $search->label(),
             'filters' => [
                 'stage' => $search->stage,
                 'vip' => $search->vip,
-                'segment' => $search->segment,
+                'segment' => $search->segments !== [] ? implode(',', $search->segments) : null,
+                'analysis' => (object) $search->analysis,
                 'risk' => $search->risk,
                 'consent' => $search->consent,
                 'q' => $search->search,

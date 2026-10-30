@@ -9,12 +9,14 @@ use App\Models\Category;
 use App\Models\Contact;
 use App\Models\Customer;
 use App\Models\Group;
+use App\Models\Purchase;
 use App\Models\Store;
 use App\Models\User;
 use Closure;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\DB;
 
 /**
  * Filtre des fiches clients, partagé par la liste, l'export et la création
@@ -89,6 +91,26 @@ class CustomerSearch
     /** Vente croisée : fidèle de la marque choisie, jamais venu dans cette autre marque. */
     public ?int $neverBrand = null;
 
+    /** Segments RFM retenus (« at_risk,cant_lose ») ; $segment = le premier. @var list<string> */
+    public array $segments = [];
+
+    /**
+     * Critères venus d'une analyse (tableaux de bord, multimarque, cohortes,
+     * constats « À retenir »), pour exporter ou relancer exactement les
+     * clients d'un chiffre : bought_from / bought_to (a acheté sur la
+     * période), first_from / first_to (premier achat sur la période),
+     * first_before (déjà client avant cette date), with_brand (a aussi acheté
+     * dans cette marque), customer_type (person / business).
+     *
+     * @var array<string, string|int>
+     */
+    public array $analysis = [];
+
+    public const ANALYSIS_KEYS = ['bought_from', 'bought_to', 'first_from', 'first_to', 'first_before', 'with_brand', 'customer_type'];
+
+    public const FILTER_KEYS = ['stage', 'vip', 'consent', 'q', 'brand', 'store', 'group', 'segment', 'risk', 'family', 'family_mode', 'family_days', 'family_not', 'prop', 'article', 'brands', 'never_brand',
+        'bought_from', 'bought_to', 'first_from', 'first_to', 'first_before', 'with_brand', 'customer_type'];
+
     public const FAMILY_MODES = ['bought', 'lapsed'];
 
     public const FAMILY_DAYS = [0, 30, 60, 90, 180, 365];
@@ -118,7 +140,28 @@ class CustomerSearch
 
         $this->stage = array_key_exists((string) ($filters['stage'] ?? ''), Customer::STAGES) ? (string) $filters['stage'] : null;
         $this->vip = filter_var($filters['vip'] ?? false, FILTER_VALIDATE_BOOLEAN);
-        $this->segment = array_key_exists((string) ($filters['segment'] ?? ''), RfmCalculator::SEGMENTS) ? (string) $filters['segment'] : null;
+        $this->segments = array_values(array_filter(explode(',', (string) ($filters['segment'] ?? '')), fn ($s) => array_key_exists($s, RfmCalculator::SEGMENTS)));
+        $this->segment = $this->segments[0] ?? null;
+
+        foreach (self::ANALYSIS_KEYS as $key) {
+            $value = trim((string) ($filters[$key] ?? ''));
+
+            if ($value === '') {
+                continue;
+            }
+
+            if (str_ends_with($key, '_from') || str_ends_with($key, '_to') || $key === 'first_before') {
+                if (preg_match('/^\d{4}-\d{2}-\d{2}$/', $value)) {
+                    $this->analysis[$key] = $value;
+                }
+            } elseif ($key === 'with_brand') {
+                if (Store::where('organization_id', $user->organization_id)->where('brand_id', (int) $value)->exists()) {
+                    $this->analysis[$key] = (int) $value;
+                }
+            } elseif (in_array($value, [Customer::TYPE_PERSON, Customer::TYPE_BUSINESS], true)) {
+                $this->analysis[$key] = $value;
+            }
+        }
         $this->risk = in_array($filters['risk'] ?? null, ['medium', 'high', 'any'], true) ? (string) $filters['risk'] : null;
         $this->consent = in_array($filters['consent'] ?? null, self::CONSENTS, true) ? (string) $filters['consent'] : null;
         $this->search = trim((string) ($filters['q'] ?? ''));
@@ -153,7 +196,7 @@ class CustomerSearch
 
     public static function fromRequest(Request $request): self
     {
-        return new self($request->user(), $request->only(['stage', 'vip', 'consent', 'q', 'brand', 'store', 'group', 'segment', 'risk', 'family', 'family_mode', 'family_days', 'family_not', 'prop', 'article', 'brands', 'never_brand']));
+        return new self($request->user(), $request->only(self::FILTER_KEYS));
     }
 
     /**
@@ -185,8 +228,9 @@ class CustomerSearch
             ->when($this->segment !== null && $this->brandFilter['selected'] !== null, fn ($q) => $q->whereExists(fn ($m) => $m->from('customer_brand_metrics')
                 ->whereColumn('customer_brand_metrics.customer_id', 'customers.id')
                 ->where('customer_brand_metrics.brand_id', $this->brandFilter['selected'])
-                ->where('customer_brand_metrics.rfm_segment', $this->segment)))
-            ->when($this->segment !== null && $this->brandFilter['selected'] === null, fn ($q) => $q->where('rfm_segment', $this->segment))
+                ->whereIn('customer_brand_metrics.rfm_segment', $this->segments)))
+            ->when($this->segment !== null && $this->brandFilter['selected'] === null, fn ($q) => $q->whereIn('rfm_segment', $this->segments))
+            ->when($this->analysis !== [], fn ($q) => $this->applyAnalysis($q))
             ->when($this->brands === 'multi', fn ($q) => $q->where('brands_count', '>=', 2))
             ->when($this->brands === 'mono', fn ($q) => $q->where('brands_count', 1))
             ->when($this->neverBrand !== null, fn ($q) => $q->whereNotExists(fn ($m) => $m->from('customer_brand_metrics')
@@ -201,6 +245,49 @@ class CustomerSearch
                 $q->where(fn ($q) => $q->where('name', 'like', "%{$this->search}%")
                     ->when($digits !== '', fn ($q) => $q->orWhere('phone_e164', 'like', "%{$digits}%")));
             });
+    }
+
+    /**
+     * Critères d'analyse (cf. $analysis), sur les ventes valides des points
+     * de vente retenus.
+     *
+     * @param  Builder<Customer>  $query
+     */
+    private function applyAnalysis(Builder $query): void
+    {
+        $a = $this->analysis;
+        $sales = fn () => DB::table('purchases')
+            ->join('contacts', 'contacts.id', '=', 'purchases.contact_id')
+            ->whereIn('purchases.store_id', $this->storeIds ?: [0])
+            ->where('purchases.status', Purchase::STATUS_VALID)
+            ->where('purchases.type', '!=', Purchase::TYPE_RETURN);
+
+        if (isset($a['bought_from']) || isset($a['bought_to'])) {
+            $query->whereIn('customers.id', $sales()
+                ->when(isset($a['bought_from']), fn ($q) => $q->whereRaw('substr(purchases.purchased_at, 1, 10) >= ?', [$a['bought_from']]))
+                ->when(isset($a['bought_to']), fn ($q) => $q->whereRaw('substr(purchases.purchased_at, 1, 10) <= ?', [$a['bought_to']]))
+                ->select('contacts.customer_id'));
+        }
+
+        if (isset($a['first_from']) || isset($a['first_to']) || isset($a['first_before'])) {
+            $query->whereIn('customers.id', $sales()
+                ->groupBy('contacts.customer_id')
+                ->when(isset($a['first_from']), fn ($q) => $q->havingRaw('MIN(substr(purchases.purchased_at, 1, 10)) >= ?', [$a['first_from']]))
+                ->when(isset($a['first_to']), fn ($q) => $q->havingRaw('MIN(substr(purchases.purchased_at, 1, 10)) <= ?', [$a['first_to']]))
+                ->when(isset($a['first_before']), fn ($q) => $q->havingRaw('MIN(substr(purchases.purchased_at, 1, 10)) < ?', [$a['first_before']]))
+                ->select('contacts.customer_id'));
+        }
+
+        if (isset($a['with_brand'])) {
+            $query->whereExists(fn ($m) => $m->from('customer_brand_metrics')
+                ->whereColumn('customer_brand_metrics.customer_id', 'customers.id')
+                ->where('customer_brand_metrics.brand_id', $a['with_brand'])
+                ->where('customer_brand_metrics.order_count', '>', 0));
+        }
+
+        if (isset($a['customer_type'])) {
+            $query->where('customers.type', $a['customer_type']);
+        }
     }
 
     /**
@@ -278,6 +365,7 @@ class CustomerSearch
             $this->vip ? 'VIP' : null,
             $this->segment !== null ? RfmCalculator::SEGMENTS[$this->segment]['label'] : null,
             $this->risk !== null ? 'Risque de churn' : null,
+            $this->analysis !== [] ? $this->analysisLabel() : null,
             match ($this->brands) {
                 'multi' => 'Multimarques',
                 'mono' => 'Mono-marque',
@@ -299,6 +387,32 @@ class CustomerSearch
         ]);
 
         return $parts === [] ? 'Clients' : implode(' · ', $parts);
+    }
+
+    /** « Achat du 01/09 au 30/09 », « Nouveaux du 01/09 au 30/09 », « Aussi Mango »… */
+    private function analysisLabel(): string
+    {
+        $a = $this->analysis;
+        $day = fn (string $d) => substr($d, 8, 2).'/'.substr($d, 5, 2).'/'.substr($d, 0, 4);
+        $parts = [];
+
+        if (isset($a['first_from']) || isset($a['first_to'])) {
+            $parts[] = 'Nouveaux'.(isset($a['first_from']) ? ' du '.$day($a['first_from']) : '').(isset($a['first_to']) ? ' au '.$day($a['first_to']) : '');
+        }
+        if (isset($a['bought_from']) || isset($a['bought_to'])) {
+            $parts[] = 'Achat'.(isset($a['bought_from']) ? ' du '.$day($a['bought_from']) : '').(isset($a['bought_to']) ? ' au '.$day($a['bought_to']) : '');
+        }
+        if (isset($a['first_before'])) {
+            $parts[] = 'Clients avant le '.$day($a['first_before']);
+        }
+        if (isset($a['with_brand'])) {
+            $parts[] = 'Aussi '.Brand::whereKey($a['with_brand'])->value('name');
+        }
+        if (isset($a['customer_type'])) {
+            $parts[] = Customer::TYPES[$a['customer_type']];
+        }
+
+        return implode(' · ', $parts);
     }
 
     /** « Boissons depuis 90 j », « Plus de Boissons depuis 90 j », « Jamais Épicerie ». */

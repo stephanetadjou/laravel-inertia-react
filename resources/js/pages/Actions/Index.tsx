@@ -40,6 +40,8 @@ interface PageProps {
     stores: { id: number; name: string }[];
     brand: number | null;
     brands: { id: number; name: string }[];
+    group: number | null;
+    groups: { id: number; name: string }[];
     messages: Record<string, string>;
     defaultMessages: Record<string, string>;
     canEditMessages: boolean;
@@ -85,16 +87,22 @@ function MessagesEditor({ lists, messages, defaults, onClose }: { lists: ListInf
 }
 
 function ActionsIndex() {
-    const { lists, active, rows, limit, store, stores, brand, brands, messages, defaultMessages, canEditMessages, apiEnabled } = usePage<PageProps>().props;
+    const { lists, active, rows, limit, store, stores, brand, brands, group, groups, messages, defaultMessages, canEditMessages, apiEnabled } = usePage<PageProps>().props;
     const [editing, setEditing] = useState(false);
     const [done, setDone] = useState<Set<string>>(new Set());
     const [drafts, setDrafts] = useState<Record<string, string>>({});
     const [open, setOpen] = useState<string | null>(null);
     const current = lists.find((l) => l.key === active) ?? lists[0];
 
+    const canExport = usePage<{ auth?: { user?: { can_export?: boolean } | null } }>().props.auth?.user?.can_export ?? false;
+    const listParams = Object.fromEntries(
+        Object.entries({ list: active, store, brand, group: active === 'group' ? group : null }).filter(([, v]) => v !== null && v !== undefined),
+    ) as Record<string, string | number>;
+    const listQuery = new URLSearchParams(Object.entries(listParams).map(([k, v]) => [k, String(v)])).toString();
+
     function go(changes: Record<string, string | number | null>) {
         const params: Record<string, string | number> = {};
-        Object.entries({ list: active, store, brand, ...changes }).forEach(([k, v]) => {
+        Object.entries({ list: active, store, brand, group: active === 'group' ? group : null, ...changes }).forEach(([k, v]) => {
             if (v !== null && v !== undefined && v !== '') params[k] = v;
         });
         router.get('/actions', params, { preserveScroll: true, preserveState: false });
@@ -129,10 +137,13 @@ function ActionsIndex() {
                 )
             }
             filters={
-                stores.length > 1 || brands.length > 1 ? (
+                stores.length > 1 || brands.length > 1 || active === 'group' ? (
                     <>
                         {brands.length > 1 && (
                             <SelectFilter label="Marque" value={brand} allLabel="Toutes les marques" options={brands.map((b) => ({ value: b.id, label: b.name }))} onChange={(v) => go({ brand: v, store: null })} />
+                        )}
+                        {active === 'group' && groups.length > 0 && (
+                            <SelectFilter label="Groupe" value={group} allLabel="Choisir un groupe" options={groups.map((g) => ({ value: g.id, label: g.name }))} onChange={(v) => go({ group: v })} />
                         )}
                         {stores.length > 1 && (
                             <SelectFilter label="Établissement" value={store} allLabel="Tous les établissements" options={stores.map((s) => ({ value: s.id, label: s.name }))} onChange={(v) => go({ store: v })} />
@@ -152,7 +163,31 @@ function ActionsIndex() {
                 ))}
             </nav>
 
-            <Panel title={current.label} sub={current.description}>
+            <Panel
+                title={current.label}
+                sub={current.description}
+                actions={
+                    rows.length > 0 ? (
+                        <>
+                            {canExport && (
+                                <a className="mdash-btn ghost sm" href={`/actions/export?${listQuery}&format=xlsx`}>
+                                    Exporter la liste
+                                </a>
+                            )}
+                            <button
+                                type="button"
+                                className="mdash-btn ghost sm"
+                                onClick={() => {
+                                    const name = window.prompt('Ranger ces clients dans le groupe :', current.label);
+                                    if (name && name.trim()) router.post('/actions/group', { ...listParams, name: name.trim() }, { preserveScroll: true });
+                                }}
+                            >
+                                Ranger dans un groupe
+                            </button>
+                        </>
+                    ) : undefined
+                }
+            >
                 {rows.length === 0 ? (
                     <Empty title="Rien à faire dans cette liste">Les clients relancés en sortent pendant quelques jours, puis reviennent s'ils n'ont pas réagi.</Empty>
                 ) : (

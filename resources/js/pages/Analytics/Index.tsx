@@ -3,6 +3,7 @@ import { Link, router, usePage } from '@inertiajs/react';
 import AppLayout from '../../layout/AppLayout';
 import { formatNumber } from '../../components/dashboard/Charts';
 import { Empty, Page, Panel, SelectFilter, StatStrip, Stat } from '../../components/page/Page';
+import AudienceActions, { AudienceFilters } from '../../components/audience/AudienceActions';
 
 interface Table {
     key: string;
@@ -10,6 +11,8 @@ interface Table {
     columns: string[];
     rows: (string | number)[][];
     links?: (string | null)[];
+    /** Filtres des clients de chaque ligne (export, relance). */
+    audiences?: (AudienceFilters | null)[];
     personal?: boolean;
 }
 
@@ -51,11 +54,13 @@ interface PageProps {
     currency: string;
     scopeLabel: string;
     canExport: boolean;
+    audienceBase: AudienceFilters;
     data: {
         kpis?: Record<string, number | null>;
         previous?: Totals;
         active_days?: number;
-        insights?: { key: string; tone: string; title: string; detail: string; action: string; link: string }[];
+        insights?: { key: string; tone: string; title: string; detail: string; action: string; link: string; audience?: AudienceFilters | null }[];
+        kpi_audiences?: Record<string, { label: string; filters: AudienceFilters }>;
         monthly?: { month: string; net: number; tickets: number; customers: number }[];
         tables: Table[];
     };
@@ -77,7 +82,7 @@ function cell(value: string | number, money: boolean, currency: string): string 
 
 const MONEY_COLUMNS = ['CA net', 'Panier moyen', 'Retours'];
 
-function TablePanel({ table, tab, query, canExport, currency }: { table: Table; tab: string; query: string; canExport: boolean; currency: string }) {
+function TablePanel({ table, tab, query, canExport, currency, base }: { table: Table; tab: string; query: string; canExport: boolean; currency: string; base: AudienceFilters }) {
     const exportUrl = (format: string) => `/analytics/${tab}/export/${table.key}?${query}${query ? '&' : ''}format=${format}`;
 
     return (
@@ -109,6 +114,7 @@ function TablePanel({ table, tab, query, canExport, currency }: { table: Table; 
                                         {c}
                                     </th>
                                 ))}
+                                {table.audiences && <th className="r">Clients</th>}
                             </tr>
                         </thead>
                         <tbody>
@@ -125,6 +131,11 @@ function TablePanel({ table, tab, query, canExport, currency }: { table: Table; 
                                             )}
                                         </td>
                                     ))}
+                                    {table.audiences && (
+                                        <td className="r">
+                                            {table.audiences[i] && <AudienceActions compact filters={{ ...base, ...table.audiences[i] }} label={`${table.title} · ${row[0]}`} />}
+                                        </td>
+                                    )}
                                 </tr>
                             ))}
                         </tbody>
@@ -158,7 +169,7 @@ function MonthlyBars({ monthly, currency }: { monthly: NonNullable<PageProps['da
 }
 
 function AnalyticsIndex() {
-    const { tab, tabs, filters, periods, activeWindows, brands, stores, families, currency, scopeLabel, canExport, data } = usePage<PageProps>().props;
+    const { tab, tabs, filters, periods, activeWindows, brands, stores, families, currency, scopeLabel, canExport, data, audienceBase } = usePage<PageProps>().props;
 
     const current: Record<string, string | number | null> = {
         period: filters.period,
@@ -283,6 +294,16 @@ function AnalyticsIndex() {
             </div>
 
             {stats.length > 0 && <StatStrip items={stats} />}
+            {data.kpi_audiences && (
+                <div className="mpage-note" style={{ display: 'flex', gap: 14, flexWrap: 'wrap', alignItems: 'center' }}>
+                    <b>Clients derrière les chiffres :</b>
+                    {Object.entries(data.kpi_audiences).map(([key, a]) => (
+                        <span key={key} style={{ display: 'inline-flex', gap: 6, alignItems: 'center' }}>
+                            {a.label} <AudienceActions compact filters={{ ...audienceBase, ...a.filters }} label={a.label} />
+                        </span>
+                    ))}
+                </div>
+            )}
 
             <div className="mdash-grid">
                 {tab === 'direction' && data.insights && data.insights.length > 0 && (
@@ -293,7 +314,8 @@ function AnalyticsIndex() {
                                     <span className={`mdash-pill ${i.tone}`}>{i.action}</span> <b>{i.title}</b> — <span className="mpage-muted">{i.detail}</span>{' '}
                                     <Link href={i.link} className="mdash-link">
                                         Voir et agir
-                                    </Link>
+                                    </Link>{' '}
+                                    {i.audience && <AudienceActions compact filters={{ ...audienceBase, ...i.audience }} label={i.action} />}
                                 </li>
                             ))}
                         </ul>
@@ -301,7 +323,7 @@ function AnalyticsIndex() {
                 )}
                 {tab === 'direction' && data.monthly && data.monthly.length > 1 && <MonthlyBars monthly={data.monthly} currency={currency} />}
                 {data.tables.map((t) => (
-                    <TablePanel key={t.key} table={t} tab={tab} query={query} canExport={canExport} currency={currency} />
+                    <TablePanel key={t.key} table={t} tab={tab} query={query} canExport={canExport} currency={currency} base={audienceBase} />
                 ))}
             </div>
         </Page>

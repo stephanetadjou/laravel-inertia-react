@@ -52,6 +52,7 @@ class MultibrandController extends Controller
         foreach ($brands as $a) {
             $buyersA = $metrics->where('brand_id', $a->id)->pluck('customer_id')->flip();
             $matrix[] = [
+                'brand_id' => $a->id,
                 'brand' => $a->name,
                 'customers' => $buyersA->count(),
                 'shared' => $brands->map(fn ($b) => $a->id === $b->id ? null : $metrics->where('brand_id', $b->id)->filter(fn ($r) => $buyersA->has($r->customer_id))->count())->values(),
@@ -91,6 +92,8 @@ class MultibrandController extends Controller
             })->values(),
             'segments' => collect(RfmCalculator::SEGMENTS)->except('none')->map(fn ($s, $key) => ['key' => $key, 'label' => $s['label']])->values(),
             'currency' => $organization->currencySymbol(),
+            // Clients actifs sur la fenêtre choisie (export, relance).
+            'since' => $since,
         ]);
     }
 

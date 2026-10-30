@@ -7,6 +7,7 @@ use App\Models\Brand;
 use App\Models\Contact;
 use App\Models\Customer;
 use App\Models\CustomerFollowUp;
+use App\Models\Group;
 use App\Models\Store;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Builder;
@@ -62,6 +63,12 @@ class ActionLists
             'description' => 'Clients dont l\'anniversaire tombe dans les 7 prochains jours.',
             'cooldown_days' => 300,
         ],
+        'group' => [
+            'label' => 'Groupe de clients',
+            'description' => 'Les clients d\'un groupe préparé depuis une analyse (segment, famille, multimarque…) : relance à la main, client par client.',
+            'cooldown_days' => 7,
+            'needs_group' => true,
+        ],
         'cross_sell' => [
             'label' => 'Vente croisée entre marques',
             'description' => 'Clients fidèles d\'une marque du groupe, jamais venus dans une autre : faites-la-leur découvrir.',
@@ -81,6 +88,7 @@ class ActionLists
         'appointment_reminder' => 'Bonjour {prenom}, nous vous rappelons votre rendez-vous chez {boutique} le {date_rdv} à {heure_rdv}. Pouvez-vous nous confirmer votre présence ?',
         'no_show' => 'Bonjour {prenom}, nous ne vous avons pas vu à votre rendez-vous chez {boutique} le {date_rdv}. Souhaitez-vous en fixer un nouveau ?',
         'birthday' => 'Joyeux anniversaire {prenom} ! Toute l\'équipe de {boutique} vous souhaite une excellente journée.',
+        'group' => 'Bonjour {prenom}, toute l\'équipe de {boutique} a pensé à vous : passez nous voir cette semaine, une attention vous attend.',
         'cross_sell' => 'Bonjour {prenom}, merci pour votre fidélité chez {boutique}. Saviez-vous que {autre_marque} fait aussi partie de notre groupe ? Passez découvrir la boutique, vous y serez accueilli comme un client fidèle.',
     ];
 
@@ -103,7 +111,7 @@ class ActionLists
      * @param  int|null  $brandId  marque choisie : listes limitées à ses points de vente
      *                             (et, en vente croisée, ses clients fidèles)
      */
-    public function __construct(private User $user, ?int $storeId = null, private ?int $brandId = null)
+    public function __construct(private User $user, ?int $storeId = null, private ?int $brandId = null, private ?int $groupId = null)
     {
         $visible = $user->visibleStoreIds();
         $scope = Store::where('organization_id', $user->organization_id)
@@ -150,6 +158,7 @@ class ActionLists
             'no_show' => $this->noShows(),
             'birthday' => $this->birthdays(),
             'cross_sell' => $this->crossSell(),
+            'group' => $this->groupList(),
             default => $this->customerList($key),
         };
     }
@@ -211,9 +220,16 @@ class ActionLists
         $brandNames = Brand::whereKey($this->brandIds)->orderBy('name')->pluck('name', 'id');
         $candidates = [];
 
+        // Zones des marques : on propose d'abord une marque voisine (même ville ou quartier).
+        $zones = DB::table('stores')->whereIn('brand_id', $this->brandIds)->whereNotNull('city')->get(['brand_id', 'city'])
+            ->groupBy('brand_id')->map(fn ($s) => $s->pluck('city')->unique());
+
         foreach ($metrics as $customerId => $rows) {
             $loyal = $rows->whereIn('brand_id', $sourceBrands)->whereIn('rfm_segment', self::CROSS_SELL_SEGMENTS)->sortByDesc('net_spend')->first();
-            $target = $brandNames->keys()->first(fn ($id) => ! $rows->contains('brand_id', $id));
+            $target = $loyal === null ? null : $brandNames->keys()
+                ->filter(fn ($id) => ! $rows->contains('brand_id', $id))
+                ->sortBy(fn ($id) => (($zones[$loyal->brand_id] ?? collect())->intersect($zones[$id] ?? collect())->isNotEmpty() ? '0' : '1').$brandNames[$id])
+                ->first();
 
             if ($loyal !== null && $target !== null) {
                 $candidates[] = ['customer_id' => (int) $customerId, 'source' => (int) $loyal->brand_id, 'orders' => (int) $loyal->order_count, 'net' => (int) $loyal->net_spend, 'target' => (int) $target];
@@ -231,6 +247,26 @@ class ActionLists
 
             return $row;
         })->filter()->values()->all();
+    }
+
+    /** Clients d'un groupe de l'organisation (liste « Groupe de clients »). @return list<array<string, mixed>> */
+    private function groupList(): array
+    {
+        $group = $this->groupId ? Group::where('organization_id', $this->user->organization_id)->find($this->groupId) : null;
+
+        if ($group === null) {
+            return [];
+        }
+
+        return $this->customers('group')
+            ->whereHas('contacts', fn ($q) => $q->whereIn('store_id', $this->storeIds)->whereHas('groups', fn ($g) => $g->where('groups.id', $group->id)))
+            ->orderByDesc('total_spent')
+            ->limit(self::LIMIT)
+            ->get()
+            ->map(fn (Customer $customer) => $this->row('group', $customer, "Groupe « {$group->name} »".($customer->last_purchase_at ? ' · dernier achat le '.self::date($customer->last_purchase_at) : '')))
+            ->filter()
+            ->values()
+            ->all();
     }
 
     /** Marque proposée dans le message de vente croisée ({autre_marque}). */

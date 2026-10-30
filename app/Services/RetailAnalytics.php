@@ -119,6 +119,12 @@ class RetailAnalytics
 
         return [
             'kpis' => $current,
+            // Clients derrière les chiffres clés (export, relance).
+            'kpi_audiences' => [
+                'customers' => ['label' => 'Clients identifiés de la période', 'filters' => $this->bought()],
+                'new_customers' => ['label' => 'Nouveaux clients de la période', 'filters' => ['first_from' => $this->from->toDateString(), 'first_to' => $this->to->toDateString()]],
+                'active_customers' => ['label' => "Clients actifs ({$this->activeDays} j)", 'filters' => ['bought_from' => $this->to->copy()->subDays($this->activeDays - 1)->toDateString(), 'bought_to' => $this->to->toDateString()]],
+            ],
             'previous' => $previous,
             'active_days' => $this->activeDays,
             'insights' => $this->insights(),
@@ -183,7 +189,8 @@ class RetailAnalytics
             'title' => "{$brand} : {$rows->customers} bons clients n’achètent plus",
             'detail' => 'Segments « À risque » et « À ne pas perdre » (3 achats ou plus), '.number_format((int) $rows->spend, 0, ',', ' ').' FCFA dépensés chez '.$brand.'.',
             'action' => 'Campagne de reconquête ciblée',
-            'link' => "/customers?brand={$rows->brand_id}&segment=at_risk",
+            'link' => "/customers?brand={$rows->brand_id}&segment=at_risk,cant_lose",
+            'audience' => ['brand' => (int) $rows->brand_id, 'segment' => 'at_risk,cant_lose'],
             'score' => 100 + $rows->customers,
         ];
     }
@@ -217,6 +224,7 @@ class RetailAnalytics
             'detail' => $multi->count().' clients achètent dans au moins deux marques du groupe.',
             'action' => 'Programme VIP groupe',
             'link' => '/customers?brands=multi',
+            'audience' => ['brands' => 'multi'],
             'score' => 80 + $revenueShare - $customerShare,
         ];
     }
@@ -233,6 +241,8 @@ class RetailAnalytics
         $buyers = DB::table('customer_brand_metrics')->whereIn('brand_id', $brands->keys()->all())->where('order_count', '>', 0)
             ->get(['customer_id', 'brand_id', 'order_count'])->groupBy('brand_id');
         $best = null;
+        // Zones (villes / quartiers) de chaque marque : une marque voisine se fait découvrir plus facilement.
+        $zones = Store::whereIn('id', $this->storeIds ?: [0])->whereNotNull('city')->get(['brand_id', 'city'])->groupBy('brand_id')->map(fn ($s) => $s->pluck('city')->unique());
 
         foreach ($brands as $from => $fromName) {
             $loyal = ($buyers[$from] ?? collect())->where('order_count', '>=', 2)->pluck('customer_id')->flip();
@@ -243,9 +253,12 @@ class RetailAnalytics
                 }
                 $already = ($buyers[$to] ?? collect())->filter(fn ($r) => $loyal->has($r->customer_id))->count();
                 $never = $loyal->count() - $already;
+                $near = ($zones[$from] ?? collect())->intersect($zones[$to] ?? collect())->isNotEmpty();
+                // Même zone : potentiel compté 1,5 fois (les clients passent déjà devant la boutique).
+                $weight = $never * ($near ? 1.5 : 1);
 
-                if ($best === null || $never > $best['never']) {
-                    $best = ['from' => $from, 'to' => $to, 'never' => $never, 'loyal' => $loyal->count()];
+                if ($best === null || $weight > $best['weight']) {
+                    $best = ['from' => $from, 'to' => $to, 'never' => $never, 'loyal' => $loyal->count(), 'weight' => $weight, 'zone' => $near ? ($zones[$from] ?? collect())->intersect($zones[$to] ?? collect())->first() : null];
                 }
             }
         }
@@ -258,9 +271,11 @@ class RetailAnalytics
             'key' => 'cross_sell',
             'tone' => 'info',
             'title' => "{$best['never']} clients fidèles de {$brands[$best['from']]} ne sont jamais venus chez {$brands[$best['to']]}",
-            'detail' => (int) round($best['never'] / max(1, $best['loyal']) * 100).' % des clients de '.$brands[$best['from']].' ayant au moins 2 achats.',
+            'detail' => (int) round($best['never'] / max(1, $best['loyal']) * 100).' % des clients de '.$brands[$best['from']].' ayant au moins 2 achats'
+                .($best['zone'] ? ", alors que les deux enseignes sont à {$best['zone']}." : '.'),
             'action' => 'Offre croisée '.$brands[$best['from']].' → '.$brands[$best['to']],
             'link' => "/actions?list=cross_sell&brand={$best['from']}",
+            'audience' => ['brand' => (int) $best['from'], 'never_brand' => (int) $best['to']],
             'score' => 60 + min(40, $best['never'] / 5),
         ];
     }
@@ -305,6 +320,10 @@ class RetailAnalytics
             'detail' => $money($best['new']).' contre '.$money($best['old']).' les 90 jours précédents.',
             'action' => $direction === 'down' ? 'Revoir l’offre et le réassort' : 'Renforcer le stock et la mise en avant',
             'link' => "/analytics/families?family={$best['id']}",
+            // En baisse : clients qui ont acheté la famille mais plus depuis 90 jours ; en hausse : ses acheteurs récents.
+            'audience' => $direction === 'down'
+                ? ['family' => (int) $best['id'], 'family_mode' => 'lapsed', 'family_days' => 90]
+                : ['family' => (int) $best['id'], 'family_days' => 90],
             'score' => 50 + min(40, abs($best['change']) / 2),
         ];
     }
@@ -361,6 +380,7 @@ class RetailAnalytics
             'detail' => "{$worst['count']} nouveaux clients entre 9 et 3 mois avant le {$this->to->format('d/m/Y')}.",
             'action' => 'Message de bienvenue + relance à J+30',
             'link' => '/actions?list=second_purchase&brand='.$worst['brand'],
+            'audience' => ['brand' => (int) $worst['brand'], 'first_from' => $from, 'first_to' => $until],
             'score' => 70 + (30 - $worst['rate']),
         ];
     }
@@ -388,6 +408,7 @@ class RetailAnalytics
             'detail' => number_format((int) $rows['returns'], 0, ',', ' ').' FCFA retournés sur la période.',
             'action' => 'Alerte qualité : vérifier les produits et les tailles',
             'link' => '/purchases?type=return&category='.rawurlencode((string) $name),
+            'audience' => ['family' => (int) $rows['category_id'], 'family_days' => 0] + $this->bought(),
             'score' => 55 + $rows['rate'],
         ];
     }
@@ -415,8 +436,15 @@ class RetailAnalytics
             'detail' => "{$row['anonymous']} tickets sans numéro de client sur la période : ces clients ne peuvent être ni suivis ni relancés.",
             'action' => 'Collecter le téléphone en caisse',
             'link' => "/purchases?anonymous=1&store={$row['store_id']}",
+            'audience' => null,
             'score' => 50 + $row['rate'] / 2,
         ];
+    }
+
+    /** Filtre « a acheté sur la période » des audiences. @return array{bought_from: string, bought_to: string} */
+    private function bought(): array
+    {
+        return ['bought_from' => $this->from->toDateString(), 'bought_to' => $this->to->toDateString()];
     }
 
     /** @return Collection<int, int> famille => CA net */
@@ -468,6 +496,9 @@ class RetailAnalytics
                     (int) $r->customers,
                 ])->values()->all(),
                 'links' => $rows->sortByDesc('net')->take(200)->map(fn ($r) => $r->k !== null ? '/customers?'.($level === 'product' ? "article={$r->k}" : "family={$r->k}") : null)->values()->all(),
+                'audiences' => $rows->sortByDesc('net')->take(200)->map(fn ($r) => $r->k !== null
+                    ? ($level === 'product' ? ['article' => (int) $r->k] : ['family' => (int) $r->k, 'family_days' => 0]) + $this->bought()
+                    : null)->values()->all(),
             ]],
         ];
     }
@@ -516,6 +547,14 @@ class RetailAnalytics
                         $segment('Multimarques (2 marques ou plus)', $multi),
                         $segment('Particuliers', $persons),
                         $segment('Entreprises', $business),
+                    ],
+                    'audiences' => [
+                        ['first_from' => $this->from->toDateString(), 'first_to' => $this->to->toDateString()],
+                        $this->bought() + ['first_before' => $this->from->toDateString()],
+                        $this->bought() + ['brands' => 'mono'],
+                        $this->bought() + ['brands' => 'multi'],
+                        $this->bought() + ['customer_type' => 'person'],
+                        $this->bought() + ['customer_type' => 'business'],
                     ],
                 ],
                 [
@@ -628,7 +667,11 @@ class RetailAnalytics
             'key' => 'monthly',
             'title' => 'Évolution mensuelle',
             'columns' => ['Mois', 'CA net', 'Tickets', 'Clients identifiés'],
-            'rows' => array_map(fn ($m) => [self::monthLabel($m['month']), $m['net'], $m['tickets'], $m['customers']], $this->monthly()),
+            'rows' => array_map(fn ($m) => [self::monthLabel($m['month']), $m['net'], $m['tickets'], $m['customers']], $monthly = $this->monthly()),
+            'audiences' => array_map(fn ($m) => [
+                'bought_from' => max($m['month'].'-01', $this->from->toDateString()),
+                'bought_to' => min(Carbon::parse($m['month'].'-01')->endOfMonth()->toDateString(), $this->to->toDateString()),
+            ], $monthly),
         ];
     }
 
@@ -653,6 +696,7 @@ class RetailAnalytics
                 $r->tickets > 0 ? (int) round($r->sales / $r->tickets) : 0,
                 (int) $r->customers,
             ])->values()->all(),
+            'audiences' => $rows->sortByDesc('net')->map(fn ($r) => ['brand' => (int) $r->brand_id] + $this->bought())->values()->all(),
         ];
     }
 
@@ -681,6 +725,7 @@ class RetailAnalytics
                 (int) $r->customers,
                 $r->tickets > 0 ? (int) round($r->identified / $r->tickets * 100).' %' : '—',
             ])->values()->all(),
+            'audiences' => $rows->sortByDesc('net')->map(fn ($r) => ['store' => (int) $r->store_id, 'brand' => (int) ($stores->get($r->store_id)?->brand_id ?? 0)] + $this->bought())->values()->all(),
         ];
     }
 
@@ -705,6 +750,7 @@ class RetailAnalytics
 
         $cohorts = $all->filter(fn ($months) => $months->first() >= $since->format('Y-m'))->groupBy(fn ($months) => $months->first());
         $rows = [];
+        $audiences = [];
 
         foreach ($cohorts->sortKeys() as $month => $members) {
             $row = [self::monthLabel($month), $members->count()];
@@ -717,9 +763,11 @@ class RetailAnalytics
             }
 
             $rows[] = $row;
+            $audiences[] = ['first_from' => $month.'-01', 'first_to' => Carbon::parse($month.'-01')->endOfMonth()->toDateString()];
         }
 
         return [
+            'audiences' => $audiences,
             'key' => 'cohorts',
             'title' => 'Cohortes : clients revenus acheter après leur premier achat',
             'columns' => ['Premier achat', 'Clients', 'M+1', 'M+2', 'M+3', 'M+4', 'M+5', 'M+6'],

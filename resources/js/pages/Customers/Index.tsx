@@ -9,6 +9,7 @@ import SelectionCampaignModal, { CampaignTemplate } from './SelectionCampaignMod
 import CustomerEditModal, { EditableContact } from './CustomerEditModal';
 import '../Dashboard/dashboard.css';
 import './customers.css';
+import AudienceActions from '../../components/audience/AudienceActions';
 
 type Consent = 'opt_in' | 'unknown' | 'opt_out';
 
@@ -34,6 +35,7 @@ interface Filters {
     article_label?: string | null;
     brand_mix?: 'multi' | 'mono' | null;
     never_brand?: number | null;
+    analysis?: Record<string, string | number>;
     prop: string | null;
     groups: { id: number; name: string }[];
     brands: { id: number; name: string }[];
@@ -60,6 +62,7 @@ interface CustomerRow {
 }
 
 interface PageProps {
+    audienceLabel: string;
     filters: Filters;
     stores: { id: number; name: string }[];
     families: { id: number; name: string }[];
@@ -107,7 +110,7 @@ function plural(n: number, word: string, pluralWord = word + 's'): string {
 }
 
 function CustomersIndex() {
-    const { filters, stores, families, properties, stages, vipCount, segments, riskCount, apiEnabled, consentCounts, reachableCount, templates, customers, flash } = usePage<PageProps>().props;
+    const { filters, stores, families, properties, stages, vipCount, segments, riskCount, apiEnabled, consentCounts, reachableCount, templates, customers, flash, audienceLabel } = usePage<PageProps>().props;
     const segmentLabel = (key: string | null) => segments.find((s) => s.key === key)?.label ?? '—';
     const [search, setSearch] = useState(filters.q);
     const [isNewContactOpen, setIsNewContactOpen] = useState(false);
@@ -144,6 +147,7 @@ function CustomersIndex() {
                     article: filters.article ?? null,
                     brands: filters.brand_mix ?? null,
                     never_brand: filters.never_brand ?? null,
+                    ...(filters.analysis ?? {}),
                 }).filter(([, v]) => v !== null && v !== ''),
             ) as Record<string, string | number>,
         [
@@ -165,6 +169,7 @@ function CustomersIndex() {
             filters.article,
             filters.brand_mix,
             filters.never_brand,
+            filters.analysis,
         ],
     );
 
@@ -259,6 +264,7 @@ function CustomersIndex() {
                             <small>Une fiche par personne, pour tous vos établissements</small>
                         </div>
                         <div className="mcust-actions">
+                            <AudienceActions filters={activeFilters} label={audienceLabel} />
                             <a href={exportUrl} className="mdash-btn ghost">
                                 Exporter (CSV)
                             </a>
@@ -320,6 +326,16 @@ function CustomersIndex() {
                                 <option value="multi">Clients multimarques</option>
                                 <option value="mono">Clients d’une seule marque</option>
                             </select>
+                        )}
+                        {filters.analysis && Object.keys(filters.analysis).length > 0 && (
+                            <button
+                                type="button"
+                                className="mdash-btn ghost sm"
+                                title="Retirer le filtre venu de l’analyse"
+                                onClick={() => visit(Object.fromEntries(Object.keys(filters.analysis ?? {}).map((k) => [k, null])))}
+                            >
+                                Filtre d’analyse ×
+                            </button>
                         )}
                         {filters.never_brand && (
                             <button type="button" className="mdash-btn ghost sm" onClick={() => visit({ never_brand: null })} title="Retirer le filtre de vente croisée">

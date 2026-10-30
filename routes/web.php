@@ -3,6 +3,7 @@
 use App\Http\Controllers\ActionController;
 use App\Http\Controllers\AnalyticsController;
 use App\Http\Controllers\AppointmentController;
+use App\Http\Controllers\AudienceController;
 use App\Http\Controllers\AuditLogController;
 use App\Http\Controllers\Auth\AuthenticatedSessionController;
 use App\Http\Controllers\Auth\RegisteredOrganizationController;
@@ -113,6 +114,11 @@ Route::middleware('auth')->group(function () {
     Route::delete('/groups/{group}/customers', [GroupController::class, 'removeCustomers'])->name('groups.customers.remove');
 
     Route::get('/multibrand', [MultibrandController::class, 'index'])->name('multibrand.index');
+    // Clients d'une analyse : export pour relance, groupe ouvert dans Actions du jour.
+    Route::get('/audiences/export', [AudienceController::class, 'export'])->name('audiences.export');
+    Route::post('/audiences/group', [AudienceController::class, 'group'])->name('audiences.group');
+    Route::get('/actions/export', [ActionController::class, 'export'])->name('actions.export');
+    Route::post('/actions/group', [ActionController::class, 'group'])->name('actions.group');
     // Analyses Menentia Retail : tableaux de bord, exports, rapport de direction.
     Route::get('/analytics/report', [AnalyticsController::class, 'report'])->name('analytics.report');
     Route::get('/analytics/{tab}/export/{table}', [AnalyticsController::class, 'export'])->name('analytics.export');
