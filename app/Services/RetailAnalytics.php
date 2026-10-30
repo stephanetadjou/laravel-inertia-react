@@ -127,7 +127,7 @@ class RetailAnalytics
             ],
             'previous' => $previous,
             'active_days' => $this->activeDays,
-            'insights' => $this->insights(),
+            'insights' => $this->insights(8),
             'monthly' => $this->monthly(),
             'tables' => [$this->brandsTable(), $this->monthlyTable()],
         ];

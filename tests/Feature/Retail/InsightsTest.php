@@ -67,7 +67,7 @@ it('lists the key findings of the direction dashboard with a suggested decision 
     $response = $this->actingAs($this->admin)->get('/analytics/direction?period=12m')->assertOk();
     $insights = collect($response->viewData('page')['props']['data']['insights']);
 
-    expect($insights->count())->toBeGreaterThanOrEqual(3)->toBeLessThanOrEqual(5)
+    expect($insights->count())->toBeGreaterThanOrEqual(3)->toBeLessThanOrEqual(8)
         ->and($insights->every(fn ($i) => filled($i['title']) && filled($i['action']) && str_starts_with($i['link'], '/')))->toBeTrue();
 
     $keys = $insights->pluck('key');
