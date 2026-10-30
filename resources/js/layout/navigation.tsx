@@ -47,6 +47,7 @@ export function buildSections({ canManageOrganization, whatsappApiEnabled, hasAg
                         ]
                       : []),
                   { name: 'Fidélité', path: '/settings/loyalty' },
+                  { name: 'Segments RFM', path: '/settings/rfm' },
                   { name: 'Rapports', path: '/settings/reports' },
               ]
             : []),

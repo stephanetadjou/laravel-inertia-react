@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Jobs\RefreshBrandMetricsJob;
 use App\Models\Contact;
 use App\Models\Customer;
 use App\Models\CustomerConsent;
@@ -185,6 +186,7 @@ class CustomerIdentity
         });
 
         app(CustomerScoring::class)->refreshOrganization($target->organization);
+        RefreshBrandMetricsJob::dispatch($target->organization_id);
 
         return $target->fresh();
     }
@@ -232,6 +234,7 @@ class CustomerIdentity
         });
 
         app(CustomerScoring::class)->refreshOrganization($customer->organization);
+        RefreshBrandMetricsJob::dispatch($customer->organization_id);
 
         return $new;
     }

@@ -30,6 +30,10 @@ interface Filters {
     family_mode: 'bought' | 'lapsed';
     family_days: number;
     family_not: number | null;
+    article?: number | null;
+    article_label?: string | null;
+    brand_mix?: 'multi' | 'mono' | null;
+    never_brand?: number | null;
     prop: string | null;
     groups: { id: number; name: string }[];
     brands: { id: number; name: string }[];
@@ -137,6 +141,9 @@ function CustomersIndex() {
                     family_days: filters.family && filters.family_days !== 90 ? filters.family_days : null,
                     family_not: filters.family_not,
                     prop: filters.prop,
+                    article: filters.article ?? null,
+                    brands: filters.brand_mix ?? null,
+                    never_brand: filters.never_brand ?? null,
                 }).filter(([, v]) => v !== null && v !== ''),
             ) as Record<string, string | number>,
         [
@@ -155,6 +162,9 @@ function CustomersIndex() {
             filters.family_days,
             filters.family_not,
             filters.prop,
+            filters.article,
+            filters.brand_mix,
+            filters.never_brand,
         ],
     );
 
@@ -304,8 +314,25 @@ function CustomersIndex() {
                                 ))}
                             </select>
                         )}
+                        {filters.brand_mix !== undefined && !filters.brand_hidden && (
+                            <select aria-label="Marques" value={filters.brand_mix ?? ''} onChange={(e) => visit({ brands: e.target.value || null })}>
+                                <option value="">Mono et multimarques</option>
+                                <option value="multi">Clients multimarques</option>
+                                <option value="mono">Clients d’une seule marque</option>
+                            </select>
+                        )}
+                        {filters.never_brand && (
+                            <button type="button" className="mdash-btn ghost sm" onClick={() => visit({ never_brand: null })} title="Retirer le filtre de vente croisée">
+                                Jamais venus dans l’autre marque ×
+                            </button>
+                        )}
+                        {filters.article_label && (
+                            <button type="button" className="mdash-btn ghost sm" onClick={() => visit({ article: null })} title="Retirer le filtre article">
+                                Article : {filters.article_label} ×
+                            </button>
+                        )}
                         <select aria-label="Segment RFM" value={filters.segment ?? ''} onChange={(e) => visit({ segment: e.target.value || null })}>
-                            <option value="">Tous les segments RFM</option>
+                            <option value="">{filters.brand ? 'Tous les segments (de la marque)' : 'Tous les segments RFM'}</option>
                             {segments.map((s) => (
                                 <option key={s.key} value={s.key}>
                                     {s.label}

@@ -9,7 +9,7 @@ import CheckoutModal from '../../components/appointments/CheckoutModal';
 import WhatsAppIcon from '../../components/common/WhatsAppIcon';
 import CustomerEditModal from './CustomerEditModal';
 import LoyaltyPanel, { LoyaltyData } from './LoyaltyPanel';
-import IdentityPanel, { IdentityData } from './IdentityPanel';
+import IdentityPanel, { BrandMetric, IdentityData } from './IdentityPanel';
 import '../Dashboard/dashboard.css';
 import './customers.css';
 
@@ -88,6 +88,7 @@ interface PageProps {
     scoped: boolean;
     identity: IdentityData;
     canSteward: boolean;
+    brandMetrics: BrandMetric[];
     rfm: Rfm;
     firstPurchaseAt: string | null;
     contacts: ContactRow[];
@@ -233,6 +234,7 @@ function CustomerShow() {
         flash,
         identity,
         canSteward,
+        brandMetrics,
     } = usePage<PageProps>().props;
     const [editing, setEditing] = useState(false);
     const [appointmentModal, setAppointmentModal] = useState<AppointmentRow | null | undefined>(undefined);
@@ -596,7 +598,7 @@ function CustomerShow() {
                     </article>
                 )}
 
-                <IdentityPanel customerId={customer.id} identity={identity} canSteward={canSteward} />
+                <IdentityPanel customerId={customer.id} identity={identity} canSteward={canSteward} brandMetrics={brandMetrics} />
 
                 {loyalty && <LoyaltyPanel customerId={customer.id} customerName={customer.name} loyalty={loyalty} />}
 

@@ -121,6 +121,8 @@ class CustomerController extends Controller
                 'family_not' => $search->familyNot?->id,
                 'prop' => $search->property !== null ? $search->property['key'].':'.$search->property['value'] : null,
                 'article' => $search->article?->id,
+                'brand_mix' => $search->brands,
+                'never_brand' => $search->neverBrand,
                 'article_label' => $search->article?->label,
                 'brands' => $search->roleStores->pluck('brand')->filter()->unique('id')->sortBy('name')->values()
                     ->map(fn (Brand $brand) => ['id' => $brand->id, 'name' => $brand->name]),
@@ -244,6 +246,20 @@ class CustomerController extends Controller
                 'other_phone_contacts' => $contacts->where('phone_e164', '!=', $customer->phone_e164)->map(fn (Contact $c) => ['id' => $c->id, 'phone' => $c->phone_e164, 'store' => $c->store->name, 'name' => $c->name])->values(),
             ],
             'canSteward' => $user->canImport(),
+            // Chiffres et segment RFM du client dans chaque marque du périmètre.
+            'brandMetrics' => DB::table('customer_brand_metrics')
+                ->join('brands', 'brands.id', '=', 'customer_brand_metrics.brand_id')
+                ->where('customer_brand_metrics.customer_id', $customer->id)
+                ->whereIn('customer_brand_metrics.brand_id', Store::whereIn('id', $storeIds)->select('brand_id'))
+                ->orderByDesc('customer_brand_metrics.net_spend')
+                ->get(['brands.name', 'customer_brand_metrics.order_count', 'customer_brand_metrics.net_spend', 'customer_brand_metrics.last_purchase_at', 'customer_brand_metrics.rfm_segment'])
+                ->map(fn ($m) => [
+                    'brand' => $m->name,
+                    'orders' => (int) $m->order_count,
+                    'net' => (int) $m->net_spend,
+                    'last' => $m->last_purchase_at,
+                    'segment' => RfmCalculator::SEGMENTS[$m->rfm_segment]['label'] ?? null,
+                ]),
             'rfm' => $rfm->forCustomer($customer, $storeIds),
             // Habitudes d'achat : familles préférées, visites, panier moyen, attributs (genre…).
             'habits' => $this->habits($customer, $storeIds),

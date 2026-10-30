@@ -33,6 +33,7 @@ class Organization extends Model
         'currency',
         'timezone',
         'product_analysis_level',
+        'rfm_settings',
     ];
 
     /**
@@ -100,6 +101,7 @@ class Organization extends Model
             'booking_settings' => 'array',
             'report_settings' => 'array',
             'loyalty_settings' => 'array',
+            'rfm_settings' => 'array',
         ];
     }
 
@@ -193,6 +195,32 @@ class Organization extends Model
     public function analysisLevel(): string
     {
         return array_key_exists((string) $this->product_analysis_level, self::ANALYSIS_LEVELS) ? $this->product_analysis_level : 'family';
+    }
+
+    /**
+     * Règles de segmentation RFM (Paramètres › Segments RFM) : période
+     * d'analyse (0 = tout l'historique) et seuils des 8 segments, notés de 1
+     * à 5 (R = récence, FM = moyenne fréquence / montant). Les valeurs par
+     * défaut reproduisent la segmentation historique ; chaque modification
+     * incrémente la version des règles, gardée dans l'historique des segments.
+     */
+    public const RFM_DEFAULTS = [
+        'period_months' => 0,
+        'active_min_r' => 3,
+        'champions_min_r' => 4,
+        'champions_min_fm' => 4,
+        'loyal_min_fm' => 3,
+        'cant_lose_min_fm' => 4,
+        'at_risk_min_fm' => 3,
+        'version' => 1,
+    ];
+
+    /** @return array<string, int> */
+    public function rfmSettings(): array
+    {
+        $saved = array_intersect_key($this->rfm_settings ?? [], self::RFM_DEFAULTS);
+
+        return array_map('intval', [...self::RFM_DEFAULTS, ...$saved]);
     }
 
     /** Symbole affiché des montants : FCFA pour XAF / XOF, sinon le code. */

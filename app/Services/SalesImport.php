@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Jobs\ProcessSalesImportJob;
+use App\Jobs\RefreshBrandMetricsJob;
 use App\Models\Article;
 use App\Models\Category;
 use App\Models\Contact;
@@ -399,6 +400,7 @@ class SalesImport
             });
 
             app(CustomerScoring::class)->refreshOrganization($batch->organization);
+            RefreshBrandMetricsJob::dispatch($batch->organization_id);
 
             $hasErrors = $batch->rejected_rows > 0 || $batch->duplicate_rows + $stats['duplicates'] > 0;
             $batch->update([
@@ -442,6 +444,7 @@ class SalesImport
             });
 
             app(CustomerScoring::class)->refreshOrganization($batch->organization);
+            RefreshBrandMetricsJob::dispatch($batch->organization_id);
         }
 
         $batch->update(['status' => ImportBatch::STATUS_CANCELLED, 'cancelled_at' => now(), 'cancelled_by' => $user->id]);

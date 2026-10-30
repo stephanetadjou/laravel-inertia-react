@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Http\Controllers\Concerns\ResolvesBrandFilter;
 use App\Models\Article;
+use App\Models\Brand;
 use App\Models\Category;
 use App\Models\Contact;
 use App\Models\Customer;
@@ -82,6 +83,12 @@ class CustomerSearch
     /** Article ciblé (niveau d'analyse « article ») : a acheté cet article. */
     public ?Article $article = null;
 
+    /** multi = a acheté dans au moins deux marques, mono = dans une seule (cf. BrandMetrics). */
+    public ?string $brands = null;
+
+    /** Vente croisée : fidèle de la marque choisie, jamais venu dans cette autre marque. */
+    public ?int $neverBrand = null;
+
     public const FAMILY_MODES = ['bought', 'lapsed'];
 
     public const FAMILY_DAYS = [0, 30, 60, 90, 180, 365];
@@ -126,6 +133,10 @@ class CustomerSearch
         $days = (int) ($filters['family_days'] ?? 90);
         $this->familyDays = in_array($days, self::FAMILY_DAYS, true) ? $days : 90;
 
+        $this->brands = in_array($filters['brands'] ?? null, ['multi', 'mono'], true) ? (string) $filters['brands'] : null;
+        $neverBrand = (int) ($filters['never_brand'] ?? 0);
+        $this->neverBrand = $neverBrand && $this->roleStores->contains('brand_id', $neverBrand) || ($neverBrand && $user->visibleStoreIds() === null && Store::where('organization_id', $user->organization_id)->where('brand_id', $neverBrand)->exists()) ? $neverBrand : null;
+
         $articleId = (int) ($filters['article'] ?? 0);
         $this->article = $articleId ? Article::where('organization_id', $user->organization_id)->find($articleId) : null;
 
@@ -142,7 +153,7 @@ class CustomerSearch
 
     public static function fromRequest(Request $request): self
     {
-        return new self($request->user(), $request->only(['stage', 'vip', 'consent', 'q', 'brand', 'store', 'group', 'segment', 'risk', 'family', 'family_mode', 'family_days', 'family_not', 'prop', 'article']));
+        return new self($request->user(), $request->only(['stage', 'vip', 'consent', 'q', 'brand', 'store', 'group', 'segment', 'risk', 'family', 'family_mode', 'family_days', 'family_not', 'prop', 'article', 'brands', 'never_brand']));
     }
 
     /**
@@ -170,7 +181,18 @@ class CustomerSearch
     {
         return Customer::where('organization_id', $this->user->organization_id)
             ->whereHas('contacts', $this->contactScope($ignore))
-            ->when($this->segment !== null, fn ($q) => $q->where('rfm_segment', $this->segment))
+            // Segment de la marque choisie (RFM par marque), sinon segment du groupe.
+            ->when($this->segment !== null && $this->brandFilter['selected'] !== null, fn ($q) => $q->whereExists(fn ($m) => $m->from('customer_brand_metrics')
+                ->whereColumn('customer_brand_metrics.customer_id', 'customers.id')
+                ->where('customer_brand_metrics.brand_id', $this->brandFilter['selected'])
+                ->where('customer_brand_metrics.rfm_segment', $this->segment)))
+            ->when($this->segment !== null && $this->brandFilter['selected'] === null, fn ($q) => $q->where('rfm_segment', $this->segment))
+            ->when($this->brands === 'multi', fn ($q) => $q->where('brands_count', '>=', 2))
+            ->when($this->brands === 'mono', fn ($q) => $q->where('brands_count', 1))
+            ->when($this->neverBrand !== null, fn ($q) => $q->whereNotExists(fn ($m) => $m->from('customer_brand_metrics')
+                ->whereColumn('customer_brand_metrics.customer_id', 'customers.id')
+                ->where('customer_brand_metrics.brand_id', $this->neverBrand)
+                ->where('customer_brand_metrics.order_count', '>', 0)))
             ->when($this->risk === 'any', fn ($q) => $q->whereIn('churn_risk', ['medium', 'high']))
             ->when(in_array($this->risk, ['medium', 'high'], true), fn ($q) => $q->where('churn_risk', $this->risk))
             ->when($this->family !== null || $this->familyNot !== null || $this->property !== null || $this->article !== null, fn ($q) => $this->applyFamilies($q))
@@ -256,6 +278,12 @@ class CustomerSearch
             $this->vip ? 'VIP' : null,
             $this->segment !== null ? RfmCalculator::SEGMENTS[$this->segment]['label'] : null,
             $this->risk !== null ? 'Risque de churn' : null,
+            match ($this->brands) {
+                'multi' => 'Multimarques',
+                'mono' => 'Mono-marque',
+                default => null,
+            },
+            $this->neverBrand !== null ? 'Jamais venus chez '.Brand::whereKey($this->neverBrand)->value('name') : null,
             $this->familyLabel(),
             match ($this->consent) {
                 'opt_in' => 'Opt-in',

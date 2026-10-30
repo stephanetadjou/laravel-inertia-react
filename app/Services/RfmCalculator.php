@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Models\Customer;
+use App\Models\Organization;
 use App\Models\Purchase;
 use Illuminate\Database\Query\Builder;
 use Illuminate\Support\Carbon;
@@ -80,7 +81,7 @@ class RfmCalculator
             'average_basket' => (int) round($monetary / $frequency),
             'scores' => ['r' => $scores['r'], 'f' => $scores['f'], 'm' => $scores['m']],
             'buyers' => $scores['buyers'],
-            'segment' => self::segment(self::segmentKey($scores['r'], $scores['f'], $scores['m'], $frequency)),
+            'segment' => self::segment(self::segmentKey($scores['r'], $scores['f'], $scores['m'], $frequency, $customer->organization?->rfmSettings())),
         ];
     }
 
@@ -140,24 +141,28 @@ class RfmCalculator
         return min(5, max(1, (int) floor($percentile * 5) + 1));
     }
 
-    public static function segmentKey(int $r, int $f, int $m, int $frequency): string
+    /**
+     * @param  array<string, int>|null  $rules  seuils de l'organisation (cf. Organization::RFM_DEFAULTS)
+     */
+    public static function segmentKey(int $r, int $f, int $m, int $frequency, ?array $rules = null): string
     {
+        $rules = [...Organization::RFM_DEFAULTS, ...($rules ?? [])];
         $fm = intdiv($f + $m + 1, 2);
 
-        if ($r >= 3) {
+        if ($r >= $rules['active_min_r']) {
             return match (true) {
                 $frequency === 1 => 'new',
-                $r >= 4 && $fm >= 4 => 'champions',
-                $fm >= 3 => 'loyal',
+                $r >= $rules['champions_min_r'] && $fm >= $rules['champions_min_fm'] => 'champions',
+                $fm >= $rules['loyal_min_fm'] => 'loyal',
                 default => 'potential',
             };
         }
 
         // Un achat unique ancien n'en fait pas un « bon client qui s'éloigne ».
         return match (true) {
-            $frequency > 1 && $r === 1 && $fm >= 4 => 'cant_lose',
-            $frequency > 1 && $fm >= 3 => 'at_risk',
-            $r === 2 => 'hibernating',
+            $frequency > 1 && $r === 1 && $fm >= $rules['cant_lose_min_fm'] => 'cant_lose',
+            $frequency > 1 && $fm >= $rules['at_risk_min_fm'] => 'at_risk',
+            $r === $rules['active_min_r'] - 1 => 'hibernating',
             default => 'lost',
         };
     }

@@ -4,6 +4,7 @@ namespace App\Console\Commands;
 
 use App\Models\Contact;
 use App\Models\Organization;
+use App\Services\BrandMetrics;
 use App\Services\CustomerLifecycle;
 use App\Services\CustomerScoring;
 use Illuminate\Console\Command;
@@ -36,6 +37,8 @@ class RefreshCustomerLifecycle extends Command
             $changes = $lifecycle->refreshOrganization($organization);
             // Après l'étape : le risque de churn en dépend.
             $scoring->refreshOrganization($organization);
+            // Chiffres et RFM par marque (clients multimarques).
+            app(BrandMetrics::class)->refreshOrganization($organization);
             $this->info("{$organization->name} : {$organization->customers()->count()} fiche(s), {$changes} changement(s) d'étape.");
         }
 

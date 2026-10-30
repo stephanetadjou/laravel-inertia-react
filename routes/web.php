@@ -21,6 +21,7 @@ use App\Http\Controllers\GroupController;
 use App\Http\Controllers\ImportController;
 use App\Http\Controllers\LoyaltyController;
 use App\Http\Controllers\MessageTemplateController;
+use App\Http\Controllers\MultibrandController;
 use App\Http\Controllers\OrganizationController;
 use App\Http\Controllers\PrivacyPolicyController;
 use App\Http\Controllers\PurchaseController;
@@ -111,6 +112,7 @@ Route::middleware('auth')->group(function () {
     Route::post('/groups/{group}/customers', [GroupController::class, 'addCustomers'])->name('groups.customers.add');
     Route::delete('/groups/{group}/customers', [GroupController::class, 'removeCustomers'])->name('groups.customers.remove');
 
+    Route::get('/multibrand', [MultibrandController::class, 'index'])->name('multibrand.index');
     // Analyses Menentia Retail : tableaux de bord, exports, rapport de direction.
     Route::get('/analytics/report', [AnalyticsController::class, 'report'])->name('analytics.report');
     Route::get('/analytics/{tab}/export/{table}', [AnalyticsController::class, 'export'])->name('analytics.export');
@@ -189,6 +191,8 @@ Route::middleware('auth')->group(function () {
         Route::post('/roles/presets', [RoleController::class, 'presets'])->name('roles.presets');
 
         Route::get('/settings/audit', [AuditLogController::class, 'index'])->name('settings.audit');
+        Route::get('/settings/rfm', [MultibrandController::class, 'settings'])->name('settings.rfm');
+        Route::put('/settings/rfm', [MultibrandController::class, 'update'])->name('settings.rfm.update');
         Route::post('/roles', [RoleController::class, 'store'])->name('roles.store');
         Route::put('/roles/{role}', [RoleController::class, 'update'])->name('roles.update');
         Route::delete('/roles/{role}', [RoleController::class, 'destroy'])->name('roles.destroy');

@@ -38,12 +38,15 @@ class CustomerScoring
     public function refreshOrganization(Organization $organization): int
     {
         $today = now()->startOfDay();
+        $rules = $organization->rfmSettings();
 
         $buyers = DB::table('purchases')
             ->join('contacts', 'contacts.id', '=', 'purchases.contact_id')
             ->join('customers', 'customers.id', '=', 'contacts.customer_id')
             ->where('customers.organization_id', $organization->id)
             ->where('purchases.status', Purchase::STATUS_VALID)
+            // Période d'analyse RFM réglée par l'entreprise (0 = tout l'historique).
+            ->when($rules['period_months'] > 0, fn ($q) => $q->where('purchases.purchased_at', '>=', $today->copy()->subMonths($rules['period_months'])->toDateString()))
             ->groupBy('contacts.customer_id')
             ->havingRaw(Purchase::SQL_SALES_COUNT.' > 0')
             ->selectRaw('contacts.customer_id as id, DATE('.Purchase::SQL_FIRST_SALE.') as first_at, DATE('.Purchase::SQL_LAST_SALE.') as last_at, '.Purchase::SQL_SALES_COUNT.' as cnt, COALESCE(SUM(purchases.amount), 0) as total')
@@ -59,7 +62,10 @@ class CustomerScoring
         $now = now();
         $updated = 0;
 
-        DB::transaction(function () use ($buyers, $r, $f, $m, $stages, $today, $now, $organization, &$updated) {
+        $previous = Customer::where('organization_id', $organization->id)->pluck('rfm_segment', 'id');
+        $history = [];
+
+        DB::transaction(function () use ($buyers, $r, $f, $m, $stages, $today, $now, $organization, $rules, $previous, &$history, &$updated) {
             foreach ($buyers as $buyer) {
                 $scores = ['r' => $r($buyer->last_at), 'f' => $f((int) $buyer->cnt), 'm' => $m((int) $buyer->total)];
                 $frequency = (int) $buyer->cnt;
@@ -82,7 +88,7 @@ class CustomerScoring
                     'rfm_r' => $scores['r'],
                     'rfm_f' => $scores['f'],
                     'rfm_m' => $scores['m'],
-                    'rfm_segment' => RfmCalculator::segmentKey($scores['r'], $scores['f'], $scores['m'], $frequency),
+                    'rfm_segment' => $segment = RfmCalculator::segmentKey($scores['r'], $scores['f'], $scores['m'], $frequency, $rules),
                     'score' => self::score($scores['r'], $scores['f'], $scores['m']),
                     'avg_purchase_interval_days' => $interval,
                     'next_purchase_expected_at' => $expected,
@@ -90,6 +96,13 @@ class CustomerScoring
                     'scored_at' => $now,
                 ]);
                 $updated++;
+
+                // Historique : une ligne à chaque changement de segment du groupe.
+                if (($previous[$buyer->id] ?? null) !== $segment) {
+                    $history[] = ['organization_id' => $organization->id, 'customer_id' => $buyer->id, 'brand_id' => null, 'segment' => $segment,
+                        'r' => $scores['r'], 'f' => $scores['f'], 'm' => $scores['m'], 'computed_on' => $today->toDateString(),
+                        'period_months' => $rules['period_months'], 'rules_version' => $rules['version'], 'created_at' => $now];
+                }
             }
 
             // Fiches sans achat : segment « pas encore d'achat », pas de score.
@@ -103,6 +116,10 @@ class CustomerScoring
                     'churn_risk' => null, 'scored_at' => $now,
                 ]);
         });
+
+        foreach (array_chunk($history, 500) as $chunk) {
+            DB::table('customer_segment_history')->insert($chunk);
+        }
 
         return $updated;
     }
@@ -132,7 +149,7 @@ class CustomerScoring
      * @param  array<int, int|string>  $values
      * @return callable(int|string): int
      */
-    private static function ranker(array $values, int $total): callable
+    public static function ranker(array $values, int $total): callable
     {
         $counts = array_count_values(array_map('strval', $values));
         uksort($counts, fn ($a, $b) => is_numeric($a) && is_numeric($b) ? $a <=> $b : strcmp((string) $a, (string) $b));

@@ -32,7 +32,15 @@ function day(value: string | null): string {
  * caisse, numéros (principal, anciens, partagé), consentements par point de
  * vente, et fusion / séparation de fiches (journalisées).
  */
-export default function IdentityPanel({ customerId, identity, canSteward }: { customerId: number; identity: IdentityData; canSteward: boolean }) {
+export interface BrandMetric {
+    brand: string;
+    orders: number;
+    net: number;
+    last: string | null;
+    segment: string | null;
+}
+
+export default function IdentityPanel({ customerId, identity, canSteward, brandMetrics = [] }: { customerId: number; identity: IdentityData; canSteward: boolean; brandMetrics?: BrandMetric[] }) {
     const [query, setQuery] = useState('');
     const [candidates, setCandidates] = useState<Candidate[]>([]);
 
@@ -121,6 +129,35 @@ export default function IdentityPanel({ customerId, identity, canSteward }: { cu
                     </dd>
                 </div>
             </dl>
+
+            {brandMetrics.length > 0 && (
+                <div className="mdash-tbl mpage-table" style={{ margin: '4px 0 8px' }}>
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Marque</th>
+                                <th className="r">Tickets</th>
+                                <th className="r">CA net</th>
+                                <th>Dernier achat</th>
+                                <th>Segment</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {brandMetrics.map((m) => (
+                                <tr key={m.brand}>
+                                    <td className="cell-main">
+                                        <b>{m.brand}</b>
+                                    </td>
+                                    <td className="r num">{formatNumber(m.orders)}</td>
+                                    <td className="r num">{formatNumber(m.net)} F</td>
+                                    <td>{day(m.last)}</td>
+                                    <td>{m.segment ?? '—'}</td>
+                                </tr>
+                            ))}
+                        </tbody>
+                    </table>
+                </div>
+            )}
 
             {canSteward && (
                 <div style={{ padding: '6px 18px 18px', display: 'grid', gap: 10 }}>
