@@ -6,6 +6,7 @@ use App\Models\Contact;
 use App\Models\Customer;
 use App\Models\CustomerStageChange;
 use App\Models\Organization;
+use App\Models\Purchase;
 use App\Models\Store;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
@@ -263,8 +264,10 @@ class CustomerLifecycle
         $stats = DB::table('purchases')
             ->join('contacts', 'contacts.id', '=', 'purchases.contact_id')
             ->whereIn('contacts.customer_id', $ids)
+            ->where('purchases.status', Purchase::STATUS_VALID)
             ->groupBy('contacts.customer_id')
-            ->selectRaw('contacts.customer_id as customer_id, min(purchases.purchased_at) as first_at, max(purchases.purchased_at) as last_at, count(*) as purchases, sum(purchases.amount) as spent')
+            // Un retour réduit le total dépensé, sans compter comme un achat ni comme une date d'achat.
+            ->selectRaw('contacts.customer_id as customer_id, '.Purchase::SQL_FIRST_SALE.' as first_at, '.Purchase::SQL_LAST_SALE.' as last_at, '.Purchase::SQL_SALES_COUNT.' as purchases, sum(purchases.amount) as spent')
             ->get()
             ->keyBy('customer_id');
 
@@ -283,8 +286,8 @@ class CustomerLifecycle
             $row = $stats->get($customer->id);
 
             $customer->fill([
-                'first_purchase_at' => $row ? Carbon::parse($row->first_at)->toDateString() : null,
-                'last_purchase_at' => $row ? Carbon::parse($row->last_at)->toDateString() : null,
+                'first_purchase_at' => $row?->first_at ? Carbon::parse($row->first_at)->toDateString() : null,
+                'last_purchase_at' => $row?->last_at ? Carbon::parse($row->last_at)->toDateString() : null,
                 'purchases_count' => (int) ($row->purchases ?? 0),
                 'total_spent' => (int) ($row->spent ?? 0),
             ]);
@@ -362,11 +365,13 @@ class CustomerLifecycle
             ->where(fn ($q) => $q->where('is_vip', true)
                 ->orWhereExists(fn ($p) => $p->selectRaw('1')->from('purchases')
                     ->whereColumn('purchases.contact_id', 'contacts.id')
+                    ->where('purchases.status', Purchase::STATUS_VALID)
                     ->where('purchases.purchased_at', '>=', $since)))
             ->get(['id', 'store_id', 'is_vip']);
 
         $spends = DB::table('purchases')
             ->whereIn('contact_id', $contacts->pluck('id'))
+            ->where('status', Purchase::STATUS_VALID)
             ->where('purchased_at', '>=', $since)
             ->groupBy('contact_id')
             ->selectRaw('contact_id, sum(amount) as spent')
@@ -406,6 +411,7 @@ class CustomerLifecycle
         return DB::table('purchases')
             ->join('contacts', 'contacts.id', '=', 'purchases.contact_id')
             ->whereIn('contacts.store_id', $storeIds)
+            ->where('purchases.status', Purchase::STATUS_VALID)
             ->where('purchases.purchased_at', '>=', $since)
             ->groupBy('contacts.store_id', 'contacts.id')
             ->selectRaw('contacts.store_id as store_id, sum(purchases.amount) as spent')

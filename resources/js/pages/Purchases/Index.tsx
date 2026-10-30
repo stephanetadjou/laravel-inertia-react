@@ -25,6 +25,10 @@ interface Filters {
     category: string | null;
     kind: 'service' | 'product' | null;
     q: string;
+    status: 'cancelled' | 'all' | null;
+    type: 'sale' | 'return' | null;
+    anonymous: '1' | '0' | null;
+    batch: number | null;
     sort: 'date' | 'amount';
     dir: 'asc' | 'desc';
     per_page: number;
@@ -35,12 +39,18 @@ interface Totals {
     purchases: number;
     buyers: number;
     quantity: number;
+    returns: number;
+    anonymous: number;
 }
 
 interface PurchaseRow {
     id: number;
+    receipt_number: string | null;
+    type: 'sale' | 'return';
+    status: 'valid' | 'cancelled';
+    buyer_name: string | null;
     purchased_at: string;
-    contact: { id: number; customer_id: number | null; name: string | null; phone_e164: string | null };
+    contact: { id: number | null; customer_id: number | null; name: string | null; phone_e164: string | null };
     store_name: string;
     brand_name: string | null;
     product_category: string | null;
@@ -65,6 +75,8 @@ interface PageProps {
     kpis: { current: Totals; previous: Totals };
     purchases: Paginated<PurchaseRow>;
     preview: PurchaseImportPreview | null;
+    canExport: boolean;
+    auth: { organization: { sells_products: boolean } | null };
     flash?: { success: string | null; error: string | null };
     [key: string]: unknown;
 }
@@ -88,7 +100,8 @@ function plural(n: number, word: string, pluralWord = word + 's'): string {
 }
 
 function PurchasesIndex() {
-    const { filters, stores, categories, kpis, purchases, preview, flash } = usePage<PageProps>().props;
+    const { filters, stores, categories, kpis, purchases, preview, flash, canExport, auth } = usePage<PageProps>().props;
+    const retail = auth.organization?.sells_products ?? false;
     const headerHeight = useHeaderHeight();
     const [isImportOpen, setIsImportOpen] = useState(() => preview !== null);
     const [customFrom, setCustomFrom] = useState(filters.from);
@@ -117,6 +130,10 @@ function PurchasesIndex() {
             category: filters.category,
             kind: filters.kind,
             q: filters.q || null,
+            status: filters.status,
+            type: filters.type,
+            anonymous: filters.anonymous,
+            batch: filters.batch,
             sort: filters.sort === 'date' ? null : filters.sort,
             dir: filters.dir === 'desc' ? null : filters.dir,
             per_page: filters.per_page === 25 ? null : filters.per_page,
@@ -152,7 +169,26 @@ function PurchasesIndex() {
     const basket = current.purchases ? current.revenue / current.purchases : 0;
     const previousBasket = previous.purchases ? previous.revenue / previous.purchases : 0;
     const selectedBrandName = filters.brands.find((b) => b.id === filters.brand)?.name;
-    const hasFilters = Boolean(filters.store || filters.category || filters.kind || filters.q || (filters.brand && !filters.brand_locked));
+    const hasFilters = Boolean(
+        filters.store || filters.category || filters.kind || filters.q || filters.status || filters.type || filters.anonymous || filters.batch || (filters.brand && !filters.brand_locked),
+    );
+    const exportQuery = new URLSearchParams(
+        Object.entries({
+            period: filters.preset,
+            from: filters.preset ? null : filters.from,
+            to: filters.preset ? null : filters.to,
+            brand: filters.brand_locked ? null : filters.brand,
+            store: filters.store,
+            category: filters.category,
+            q: filters.q || null,
+            status: filters.status,
+            type: filters.type,
+            anonymous: filters.anonymous,
+            batch: filters.batch,
+        })
+            .filter(([, v]) => v !== null && v !== '')
+            .map(([k, v]) => [k, String(v)]),
+    ).toString();
 
     const sortArrow = (column: 'date' | 'amount') => (filters.sort === column ? (filters.dir === 'desc' ? '↓' : '↑') : '↕');
 
@@ -165,7 +201,7 @@ function PurchasesIndex() {
                     <div className="mpur-title">
                         <div>
                             <h1>Ventes</h1>
-                            <small>Prestations encaissées et ventes de produits, par établissement</small>
+                            <small>{retail ? 'Tickets et factures de tous vos points de vente' : 'Prestations encaissées et ventes de produits, par établissement'}</small>
                         </div>
                         <div className="mpur-actions">
                             <input
@@ -176,15 +212,27 @@ function PurchasesIndex() {
                                 value={search}
                                 onChange={(e) => setSearch(e.target.value)}
                             />
-                            <button type="button" className="mdash-btn ghost" onClick={() => setIsImportOpen(true)}>
-                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                                    <path d="M12 3v12M7 10l5 5 5-5M5 21h14" />
-                                </svg>
-                                Importer un historique
-                            </button>
+                            {canExport && (
+                                <a className="mdash-btn ghost" href={`/purchases/export${exportQuery ? `?${exportQuery}` : ''}`}>
+                                    Exporter
+                                </a>
+                            )}
+                            {retail ? (
+                                <Link href="/sales-imports" className="mdash-btn ghost">
+                                    Importer des ventes
+                                </Link>
+                            ) : (
+                                <button type="button" className="mdash-btn ghost" onClick={() => setIsImportOpen(true)}>
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                                        <path d="M12 3v12M7 10l5 5 5-5M5 21h14" />
+                                    </svg>
+                                    Importer un historique
+                                </button>
+                            )}
                         </div>
                     </div>
                     <div className="mdash-filters">
+                        {!retail && (
                         <div className="mdash-fgroup">
                             <span>Type de vente</span>
                             <div className="mdash-seg" role="group" aria-label="Type de vente">
@@ -201,6 +249,7 @@ function PurchasesIndex() {
                                 ))}
                             </div>
                         </div>
+                        )}
                         <div className="mdash-fgroup">
                             <span>Période</span>
                             <div className="mdash-seg" role="group" aria-label="Période">
@@ -252,9 +301,34 @@ function PurchasesIndex() {
                             </div>
                         )}
                         <div className="mdash-fgroup">
-                            <label htmlFor="mpur-category">Catégorie</label>
+                            <label htmlFor="mpur-type">Tickets</label>
+                            <select
+                                id="mpur-type"
+                                value={`${filters.status ?? ''}|${filters.type ?? ''}`}
+                                onChange={(e) => {
+                                    const [status, type] = e.target.value.split('|');
+                                    visit({ status: status || null, type: type || null });
+                                }}
+                            >
+                                <option value="|">Ventes et retours</option>
+                                <option value="|sale">Ventes seulement</option>
+                                <option value="|return">Retours seulement</option>
+                                <option value="cancelled|">Tickets annulés</option>
+                                <option value="all|">Tous, annulés compris</option>
+                            </select>
+                        </div>
+                        <div className="mdash-fgroup">
+                            <label htmlFor="mpur-anon">Client</label>
+                            <select id="mpur-anon" value={filters.anonymous ?? ''} onChange={(e) => visit({ anonymous: e.target.value || null })}>
+                                <option value="">Tous</option>
+                                <option value="0">Clients identifiés</option>
+                                <option value="1">Ventes anonymes</option>
+                            </select>
+                        </div>
+                        <div className="mdash-fgroup">
+                            <label htmlFor="mpur-category">{retail ? 'Famille' : 'Catégorie'}</label>
                             <select id="mpur-category" value={filters.category ?? ''} onChange={(e) => visit({ category: e.target.value || null })}>
-                                <option value="">Toutes les catégories</option>
+                                <option value="">{retail ? 'Toutes les familles' : 'Toutes les catégories'}</option>
                                 {categories.map((c) => (
                                     <option key={c} value={c}>
                                         {c}
@@ -270,7 +344,16 @@ function PurchasesIndex() {
                     {filters.category && (
                         <>
                             {' '}
-                            · catégorie <b>{filters.category}</b>
+                            · {retail ? 'famille' : 'catégorie'} <b>{filters.category}</b>
+                        </>
+                    )}
+                    {filters.batch && (
+                        <>
+                            {' '}
+                            · import <Link href={`/sales-imports/${filters.batch}`}>n° {filters.batch}</Link>{' '}
+                            <button type="button" className="mdash-btn ghost sm" onClick={() => visit({ batch: null })}>
+                                ×
+                            </button>
                         </>
                     )}
                 </div>
@@ -283,7 +366,7 @@ function PurchasesIndex() {
                 <div className="c12 mdash-kpis four">
                     <Kpi
                         hero
-                        label="CA de la période"
+                        label={retail ? 'CA net de la période' : 'CA de la période'}
                         value={formatCompact(current.revenue)}
                         unit="FCFA"
                         delta={<Delta value={percentChange(current.revenue, previous.revenue)} />}
@@ -292,12 +375,13 @@ function PurchasesIndex() {
                         label="Ventes"
                         value={formatNumber(current.purchases)}
                         delta={<Delta value={percentChange(current.purchases, previous.purchases)} />}
-                        foot={plural(current.quantity, 'article')}
+                        foot={current.returns > 0 ? `${plural(current.quantity, 'article')} · retours ${formatNumber(current.returns)} F` : plural(current.quantity, 'article')}
                     />
                     <Kpi
                         label="Clients acheteurs"
                         value={formatNumber(current.buyers)}
                         delta={<Delta value={percentChange(current.buyers, previous.buyers)} />}
+                        foot={current.anonymous > 0 ? `+ ${plural(current.anonymous, 'vente anonyme', 'ventes anonymes')}` : undefined}
                     />
                     <Kpi label="Panier moyen" value={formatNumber(basket)} unit="FCFA" delta={<Delta value={percentChange(basket, previousBasket)} />} />
                 </div>
@@ -351,13 +435,31 @@ function PurchasesIndex() {
                                 </thead>
                                 <tbody>
                                     {purchases.data.map((p) => (
-                                        <tr key={p.id}>
-                                            <td className="mono">{formatDate(p.purchased_at)}</td>
+                                        <tr key={p.id} style={p.status === 'cancelled' ? { opacity: 0.55 } : undefined}>
                                             <td className="cell-main">
-                                                <b>
-                                                    <Link href={customerUrl(p.contact)}>{p.contact.name ?? 'Contact supprimé'}</Link>
-                                                </b>
-                                                <span className="mono">{p.contact.phone_e164}</span>
+                                                <Link href={`/purchases/${p.id}`} className="mono">
+                                                    {formatDate(p.purchased_at)}
+                                                </Link>
+                                                <span className="mono">
+                                                    {p.receipt_number ? `n° ${p.receipt_number}` : ''}
+                                                    {p.type === 'return' && <span className="mdash-pill warn"> Retour</span>}
+                                                    {p.status === 'cancelled' && <span className="mdash-pill bad"> Annulé</span>}
+                                                </span>
+                                            </td>
+                                            <td className="cell-main">
+                                                {p.contact.id ? (
+                                                    <>
+                                                        <b>
+                                                            <Link href={customerUrl(p.contact as { id: number; customer_id: number | null })}>{p.contact.name ?? 'Contact supprimé'}</Link>
+                                                        </b>
+                                                        <span className="mono">{p.contact.phone_e164}</span>
+                                                    </>
+                                                ) : (
+                                                    <>
+                                                        <span className="mdash-pill idle">Anonyme</span>
+                                                        {p.buyer_name && <span>{p.buyer_name}</span>}
+                                                    </>
+                                                )}
                                             </td>
                                             <td className="cell-main wrap">
                                                 <b style={{ fontWeight: 500 }}>{p.store_name}</b>

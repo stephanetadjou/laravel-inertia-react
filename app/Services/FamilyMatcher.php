@@ -199,25 +199,56 @@ class FamilyMatcher
             $classified += DB::table('purchases')
                 ->whereNull('category_id')
                 ->whereIn('store_id', $this->storeIds())
+                ->whereNotExists(fn ($q) => $q->from('purchase_items')->whereColumn('purchase_items.purchase_id', 'purchases.id'))
                 ->where(fn ($q) => $row->product_category === null ? $q->whereNull('product_category') : $q->where('product_category', $row->product_category))
                 ->where(fn ($q) => $row->article === null ? $q->whereNull('article') : $q->where('article', $row->article))
                 ->update(['category_id' => $categoryId]);
+
+            // Lignes de tickets importés (import des ventes v2), et leurs articles.
+            $items = DB::table('purchase_items')
+                ->whereNull('category_id')
+                ->whereNull('catalog_item_id')
+                ->whereIn('purchase_id', DB::table('purchases')->whereIn('store_id', $this->storeIds())->select('id'))
+                ->where(fn ($q) => $row->product_category === null ? $q->whereNull('product_category') : $q->where('product_category', $row->product_category))
+                ->where(fn ($q) => $row->article === null ? $q->whereNull('name') : $q->where('name', $row->article));
+
+            DB::table('articles')->whereNull('category_id')->whereIn('id', (clone $items)->whereNotNull('article_id')->select('article_id'))->update(['category_id' => $categoryId]);
+            $classified += $items->update(['category_id' => $categoryId]);
         }
 
         return $classified;
     }
 
-    /** @return Collection<int, object{product_category: ?string, article: ?string, count: int, amount: int}> */
+    /**
+     * Ventes importées sans famille : achats sans ligne (import historique)
+     * et lignes de tickets (import des ventes v2), par libellé.
+     *
+     * @return Collection<int, object{product_category: ?string, article: ?string, count: int, amount: int}>
+     */
     private function unclassifiedRows(): Collection
     {
-        return Purchase::query()
+        $purchases = Purchase::query()
             ->whereIn('store_id', $this->storeIds())
             ->whereNull('category_id')
+            ->whereDoesntHave('items')
             ->where(fn ($q) => $q->whereNotNull('product_category')->orWhereNotNull('article'))
             ->selectRaw('product_category, article, count(*) as count, sum(amount) as amount')
             ->groupBy('product_category', 'article')
             ->toBase()
             ->get();
+
+        $items = DB::table('purchase_items')
+            ->join('purchases', 'purchases.id', '=', 'purchase_items.purchase_id')
+            ->whereIn('purchases.store_id', $this->storeIds())
+            ->where('purchases.status', Purchase::STATUS_VALID)
+            ->whereNull('purchase_items.category_id')
+            ->whereNull('purchase_items.catalog_item_id')
+            ->where(fn ($q) => $q->whereNotNull('purchase_items.product_category')->orWhereNotNull('purchase_items.article_id'))
+            ->selectRaw('purchase_items.product_category as product_category, purchase_items.name as article, count(*) as count, sum(purchase_items.amount) as amount')
+            ->groupBy('purchase_items.product_category', 'purchase_items.name')
+            ->get();
+
+        return $purchases->concat($items)->values();
     }
 
     private function storeIds(): Builder

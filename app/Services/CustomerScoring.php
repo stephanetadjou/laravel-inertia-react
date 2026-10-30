@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Models\Customer;
 use App\Models\Organization;
+use App\Models\Purchase;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 
@@ -42,8 +43,10 @@ class CustomerScoring
             ->join('contacts', 'contacts.id', '=', 'purchases.contact_id')
             ->join('customers', 'customers.id', '=', 'contacts.customer_id')
             ->where('customers.organization_id', $organization->id)
+            ->where('purchases.status', Purchase::STATUS_VALID)
             ->groupBy('contacts.customer_id')
-            ->selectRaw('contacts.customer_id as id, DATE(MIN(purchases.purchased_at)) as first_at, DATE(MAX(purchases.purchased_at)) as last_at, COUNT(*) as cnt, COALESCE(SUM(purchases.amount), 0) as total')
+            ->havingRaw(Purchase::SQL_SALES_COUNT.' > 0')
+            ->selectRaw('contacts.customer_id as id, DATE('.Purchase::SQL_FIRST_SALE.') as first_at, DATE('.Purchase::SQL_LAST_SALE.') as last_at, '.Purchase::SQL_SALES_COUNT.' as cnt, COALESCE(SUM(purchases.amount), 0) as total')
             ->get();
 
         $total = $buyers->count();

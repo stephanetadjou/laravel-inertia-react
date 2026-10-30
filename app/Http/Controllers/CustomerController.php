@@ -524,8 +524,9 @@ class CustomerController extends Controller
             ->join('contacts', 'contacts.id', '=', 'purchases.contact_id')
             ->whereIn('contacts.customer_id', $customerIds)
             ->whereIn('purchases.store_id', $storeIds)
+            ->where('purchases.status', Purchase::STATUS_VALID)
             ->groupBy('contacts.customer_id')
-            ->selectRaw('contacts.customer_id as customer_id, count(*) as purchases, sum(purchases.amount) as spent, max(purchases.purchased_at) as last_at')
+            ->selectRaw('contacts.customer_id as customer_id, '.Purchase::SQL_SALES_COUNT.' as purchases, sum(purchases.amount) as spent, '.Purchase::SQL_LAST_SALE.' as last_at')
             ->get()
             ->keyBy('customer_id');
     }

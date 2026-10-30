@@ -6,6 +6,7 @@ use App\Services\CustomerLifecycle;
 use App\Services\FamilyMatcher;
 use App\Services\Loyalty;
 use Database\Factories\PurchaseFactory;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -27,7 +28,41 @@ class Purchase extends Model
         'properties',
         'purchased_at',
         'payment_method',
+        'receipt_number',
+        'source_key',
+        'type',
+        'status',
+        'subtotal',
+        'discount_amount',
+        'currency',
+        'import_batch_id',
+        'original_purchase_id',
+        'customer_code',
+        'buyer_name',
+        'cancelled_at',
+        'cancelled_by',
+        'cancel_reason',
     ];
+
+    public const TYPE_SALE = 'sale';
+
+    /** Retour : ticket à montant négatif, lié si possible au ticket d'origine. */
+    public const TYPE_RETURN = 'return';
+
+    public const STATUS_VALID = 'valid';
+
+    /** Vente annulée (correction) : conservée et tracée, exclue de tous les calculs. */
+    public const STATUS_CANCELLED = 'cancelled';
+
+    /**
+     * Fragments SQL pour les agrégats sur `purchases` : un retour diminue le
+     * CA mais ne compte ni comme un achat, ni comme une date d'achat.
+     */
+    public const SQL_SALES_COUNT = "SUM(CASE WHEN purchases.type = 'return' THEN 0 ELSE 1 END)";
+
+    public const SQL_FIRST_SALE = "MIN(CASE WHEN purchases.type = 'return' THEN NULL ELSE purchases.purchased_at END)";
+
+    public const SQL_LAST_SALE = "MAX(CASE WHEN purchases.type = 'return' THEN NULL ELSE purchases.purchased_at END)";
 
     /** Moyens de paiement proposés à l'encaissement. */
     public const PAYMENT_METHODS = [
@@ -46,6 +81,10 @@ class Purchase extends Model
         return [
             'purchased_at' => 'date',
             'properties' => 'array',
+            'cancelled_at' => 'datetime',
+            'amount' => 'integer',
+            'subtotal' => 'integer',
+            'discount_amount' => 'integer',
         ];
     }
 
@@ -55,6 +94,10 @@ class Purchase extends Model
      */
     protected static function booted(): void
     {
+        // Une vente annulée reste en base (traçabilité) mais disparaît des
+        // listes et des calculs ; l'écran Ventes la montre avec withCancelled().
+        static::addGlobalScope('valid', fn (Builder $q) => $q->where($q->qualifyColumn('status'), '!=', self::STATUS_CANCELLED));
+
         // Famille reconnue à partir de la catégorie ou de l'article du fichier,
         // sauf si elle est choisie explicitement (cf. FamilyMatcher).
         static::saving(function (Purchase $purchase) {
@@ -88,6 +131,27 @@ class Purchase extends Model
                 Loyalty::for($organization)->reversePurchase($purchase, Contact::whereKey($purchase->contact_id)->value('customer_id'));
             }
         });
+    }
+
+    /** Inclut les ventes annulées (écran Ventes, journal). */
+    public function scopeWithCancelled(Builder $query): Builder
+    {
+        return $query->withoutGlobalScope('valid');
+    }
+
+    public function isAnonymous(): bool
+    {
+        return $this->contact_id === null;
+    }
+
+    public function importBatch(): BelongsTo
+    {
+        return $this->belongsTo(ImportBatch::class);
+    }
+
+    public function originalPurchase(): BelongsTo
+    {
+        return $this->belongsTo(self::class, 'original_purchase_id')->withoutGlobalScope('valid');
     }
 
     public function items(): HasMany

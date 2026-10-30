@@ -24,6 +24,7 @@ use App\Http\Controllers\PrivacyPolicyController;
 use App\Http\Controllers\PurchaseController;
 use App\Http\Controllers\ReportController;
 use App\Http\Controllers\RoleController;
+use App\Http\Controllers\SalesImportController;
 use App\Http\Controllers\ScheduleSettingsController;
 use App\Http\Controllers\StoreController;
 use App\Http\Controllers\UserController;
@@ -184,6 +185,19 @@ Route::middleware('auth')->group(function () {
     Route::get('/purchases', [PurchaseController::class, 'index'])->name('purchases.index');
     Route::post('/purchases/preview', [PurchaseController::class, 'preview'])->name('purchases.preview');
     Route::post('/purchases', [PurchaseController::class, 'store'])->name('purchases.store');
+    Route::get('/purchases/export', [PurchaseController::class, 'export'])->name('purchases.export');
+    Route::get('/purchases/{purchase}', [PurchaseController::class, 'show'])->whereNumber('purchase')->name('purchases.show');
+    Route::post('/purchases/{purchase}/cancel', [PurchaseController::class, 'cancel'])->whereNumber('purchase')->name('purchases.cancel');
+    Route::post('/purchases/{purchase}/restore', [PurchaseController::class, 'restore'])->whereNumber('purchase')->name('purchases.restore');
+
+    // Import des ventes v2 (Menentia Retail) : dépôt, mapping, vérification, traitement en file, annulation.
+    Route::get('/sales-imports', [SalesImportController::class, 'index'])->name('sales-imports.index');
+    Route::post('/sales-imports', [SalesImportController::class, 'store'])->middleware('throttle:20,1')->name('sales-imports.store');
+    Route::get('/sales-imports/{batch}', [SalesImportController::class, 'show'])->name('sales-imports.show');
+    Route::post('/sales-imports/{batch}/mapping', [SalesImportController::class, 'mapping'])->name('sales-imports.mapping');
+    Route::post('/sales-imports/{batch}/confirm', [SalesImportController::class, 'confirm'])->name('sales-imports.confirm');
+    Route::post('/sales-imports/{batch}/cancel', [SalesImportController::class, 'cancel'])->name('sales-imports.cancel');
+    Route::get('/sales-imports/{batch}/errors', [SalesImportController::class, 'errors'])->name('sales-imports.errors');
 
     Route::get('/imports', [ImportController::class, 'index'])->name('imports.index');
     Route::post('/imports/preview', [ImportController::class, 'preview'])->name('imports.preview');

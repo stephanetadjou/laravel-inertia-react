@@ -18,6 +18,7 @@ class Category extends Model
         'organization_id',
         'name',
         'keywords',
+        'parent_id',
     ];
 
     /** Nom ou mots-clés modifiés : la reconnaissance des familles est recalculée. */
@@ -31,6 +32,17 @@ class Category extends Model
     public function organization(): BelongsTo
     {
         return $this->belongsTo(Organization::class);
+    }
+
+    /** Catégorie (niveau au-dessus) d'une famille : Boissons pour Sodas. */
+    public function parent(): BelongsTo
+    {
+        return $this->belongsTo(self::class, 'parent_id');
+    }
+
+    public function children(): HasMany
+    {
+        return $this->hasMany(self::class, 'parent_id');
     }
 
     public function rules(): HasMany

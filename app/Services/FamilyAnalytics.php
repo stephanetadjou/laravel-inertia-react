@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Models\Category;
+use App\Models\Purchase;
 use Carbon\CarbonInterface;
 use Illuminate\Database\Query\Builder;
 use Illuminate\Support\Collection;
@@ -39,6 +40,7 @@ class FamilyAnalytics
         $imported = DB::table('purchases')
             ->join('contacts', 'contacts.id', '=', 'purchases.contact_id')
             ->whereIn('purchases.store_id', $this->storeIds)
+            ->where('purchases.status', Purchase::STATUS_VALID)
             ->whereNotExists(fn ($q) => $q->from('purchase_items')->whereColumn('purchase_items.purchase_id', 'purchases.id'))
             ->tap($period)
             ->selectRaw('contacts.customer_id as customer_id, purchases.store_id as store_id, purchases.category_id as category_id, purchases.amount as amount, date(purchases.purchased_at) as day, purchases.id as purchase_id, purchases.properties as properties');
@@ -48,8 +50,10 @@ class FamilyAnalytics
             ->join('contacts', 'contacts.id', '=', 'purchases.contact_id')
             ->leftJoin('catalog_items', 'catalog_items.id', '=', 'purchase_items.catalog_item_id')
             ->whereIn('purchases.store_id', $this->storeIds)
+            ->where('purchases.status', Purchase::STATUS_VALID)
             ->tap($period)
-            ->selectRaw('contacts.customer_id as customer_id, purchases.store_id as store_id, catalog_items.category_id as category_id, purchase_items.amount as amount, date(purchases.purchased_at) as day, purchases.id as purchase_id, catalog_items.properties as properties');
+            // Ligne importée : sa famille et ses attributs ; ligne encaissée : ceux de l'article du catalogue.
+            ->selectRaw('contacts.customer_id as customer_id, purchases.store_id as store_id, COALESCE(purchase_items.category_id, catalog_items.category_id) as category_id, purchase_items.amount as amount, date(purchases.purchased_at) as day, purchases.id as purchase_id, COALESCE(purchase_items.properties, catalog_items.properties) as properties');
 
         return DB::query()->fromSub($imported->unionAll($itemized), 'lines')->whereNotNull('lines.customer_id');
     }

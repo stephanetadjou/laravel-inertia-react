@@ -327,6 +327,7 @@ class DailyReport
         $yearAgo = $this->day->copy()->subYear()->toDateString();
         $spent = DB::table('purchases')->join('contacts', 'contacts.id', '=', 'purchases.contact_id')
             ->whereIn('contacts.customer_id', $customers->pluck('id'))
+            ->where('purchases.status', Purchase::STATUS_VALID)
             ->whereDate('purchases.purchased_at', '>=', $yearAgo)
             ->groupBy('contacts.customer_id')
             ->selectRaw('contacts.customer_id as id, sum(purchases.amount) as total')

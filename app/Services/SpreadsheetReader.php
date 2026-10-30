@@ -22,11 +22,20 @@ class SpreadsheetReader
      */
     public static function readRows(UploadedFile $file, ?string $delimiter = null): array
     {
-        $extension = strtolower($file->getClientOriginalExtension());
+        return self::readPath($file->getRealPath(), strtolower($file->getClientOriginalExtension()), $delimiter);
+    }
 
+    /**
+     * Même lecture depuis un fichier déjà enregistré (import des ventes v2 :
+     * le fichier déposé est relu à chaque étape).
+     *
+     * @return array<int, array<int, mixed>>
+     */
+    public static function readPath(string $path, string $extension, ?string $delimiter = null): array
+    {
         return in_array($extension, ['xlsx', 'xls'], true)
-            ? self::readExcelRows($file, $extension)
-            : self::readCsvRows($file, $delimiter);
+            ? self::readExcelRows($path, $extension)
+            : self::readCsvRows($path, $delimiter);
     }
 
     /**
@@ -46,9 +55,9 @@ class SpreadsheetReader
         return reset($counts) > 0 ? array_key_first($counts) : ',';
     }
 
-    private static function readCsvRows(UploadedFile $file, ?string $delimiter): array
+    private static function readCsvRows(string $path, ?string $delimiter): array
     {
-        $content = (string) file_get_contents($file->getRealPath());
+        $content = (string) file_get_contents($path);
 
         // BOM UTF-8 d'Excel, et fichiers enregistrés en Windows-1252 (accents).
         $content = preg_replace('/^\xEF\xBB\xBF/', '', $content);
@@ -75,12 +84,12 @@ class SpreadsheetReader
         return $rows;
     }
 
-    private static function readExcelRows(UploadedFile $file, string $extension): array
+    private static function readExcelRows(string $path, string $extension): array
     {
         $reader = $extension === 'xls' ? new Xls : new Xlsx;
         $reader->setReadDataOnly(true);
 
-        $spreadsheet = $reader->load($file->getRealPath());
+        $spreadsheet = $reader->load($path);
 
         // formatData=true : les cellules date/nombre sont converties en texte
         // affiché, pour rester compatibles avec le même traitement que le CSV.

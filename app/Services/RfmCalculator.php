@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Models\Customer;
+use App\Models\Purchase;
 use Illuminate\Database\Query\Builder;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
@@ -45,8 +46,9 @@ class RfmCalculator
             ->join('contacts', 'contacts.id', '=', 'purchases.contact_id')
             ->where('contacts.customer_id', $customer->id)
             ->whereIn('purchases.store_id', $storeIds)
-            ->selectRaw('DATE(MAX(purchases.purchased_at)) as last_at, COUNT(*) as cnt, COALESCE(SUM(purchases.amount), 0) as total')
-            ->selectRaw('SUM(CASE WHEN purchases.purchased_at >= ? THEN 1 ELSE 0 END) as cnt_12m', [now()->subYear()->toDateString()])
+            ->where('purchases.status', Purchase::STATUS_VALID)
+            ->selectRaw('DATE('.Purchase::SQL_LAST_SALE.') as last_at, '.Purchase::SQL_SALES_COUNT.' as cnt, COALESCE(SUM(purchases.amount), 0) as total')
+            ->selectRaw("SUM(CASE WHEN purchases.purchased_at >= ? AND purchases.type <> 'return' THEN 1 ELSE 0 END) as cnt_12m", [now()->subYear()->toDateString()])
             ->first();
 
         $frequency = (int) $own->cnt;
@@ -119,9 +121,11 @@ class RfmCalculator
         return DB::table('purchases')
             ->join('contacts', 'contacts.id', '=', 'purchases.contact_id')
             ->whereIn('purchases.store_id', $storeIds)
+            ->where('purchases.status', Purchase::STATUS_VALID)
             ->whereNotNull('contacts.customer_id')
             ->groupBy('contacts.customer_id')
-            ->selectRaw('contacts.customer_id, DATE(MAX(purchases.purchased_at)) as last_at, COUNT(*) as cnt, SUM(purchases.amount) as total');
+            ->havingRaw(Purchase::SQL_SALES_COUNT.' > 0')
+            ->selectRaw('contacts.customer_id, DATE('.Purchase::SQL_LAST_SALE.') as last_at, '.Purchase::SQL_SALES_COUNT.' as cnt, SUM(purchases.amount) as total');
     }
 
     /** Rang centile (rang moyen pour les ex-aequo) ramené à un score 1-5. */

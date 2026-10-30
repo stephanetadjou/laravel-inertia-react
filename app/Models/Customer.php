@@ -69,6 +69,20 @@ class Customer extends Model
         'next_purchase_expected_at',
         'churn_risk',
         'scored_at',
+        'type',
+        'company_name',
+        'contact_name',
+        'external_code',
+    ];
+
+    public const TYPE_PERSON = 'person';
+
+    /** Client professionnel (grossiste, revendeur, restaurant…) : raison sociale et personne à contacter. */
+    public const TYPE_BUSINESS = 'business';
+
+    public const TYPES = [
+        self::TYPE_PERSON => 'Particulier',
+        self::TYPE_BUSINESS => 'Entreprise',
     ];
 
     protected function casts(): array
@@ -118,6 +132,17 @@ class Customer extends Model
     public function stageChanges(): HasMany
     {
         return $this->hasMany(CustomerStageChange::class);
+    }
+
+    public function isBusiness(): bool
+    {
+        return $this->type === self::TYPE_BUSINESS;
+    }
+
+    /** Nom affiché : la raison sociale d'une entreprise, sinon le nom. */
+    public function displayName(): string
+    {
+        return $this->isBusiness() && filled($this->company_name) ? (string) $this->company_name : (string) $this->name;
     }
 
     public function stageLabel(): string

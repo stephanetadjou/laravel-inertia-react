@@ -1,4 +1,4 @@
-import { BoxCubeIcon, CalenderIcon, DollarLineIcon, GridIcon, PaperPlaneIcon, PieChartIcon, TaskIcon, UserIcon } from '../icons';
+import { BoxCubeIcon, CalenderIcon, DollarLineIcon, DownloadIcon, GridIcon, PaperPlaneIcon, PieChartIcon, TaskIcon, UserIcon } from '../icons';
 
 /*
  * Menu principal, à la manière d'Odoo : quelques grandes rubriques dans le
@@ -30,9 +30,11 @@ export interface NavContext {
     hasAgenda?: boolean;
     /** Commerce : ni prestations ni catalogue, l'analyse se fait par familles de produits. */
     sellsProducts?: boolean;
+    /** Droit d'importer des ventes (rubrique Imports de Menentia Retail). */
+    canImport?: boolean;
 }
 
-export function buildSections({ canManageOrganization, whatsappApiEnabled, hasAgenda = true, sellsProducts = false }: NavContext): NavSection[] {
+export function buildSections({ canManageOrganization, whatsappApiEnabled, hasAgenda = true, sellsProducts = false, canImport = false }: NavContext): NavSection[] {
     const settingsTabs: NavTab[] = [
         ...(canManageOrganization
             ? [
@@ -66,7 +68,8 @@ export function buildSections({ canManageOrganization, whatsappApiEnabled, hasAg
             tabs: [
                 { name: 'Fiches clients', path: '/customers', alsoActiveOn: ['/contacts'] },
                 { name: 'Groupes', path: '/groups' },
-                { name: 'Importer', path: '/imports' },
+                // Retail : les imports ont leur propre rubrique.
+                ...(sellsProducts ? [] : [{ name: 'Importer', path: '/imports' }]),
             ],
         },
         {
@@ -81,6 +84,17 @@ export function buildSections({ canManageOrganization, whatsappApiEnabled, hasAg
             ],
         },
     ];
+
+    // Menentia Retail : imports des ventes (fichiers de caisse / ERP) et des clients.
+    if (sellsProducts) {
+        sections.push({
+            key: 'imports',
+            name: 'Imports',
+            icon: <DownloadIcon />,
+            path: canImport ? '/sales-imports' : '/imports',
+            tabs: [...(canImport ? [{ name: 'Ventes', path: '/sales-imports' }] : []), { name: 'Clients', path: '/imports' }],
+        });
+    }
 
     if (whatsappApiEnabled) {
         sections.push({

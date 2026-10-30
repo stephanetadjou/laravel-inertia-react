@@ -39,6 +39,15 @@ class Loyalty
             return 0;
         }
 
+        // Vente annulée : aucun point ; retour : les points correspondants sont retirés.
+        if ($purchase->status === Purchase::STATUS_CANCELLED) {
+            return 0;
+        }
+
+        if ($purchase->type === Purchase::TYPE_RETURN) {
+            return -intdiv(abs((int) $purchase->amount), $settings['fcfa_per_point']);
+        }
+
         return intdiv(max(0, (int) $purchase->amount), $settings['fcfa_per_point']);
     }
 
