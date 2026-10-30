@@ -37,8 +37,11 @@ class RetailDemoProfiles
             'slug' => 'demo-retail-mode',
             'name' => 'Retail Group Démo (mode)',
             'email_prefix' => 'mode',
-            'tickets' => 2000,
-            'customers' => 700,
+            // Démo construite autour d'histoires (SeedRetailDemo::storyRows) : cohortes de clients
+            // aux comportements choisis, pour que chaque constat se lise dans les écrans.
+            'stories' => true,
+            'tickets' => 3500,
+            'customers' => 850,
             'anonymous_share' => 15,
             'level' => 'family',
             'loyalty' => true,
