@@ -68,6 +68,7 @@ export function buildSections({ canManageOrganization, whatsappApiEnabled, hasAg
             tabs: [
                 { name: 'Fiches clients', path: '/customers', alsoActiveOn: ['/contacts'] },
                 { name: 'Groupes', path: '/groups' },
+                ...(sellsProducts && canImport ? [{ name: 'À vérifier', path: '/customers/a-verifier' }] : []),
                 // Retail : les imports ont leur propre rubrique.
                 ...(sellsProducts ? [] : [{ name: 'Importer', path: '/imports' }]),
             ],

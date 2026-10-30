@@ -8,6 +8,7 @@ use App\Models\CampaignMessage;
 use App\Models\Category;
 use App\Models\Contact;
 use App\Models\Customer;
+use App\Models\CustomerConsent;
 use App\Models\CustomerFollowUp;
 use App\Models\Group;
 use App\Models\LoyaltyReward;
@@ -228,6 +229,19 @@ class CustomerController extends Controller
                 'created_at' => $customer->created_at->toIso8601String(),
             ],
             'scoped' => $scoped,
+            // Référentiel : particulier / entreprise, code client source, numéros, consentements.
+            'identity' => [
+                'type' => $customer->type ?? Customer::TYPE_PERSON,
+                'company_name' => $customer->company_name,
+                'contact_name' => $customer->contact_name,
+                'external_code' => $customer->external_code,
+                'phones' => $customer->phones()->orderByDesc('is_primary')->orderByDesc('valid_from')->get()
+                    ->map(fn ($p) => ['phone' => $p->phone_e164, 'primary' => $p->is_primary, 'shared' => $p->is_shared, 'from' => $p->valid_from?->toDateString(), 'to' => $p->valid_to?->toDateString()]),
+                'consents' => $customer->consents()->with('store:id,name')->whereIn('store_id', $storeIds)->get()
+                    ->map(fn ($c) => ['channel' => CustomerConsent::CHANNELS[$c->channel] ?? $c->channel, 'purpose' => CustomerConsent::PURPOSES[$c->purpose] ?? $c->purpose, 'status' => $c->status, 'store' => $c->store?->name, 'date' => $c->consent_date?->toIso8601String(), 'source' => Contact::CONSENT_SOURCES[$c->source] ?? $c->source]),
+                'other_phone_contacts' => $contacts->where('phone_e164', '!=', $customer->phone_e164)->map(fn (Contact $c) => ['id' => $c->id, 'phone' => $c->phone_e164, 'store' => $c->store->name, 'name' => $c->name])->values(),
+            ],
+            'canSteward' => $user->canImport(),
             'rfm' => $rfm->forCustomer($customer, $storeIds),
             // Habitudes d'achat : familles préférées, visites, panier moyen, attributs (genre…).
             'habits' => $this->habits($customer, $storeIds),

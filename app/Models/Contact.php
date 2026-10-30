@@ -103,6 +103,13 @@ class Contact extends Model
             }
         });
 
+        // Consentement reporté sur la fiche (customer_consents).
+        static::saved(function (Contact $contact) {
+            if ($contact->wasRecentlyCreated || $contact->wasChanged(['consent_status', 'customer_id'])) {
+                CustomerConsent::syncFromContact($contact);
+            }
+        });
+
         // Le consentement fait passer de Contact à Prospect.
         static::saved(function (Contact $contact) {
             if ($contact->wasRecentlyCreated || $contact->wasChanged('consent_status')) {

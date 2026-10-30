@@ -99,9 +99,51 @@ class Customer extends Model
         ];
     }
 
+    /**
+     * Numéros de la fiche (customer_phones) tenus à jour avec phone_e164 :
+     * le numéro principal à la création, puis à chaque changement l'ancien
+     * numéro est clos (valid_to) et le nouveau devient principal.
+     */
+    protected static function booted(): void
+    {
+        static::created(function (Customer $customer) {
+            CustomerPhone::create(['customer_id' => $customer->id, 'phone_e164' => $customer->phone_e164, 'is_primary' => true, 'valid_from' => today()]);
+        });
+
+        static::updated(function (Customer $customer) {
+            if (! $customer->wasChanged('phone_e164')) {
+                return;
+            }
+
+            CustomerPhone::where('customer_id', $customer->id)->where('is_primary', true)
+                ->update(['is_primary' => false, 'valid_to' => today()]);
+
+            CustomerPhone::updateOrCreate(
+                ['customer_id' => $customer->id, 'phone_e164' => $customer->phone_e164],
+                ['is_primary' => true, 'valid_to' => null, 'valid_from' => today()],
+            );
+        });
+    }
+
     public function organization(): BelongsTo
     {
         return $this->belongsTo(Organization::class);
+    }
+
+    public function phones(): HasMany
+    {
+        return $this->hasMany(CustomerPhone::class);
+    }
+
+    public function consents(): HasMany
+    {
+        return $this->hasMany(CustomerConsent::class);
+    }
+
+    /** Numéro marqué partagé : une vente à un autre nom passe par « À vérifier ». */
+    public function hasSharedPhone(): bool
+    {
+        return $this->phones()->where('phone_e164', $this->phone_e164)->where('is_shared', true)->exists();
     }
 
     public function contacts(): HasMany

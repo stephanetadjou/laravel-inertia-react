@@ -382,7 +382,7 @@ class SalesImport
         $user = $batch->user;
         $customersBefore = Customer::where('organization_id', $batch->organization_id)->count();
         $context = $this->context($batch, $user);
-        $stats = ['tickets' => 0, 'lines' => 0, 'anonymous' => 0, 'unclassified' => 0, 'duplicates' => 0];
+        $stats = ['tickets' => 0, 'lines' => 0, 'anonymous' => 0, 'unclassified' => 0, 'duplicates' => 0, 'to_review' => 0];
 
         try {
             CustomerLifecycle::batch(function () use ($batch, &$context, &$stats) {
@@ -493,7 +493,7 @@ class SalesImport
         }
 
         $identity = $rows->first(fn (ImportRow $row) => $row->data['phone'] !== null || $row->data['customer_code'] !== null)?->data ?? $first;
-        $contact = $this->resolveContact($identity, $batch);
+        [$contact, $review] = $this->resolveContact($identity, $batch);
 
         $lines = $rows->map(fn (ImportRow $row) => [
             'row' => $row,
@@ -533,6 +533,11 @@ class SalesImport
             'buyer_name' => $contact === null ? $identity['name'] : null,
         ]);
 
+        if ($review !== null) {
+            app(CustomerIdentity::class)->queue($review['customer'], $first['store_id'], $identity['name'], $review['reason'], [$purchase->id], $batch->id);
+            $stats['to_review']++;
+        }
+
         foreach ($lines as $line) {
             $data = $line['data'];
 
@@ -557,7 +562,7 @@ class SalesImport
 
         $rows->each(fn (ImportRow $row) => $row->update(['status' => ImportRow::STATUS_IMPORTED]));
         $stats['tickets']++;
-        $stats['anonymous'] += $contact === null ? 1 : 0;
+        $stats['anonymous'] += $contact === null && $review === null ? 1 : 0;
     }
 
     /**
@@ -600,20 +605,31 @@ class SalesImport
     /**
      * Fiche client de la vente : par numéro de téléphone (le contact du point
      * de vente est créé au besoin), sinon par code client déjà connu. Sans
-     * l'un ni l'autre : vente anonyme (null), aucun client n'est créé.
+     * l'un ni l'autre : vente anonyme, aucun client n'est créé.
+     * Numéro connu mais nom très différent, ou numéro partagé : pas de
+     * rattachement automatique, la vente part dans « À vérifier ».
      *
      * @param  array<string, mixed>  $data
+     * @return array{0: Contact|null, 1: array{customer: Customer, reason: string}|null}
      */
-    protected function resolveContact(array $data, ImportBatch $batch): ?Contact
+    protected function resolveContact(array $data, ImportBatch $batch): array
     {
         $phone = $data['phone'];
 
         if ($phone === null && $data['customer_code'] !== null) {
             $phone = Customer::where('organization_id', $batch->organization_id)->where('external_code', $data['customer_code'])->value('phone_e164');
+        } elseif ($phone !== null) {
+            $known = Customer::where('organization_id', $batch->organization_id)->where('phone_e164', $phone)->first();
+            $reason = $known ? app(CustomerIdentity::class)->reviewReason($known, $data['name']) : null;
+
+            // Le code client de la caisse confirme l'identité.
+            if ($reason !== null && ! ($data['customer_code'] !== null && $known->external_code === $data['customer_code'])) {
+                return [null, ['customer' => $known, 'reason' => $reason]];
+            }
         }
 
         if ($phone === null) {
-            return null;
+            return [null, null];
         }
 
         $contact = Contact::where('store_id', $data['store_id'])->where('phone_e164', $phone)->first();
@@ -632,7 +648,7 @@ class SalesImport
 
         $this->completeCustomer($contact, $data);
 
-        return $contact;
+        return [$contact, null];
     }
 
     /**
