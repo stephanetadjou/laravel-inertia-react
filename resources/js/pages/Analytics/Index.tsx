@@ -55,6 +55,7 @@ interface PageProps {
         kpis?: Record<string, number | null>;
         previous?: Totals;
         active_days?: number;
+        insights?: { key: string; tone: string; title: string; detail: string; action: string; link: string }[];
         monthly?: { month: string; net: number; tickets: number; customers: number }[];
         tables: Table[];
     };
@@ -284,6 +285,20 @@ function AnalyticsIndex() {
             {stats.length > 0 && <StatStrip items={stats} />}
 
             <div className="mdash-grid">
+                {tab === 'direction' && data.insights && data.insights.length > 0 && (
+                    <Panel title="À retenir" sub="Constats calculés automatiquement sur la période et le périmètre choisis" className="c12">
+                        <ul className="mpage-list" style={{ listStyle: 'none', paddingLeft: 18 }}>
+                            {data.insights.map((i) => (
+                                <li key={i.key}>
+                                    <span className={`mdash-pill ${i.tone}`}>{i.action}</span> <b>{i.title}</b> — <span className="mpage-muted">{i.detail}</span>{' '}
+                                    <Link href={i.link} className="mdash-link">
+                                        Voir et agir
+                                    </Link>
+                                </li>
+                            ))}
+                        </ul>
+                    </Panel>
+                )}
                 {tab === 'direction' && data.monthly && data.monthly.length > 1 && <MonthlyBars monthly={data.monthly} currency={currency} />}
                 {data.tables.map((t) => (
                     <TablePanel key={t.key} table={t} tab={tab} query={query} canExport={canExport} currency={currency} />

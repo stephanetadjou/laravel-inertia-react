@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Models\Brand;
+use App\Models\Category;
 use App\Models\Customer;
 use App\Models\CustomerMatchReview;
 use App\Models\ImportBatch;
@@ -120,9 +121,305 @@ class RetailAnalytics
             'kpis' => $current,
             'previous' => $previous,
             'active_days' => $this->activeDays,
+            'insights' => $this->insights(),
             'monthly' => $this->monthly(),
             'tables' => [$this->brandsTable(), $this->monthlyTable()],
         ];
+    }
+
+    /**
+     * « À retenir » : 3 à 5 constats calculés par des règles simples (pas
+     * d'IA), chacun avec le chiffre clé, la décision suggérée et le lien
+     * vers l'écran où agir. Les règles portent sur le périmètre filtré ; la
+     * date de référence est la fin de la période.
+     *
+     * @return list<array{key: string, tone: string, title: string, detail: string, action: string, link: string, score: float}>
+     */
+    public function insights(int $limit = 5): array
+    {
+        $insights = array_filter([
+            $this->insightLostLoyal(),
+            $this->insightMultibrand(),
+            $this->insightCrossSell(),
+            $this->insightFamilyTrend('down'),
+            $this->insightFamilyTrend('up'),
+            $this->insightNewCustomers(),
+            $this->insightReturns(),
+            $this->insightAnonymous(),
+        ]);
+
+        usort($insights, fn ($a, $b) => $b['score'] <=> $a['score']);
+
+        return array_slice(array_values($insights), 0, $limit);
+    }
+
+    /** Marques du périmètre : id => nom. */
+    private function scopeBrands(): Collection
+    {
+        return Brand::whereIn('id', Store::whereIn('id', $this->storeIds ?: [0])->select('brand_id'))->orderBy('name')->pluck('name', 'id');
+    }
+
+    /** Bons clients d'une marque (segments RFM de la marque) qui n'achètent plus. */
+    private function insightLostLoyal(): ?array
+    {
+        $rows = DB::table('customer_brand_metrics')
+            ->whereIn('brand_id', $this->scopeBrands()->keys()->all() ?: [0])
+            ->whereIn('rfm_segment', ['at_risk', 'cant_lose'])
+            ->where('order_count', '>=', 3)
+            ->selectRaw('brand_id, COUNT(*) as customers, SUM(net_spend) as spend')
+            ->groupBy('brand_id')
+            ->orderByDesc('spend')
+            ->first();
+
+        if (! $rows || $rows->customers < 5) {
+            return null;
+        }
+
+        $brand = $this->scopeBrands()[$rows->brand_id] ?? '';
+
+        return [
+            'key' => 'lost_loyal',
+            'tone' => 'bad',
+            'title' => "{$brand} : {$rows->customers} bons clients n’achètent plus",
+            'detail' => 'Segments « À risque » et « À ne pas perdre » (3 achats ou plus), '.number_format((int) $rows->spend, 0, ',', ' ').' FCFA dépensés chez '.$brand.'.',
+            'action' => 'Campagne de reconquête ciblée',
+            'link' => "/customers?brand={$rows->brand_id}&segment=at_risk",
+            'score' => 100 + $rows->customers,
+        ];
+    }
+
+    /** Poids des clients multimarques dans le CA. */
+    private function insightMultibrand(): ?array
+    {
+        if ($this->scopeBrands()->count() < 2) {
+            return null;
+        }
+
+        $rows = $this->lines()->whereNotNull('customer_id')->selectRaw('customer_id, COUNT(DISTINCT brand_id) as brands, SUM(amount) as net')->groupBy('customer_id')->get();
+        $total = max(1, (int) $rows->sum('net'));
+        $multi = $rows->where('brands', '>=', 2);
+
+        if ($rows->count() < 20 || $multi->isEmpty()) {
+            return null;
+        }
+
+        $customerShare = (int) round($multi->count() / $rows->count() * 100);
+        $revenueShare = (int) round($multi->sum('net') / $total * 100);
+
+        if ($revenueShare < $customerShare * 1.5) {
+            return null;
+        }
+
+        return [
+            'key' => 'multibrand',
+            'tone' => 'ok',
+            'title' => "Les clients multimarques : {$customerShare} % des clients, {$revenueShare} % du CA identifié",
+            'detail' => $multi->count().' clients achètent dans au moins deux marques du groupe.',
+            'action' => 'Programme VIP groupe',
+            'link' => '/customers?brands=multi',
+            'score' => 80 + $revenueShare - $customerShare,
+        ];
+    }
+
+    /** Plus gros potentiel de vente croisée entre deux marques du périmètre. */
+    private function insightCrossSell(): ?array
+    {
+        $brands = $this->scopeBrands();
+
+        if ($brands->count() < 2) {
+            return null;
+        }
+
+        $buyers = DB::table('customer_brand_metrics')->whereIn('brand_id', $brands->keys()->all())->where('order_count', '>', 0)
+            ->get(['customer_id', 'brand_id', 'order_count'])->groupBy('brand_id');
+        $best = null;
+
+        foreach ($brands as $from => $fromName) {
+            $loyal = ($buyers[$from] ?? collect())->where('order_count', '>=', 2)->pluck('customer_id')->flip();
+
+            foreach ($brands as $to => $toName) {
+                if ($from === $to || $loyal->isEmpty()) {
+                    continue;
+                }
+                $already = ($buyers[$to] ?? collect())->filter(fn ($r) => $loyal->has($r->customer_id))->count();
+                $never = $loyal->count() - $already;
+
+                if ($best === null || $never > $best['never']) {
+                    $best = ['from' => $from, 'to' => $to, 'never' => $never, 'loyal' => $loyal->count()];
+                }
+            }
+        }
+
+        if ($best === null || $best['never'] < 10) {
+            return null;
+        }
+
+        return [
+            'key' => 'cross_sell',
+            'tone' => 'info',
+            'title' => "{$best['never']} clients fidèles de {$brands[$best['from']]} ne sont jamais venus chez {$brands[$best['to']]}",
+            'detail' => (int) round($best['never'] / max(1, $best['loyal']) * 100).' % des clients de '.$brands[$best['from']].' ayant au moins 2 achats.',
+            'action' => 'Offre croisée '.$brands[$best['from']].' → '.$brands[$best['to']],
+            'link' => "/actions?list=cross_sell&brand={$best['from']}",
+            'score' => 60 + min(40, $best['never'] / 5),
+        ];
+    }
+
+    /** Famille dont le CA des 90 derniers jours baisse (ou monte) le plus par rapport aux 90 précédents. */
+    private function insightFamilyTrend(string $direction): ?array
+    {
+        $end = $this->to->copy();
+        $recent = $this->familyTotals($end->copy()->subDays(89), $end);
+        $before = $this->familyTotals($end->copy()->subDays(179), $end->copy()->subDays(90));
+        $names = Category::whereKey($recent->keys()->merge($before->keys())->unique()->all())->pluck('name', 'id');
+        $best = null;
+
+        foreach ($names as $id => $name) {
+            $old = (int) ($before[$id] ?? 0);
+            $new = (int) ($recent[$id] ?? 0);
+
+            if (max($old, $new) < 500000 || $old <= 0) {
+                continue;
+            }
+
+            $change = (int) round(($new - $old) / $old * 100);
+
+            if (($direction === 'down' && $change <= -25 && ($best === null || $change < $best['change']))
+                || ($direction === 'up' && $change >= 25 && ($best === null || $change > $best['change']))) {
+                $best = ['id' => $id, 'name' => $name, 'change' => $change, 'new' => $new, 'old' => $old];
+            }
+        }
+
+        if ($best === null) {
+            return null;
+        }
+
+        $money = fn ($v) => number_format($v, 0, ',', ' ').' FCFA';
+
+        return [
+            'key' => 'family_'.$direction,
+            'tone' => $direction === 'down' ? 'warn' : 'ok',
+            'title' => $direction === 'down'
+                ? "{$best['name']} en baisse : {$best['change']} % sur 90 jours"
+                : "{$best['name']} en hausse : +{$best['change']} % sur 90 jours",
+            'detail' => $money($best['new']).' contre '.$money($best['old']).' les 90 jours précédents.',
+            'action' => $direction === 'down' ? 'Revoir l’offre et le réassort' : 'Renforcer le stock et la mise en avant',
+            'link' => "/analytics/families?family={$best['id']}",
+            'score' => 50 + min(40, abs($best['change']) / 2),
+        ];
+    }
+
+    /** Marque où les nouveaux clients reviennent le moins dans les 90 jours. */
+    private function insightNewCustomers(): ?array
+    {
+        $end = $this->to->toDateString();
+        $from = $this->to->copy()->subDays(270)->toDateString();
+        $until = $this->to->copy()->subDays(90)->toDateString();
+
+        $worst = null;
+        $metrics = DB::table('customer_brand_metrics')->whereIn('brand_id', $this->scopeBrands()->keys()->all() ?: [0])
+            ->whereBetween('first_purchase_at', [$from, $until])->get(['customer_id', 'brand_id', 'first_purchase_at']);
+
+        foreach ($metrics->groupBy('brand_id') as $brandId => $rows) {
+            if ($rows->count() < 15) {
+                continue;
+            }
+
+            $returned = 0;
+            foreach ($rows as $row) {
+                $returned += DB::table('purchases')->join('contacts', 'contacts.id', '=', 'purchases.contact_id')
+                    ->join('stores', 'stores.id', '=', 'purchases.store_id')
+                    ->where('contacts.customer_id', $row->customer_id)->where('stores.brand_id', $brandId)
+                    ->where('purchases.status', Purchase::STATUS_VALID)->where('purchases.type', '!=', Purchase::TYPE_RETURN)
+                    ->whereRaw('substr(purchases.purchased_at, 1, 10) > ?', [$row->first_purchase_at])
+                    ->whereRaw('substr(purchases.purchased_at, 1, 10) <= ?', [Carbon::parse($row->first_purchase_at)->addDays(90)->toDateString()])
+                    ->exists() ? 1 : 0;
+            }
+
+            $rate = (int) round($returned / $rows->count() * 100);
+
+            if ($worst === null || $rate < $worst['rate']) {
+                $worst = ['brand' => $brandId, 'rate' => $rate, 'count' => $rows->count()];
+            }
+        }
+
+        if ($worst === null || $worst['rate'] >= 30) {
+            return null;
+        }
+
+        $brand = $this->scopeBrands()[$worst['brand']] ?? '';
+
+        return [
+            'key' => 'new_customers',
+            'tone' => 'warn',
+            'title' => "{$brand} : seulement {$worst['rate']} % des nouveaux clients reviennent dans les 90 jours",
+            'detail' => "{$worst['count']} nouveaux clients entre 9 et 3 mois avant le {$this->to->format('d/m/Y')}.",
+            'action' => 'Message de bienvenue + relance à J+30',
+            'link' => '/actions?list=second_purchase&brand='.$worst['brand'],
+            'score' => 70 + (30 - $worst['rate']),
+        ];
+    }
+
+    /** Famille au taux de retour anormalement élevé. */
+    private function insightReturns(): ?array
+    {
+        $rows = $this->lines()->whereNotNull('category_id')
+            ->selectRaw("category_id, SUM(CASE WHEN type = 'return' THEN -amount ELSE 0 END) as returns, SUM(CASE WHEN type = 'return' THEN 0 ELSE amount END) as sales")
+            ->groupBy('category_id')->get()
+            ->filter(fn ($r) => $r->sales >= 300000)
+            ->map(fn ($r) => [...(array) $r, 'rate' => round($r->returns / max(1, $r->sales) * 100, 1)])
+            ->sortByDesc('rate')->first();
+
+        if (! $rows || $rows['rate'] < 8) {
+            return null;
+        }
+
+        $name = Category::whereKey($rows['category_id'])->value('name');
+
+        return [
+            'key' => 'returns',
+            'tone' => 'bad',
+            'title' => "Retours élevés sur {$name} : {$rows['rate']} % des ventes",
+            'detail' => number_format((int) $rows['returns'], 0, ',', ' ').' FCFA retournés sur la période.',
+            'action' => 'Alerte qualité : vérifier les produits et les tailles',
+            'link' => '/purchases?type=return&category='.rawurlencode((string) $name),
+            'score' => 55 + $rows['rate'],
+        ];
+    }
+
+    /** Point de vente où trop de tickets restent anonymes. */
+    private function insightAnonymous(): ?array
+    {
+        $row = $this->lines()
+            ->selectRaw("store_id, COUNT(DISTINCT CASE WHEN type = 'return' THEN NULL ELSE purchase_id END) as tickets, COUNT(DISTINCT CASE WHEN type <> 'return' AND customer_id IS NULL THEN purchase_id END) as anonymous")
+            ->groupBy('store_id')->get()
+            ->filter(fn ($r) => $r->tickets >= 30)
+            ->map(fn ($r) => ['store_id' => $r->store_id, 'rate' => (int) round($r->anonymous / $r->tickets * 100), 'anonymous' => (int) $r->anonymous])
+            ->sortByDesc('rate')->first();
+
+        if (! $row || $row['rate'] < 25) {
+            return null;
+        }
+
+        $store = Store::whereKey($row['store_id'])->value('name');
+
+        return [
+            'key' => 'anonymous',
+            'tone' => 'warn',
+            'title' => "{$store} : {$row['rate']} % de ventes anonymes",
+            'detail' => "{$row['anonymous']} tickets sans numéro de client sur la période : ces clients ne peuvent être ni suivis ni relancés.",
+            'action' => 'Collecter le téléphone en caisse',
+            'link' => "/purchases?anonymous=1&store={$row['store_id']}",
+            'score' => 50 + $row['rate'] / 2,
+        ];
+    }
+
+    /** @return Collection<int, int> famille => CA net */
+    private function familyTotals(Carbon $from, Carbon $to): Collection
+    {
+        return $this->lines($from, $to)->whereNotNull('category_id')
+            ->selectRaw('category_id, SUM(amount) as net')->groupBy('category_id')->pluck('net', 'category_id')
+            ->map(fn ($v) => (int) $v);
     }
 
     /** Marques et points de vente : classement et contribution au CA. */
