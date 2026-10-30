@@ -111,7 +111,7 @@ function SalesImportsIndex() {
                                     <td className="cell-main">
                                         <b>Autres colonnes</b>
                                     </td>
-                                    <td className="wrap mpage-muted">Gardées comme attributs de la vente (marque, taille, canal, région…) et utilisables dans les analyses.</td>
+                                    <td className="wrap mpage-muted">Gardées comme attributs de la vente (marque, canal, région…) et utilisables dans les analyses.</td>
                                 </tr>
                             </tbody>
                         </table>

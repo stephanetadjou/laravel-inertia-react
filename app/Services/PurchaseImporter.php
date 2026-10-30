@@ -31,7 +31,7 @@ use Illuminate\Support\Str;
  *   prix (prix unitaire) et/ou montant -> l'un des deux obligatoire
  *                                          (montant, si présent, prime sur quantite × prix)
  *   toute autre colonne                -> attribut générique de la vente (genre, marque,
- *                                          taille…), enregistré dans purchases.properties
+ *                                          canal…), enregistré dans purchases.properties
  */
 class PurchaseImporter
 {
@@ -174,7 +174,7 @@ class PurchaseImporter
         $headerRow = array_shift($rows) ?: [];
         $header = array_map(fn ($col) => strtolower(trim((string) $col)), $headerRow);
 
-        // Colonnes libres (genre, marque, taille…) : clé « tranche_age » pour « Tranche d'âge ».
+        // Colonnes libres (genre, marque, canal…) : clé « tranche_age » pour « Tranche d'âge ».
         $propertyColumns = collect($header)
             ->reject(fn ($col) => $col === '' || in_array($col, self::KNOWN_COLUMNS, true) || in_array($col, ImportedConsent::COLUMNS, true))
             ->mapWithKeys(fn ($col) => [$col => Str::slug($col, '_')])

@@ -8,7 +8,8 @@ namespace Database\Seeders;
  * distributeur de produits de grande consommation. Utilisés par
  * `php artisan demo:retail` (App\Console\Commands\SeedRetailDemo).
  *
- * Chaque article : [libellé, code, famille, prix mini, prix maxi, genre, tailles].
+ * Chaque article : [libellé, code, famille, prix mini, prix maxi, genre].
+ * Pas de taille ni de couleur : l'analyse se fait par article, famille ou catégorie.
  */
 class RetailDemoProfiles
 {
@@ -23,13 +24,9 @@ class RetailDemoProfiles
         };
     }
 
-    private const SHOES_M = ['40', '41', '42', '43', '44', '45'];
 
-    private const SHOES_F = ['36', '37', '38', '39', '40'];
 
-    private const SIZES = ['S', 'M', 'L', 'XL'];
 
-    private const SIZES_F = ['XS', 'S', 'M', 'L'];
 
     private static function mode(): array
     {
@@ -64,58 +61,57 @@ class RetailDemoProfiles
             ],
             'articles' => [
                 'Adidas' => [
-                    ['Sneakers basses cuir blanc', 'AD-SNK-01', 'Sneakers', 55000, 85000, 'Mixte', self::SHOES_M],
-                    ['Sneakers rétro daim', 'AD-SNK-02', 'Sneakers', 60000, 90000, 'Mixte', self::SHOES_M],
-                    ['Chaussures running légères', 'AD-RUN-01', 'Running', 45000, 75000, 'Homme', self::SHOES_M],
-                    ['Chaussures running femme', 'AD-RUN-02', 'Running', 45000, 70000, 'Femme', self::SHOES_F],
-                    ['Crampons football terrain sec', 'AD-FOT-01', 'Football', 40000, 95000, 'Homme', self::SHOES_M],
-                    ['Survêtement training', 'AD-SVT-01', 'Survêtements', 38000, 55000, 'Homme', self::SIZES],
-                    ['Veste coupe-vent', 'AD-SVT-02', 'Survêtements', 30000, 45000, 'Mixte', self::SIZES],
-                    ['T-shirt technique', 'AD-TSH-01', 'T-shirts sport', 12000, 18000, 'Mixte', self::SIZES],
-                    ['Maillot football', 'AD-TSH-02', 'T-shirts sport', 25000, 40000, 'Homme', self::SIZES],
-                    ['Sac à dos sport', 'AD-ACC-01', 'Accessoires sport', 20000, 30000, 'Mixte', []],
-                    ['Chaussettes sport (lot de 3)', 'AD-ACC-02', 'Accessoires sport', 6000, 9000, 'Mixte', []],
+                    ['Sneakers basses cuir blanc', 'AD-SNK-01', 'Sneakers', 55000, 85000, 'Mixte'],
+                    ['Sneakers rétro daim', 'AD-SNK-02', 'Sneakers', 60000, 90000, 'Mixte'],
+                    ['Chaussures running légères', 'AD-RUN-01', 'Running', 45000, 75000, 'Homme'],
+                    ['Chaussures running femme', 'AD-RUN-02', 'Running', 45000, 70000, 'Femme'],
+                    ['Crampons football terrain sec', 'AD-FOT-01', 'Football', 40000, 95000, 'Homme'],
+                    ['Survêtement training', 'AD-SVT-01', 'Survêtements', 38000, 55000, 'Homme'],
+                    ['Veste coupe-vent', 'AD-SVT-02', 'Survêtements', 30000, 45000, 'Mixte'],
+                    ['T-shirt technique', 'AD-TSH-01', 'T-shirts sport', 12000, 18000, 'Mixte'],
+                    ['Maillot football', 'AD-TSH-02', 'T-shirts sport', 25000, 40000, 'Homme'],
+                    ['Sac à dos sport', 'AD-ACC-01', 'Accessoires sport', 20000, 30000, 'Mixte'],
+                    ['Chaussettes sport (lot de 3)', 'AD-ACC-02', 'Accessoires sport', 6000, 9000, 'Mixte'],
                 ],
                 'Carré' => [
-                    ['Costume deux pièces', 'CA-COS-01', 'Costumes', 120000, 220000, 'Homme', self::SIZES],
-                    ['Blazer uni', 'CA-COS-02', 'Costumes', 75000, 120000, 'Homme', self::SIZES],
-                    ['Chemise coton manches longues', 'CA-CHE-01', 'Chemises', 22000, 35000, 'Homme', self::SIZES],
-                    ['Chemise lin', 'CA-CHE-02', 'Chemises', 28000, 40000, 'Homme', self::SIZES],
-                    ['Pantalon chino', 'CA-PAN-01', 'Pantalons homme', 25000, 38000, 'Homme', ['38', '40', '42', '44', '46']],
-                    ['Polo piqué', 'CA-POL-01', 'Polos', 18000, 26000, 'Homme', self::SIZES],
-                    ['Derby cuir', 'CA-CHA-01', 'Chaussures ville', 65000, 110000, 'Homme', self::SHOES_M],
-                    ['Cravate soie', 'CA-ACC-01', 'Accessoires homme', 15000, 25000, 'Homme', []],
-                    ['Ceinture cuir', 'CA-ACC-02', 'Accessoires homme', 18000, 28000, 'Homme', []],
+                    ['Costume deux pièces', 'CA-COS-01', 'Costumes', 120000, 220000, 'Homme'],
+                    ['Blazer uni', 'CA-COS-02', 'Costumes', 75000, 120000, 'Homme'],
+                    ['Chemise coton manches longues', 'CA-CHE-01', 'Chemises', 22000, 35000, 'Homme'],
+                    ['Chemise lin', 'CA-CHE-02', 'Chemises', 28000, 40000, 'Homme'],
+                    ['Pantalon chino', 'CA-PAN-01', 'Pantalons homme', 25000, 38000, 'Homme'],
+                    ['Polo piqué', 'CA-POL-01', 'Polos', 18000, 26000, 'Homme'],
+                    ['Derby cuir', 'CA-CHA-01', 'Chaussures ville', 65000, 110000, 'Homme'],
+                    ['Cravate soie', 'CA-ACC-01', 'Accessoires homme', 15000, 25000, 'Homme'],
+                    ['Ceinture cuir', 'CA-ACC-02', 'Accessoires homme', 18000, 28000, 'Homme'],
                 ],
                 'Mango' => [
-                    ['Robe midi fluide', 'MA-ROB-01', 'Robes', 35000, 60000, 'Femme', self::SIZES_F],
-                    ['Robe de soirée', 'MA-ROB-02', 'Robes', 55000, 90000, 'Femme', self::SIZES_F],
-                    ['Blouse imprimée', 'MA-TOP-01', 'Tops & blouses', 18000, 30000, 'Femme', self::SIZES_F],
-                    ['Top côtelé', 'MA-TOP-02', 'Tops & blouses', 12000, 18000, 'Femme', self::SIZES_F],
-                    ['Jean mom taille haute', 'MA-JEA-01', 'Jeans femme', 28000, 40000, 'Femme', ['34', '36', '38', '40', '42']],
-                    ['Trench classique', 'MA-VES-01', 'Vestes femme', 60000, 95000, 'Femme', self::SIZES_F],
-                    ['Sac cabas cuir', 'MA-SAC-01', 'Sacs', 35000, 65000, 'Femme', []],
-                    ['Pochette du soir', 'MA-SAC-02', 'Sacs', 18000, 30000, 'Femme', []],
-                    ['Boucles d’oreilles dorées', 'MA-BIJ-01', 'Bijoux', 8000, 15000, 'Femme', []],
-                    ['Sandales à talon', 'MA-CHA-01', 'Chaussures femme', 30000, 50000, 'Femme', self::SHOES_F],
+                    ['Robe midi fluide', 'MA-ROB-01', 'Robes', 35000, 60000, 'Femme'],
+                    ['Robe de soirée', 'MA-ROB-02', 'Robes', 55000, 90000, 'Femme'],
+                    ['Blouse imprimée', 'MA-TOP-01', 'Tops & blouses', 18000, 30000, 'Femme'],
+                    ['Top côtelé', 'MA-TOP-02', 'Tops & blouses', 12000, 18000, 'Femme'],
+                    ['Jean mom taille haute', 'MA-JEA-01', 'Jeans femme', 28000, 40000, 'Femme'],
+                    ['Trench classique', 'MA-VES-01', 'Vestes femme', 60000, 95000, 'Femme'],
+                    ['Sac cabas cuir', 'MA-SAC-01', 'Sacs', 35000, 65000, 'Femme'],
+                    ['Pochette du soir', 'MA-SAC-02', 'Sacs', 18000, 30000, 'Femme'],
+                    ['Boucles d’oreilles dorées', 'MA-BIJ-01', 'Bijoux', 8000, 15000, 'Femme'],
+                    ['Sandales à talon', 'MA-CHA-01', 'Chaussures femme', 30000, 50000, 'Femme'],
                 ],
                 'Grand Store' => [
-                    ['Parure de draps 2 places', 'GS-LIN-01', 'Linge de maison', 25000, 45000, '', []],
-                    ['Serviettes de bain (lot)', 'GS-LIN-02', 'Linge de maison', 12000, 20000, '', []],
-                    ['Bougie parfumée', 'GS-DEC-01', 'Décoration', 8000, 15000, '', []],
-                    ['Vase céramique', 'GS-DEC-02', 'Décoration', 15000, 30000, '', []],
-                    ['Eau de parfum 100 ml', 'GS-PAR-01', 'Parfums', 45000, 85000, 'Femme', []],
-                    ['Eau de toilette homme', 'GS-PAR-02', 'Parfums', 35000, 65000, 'Homme', []],
-                    ['Crème hydratante visage', 'GS-SOI-01', 'Soins', 12000, 25000, 'Femme', []],
-                    ['Ensemble bébé coton', 'GS-ENF-01', 'Mode enfant', 15000, 25000, 'Enfant', ['3M', '6M', '12M', '2A']],
-                    ['Robe fille', 'GS-ENF-02', 'Mode enfant', 15000, 28000, 'Enfant', ['4A', '6A', '8A', '10A']],
-                    ['Peluche éléphant', 'GS-JOU-01', 'Jouets', 9000, 15000, 'Enfant', []],
-                    ['Jeu de construction', 'GS-JOU-02', 'Jouets', 20000, 45000, 'Enfant', []],
-                    ['Polo homme', 'GS-POL-01', 'Polos', 15000, 22000, 'Homme', self::SIZES],
-                    ['Robe portefeuille', 'GS-ROB-01', 'Robes', 28000, 45000, 'Femme', self::SIZES_F],
+                    ['Parure de draps 2 places', 'GS-LIN-01', 'Linge de maison', 25000, 45000, ''],
+                    ['Serviettes de bain (lot)', 'GS-LIN-02', 'Linge de maison', 12000, 20000, ''],
+                    ['Bougie parfumée', 'GS-DEC-01', 'Décoration', 8000, 15000, ''],
+                    ['Vase céramique', 'GS-DEC-02', 'Décoration', 15000, 30000, ''],
+                    ['Eau de parfum 100 ml', 'GS-PAR-01', 'Parfums', 45000, 85000, 'Femme'],
+                    ['Eau de toilette homme', 'GS-PAR-02', 'Parfums', 35000, 65000, 'Homme'],
+                    ['Crème hydratante visage', 'GS-SOI-01', 'Soins', 12000, 25000, 'Femme'],
+                    ['Ensemble bébé coton', 'GS-ENF-01', 'Mode enfant', 15000, 25000, 'Enfant'],
+                    ['Robe fille', 'GS-ENF-02', 'Mode enfant', 15000, 28000, 'Enfant'],
+                    ['Peluche éléphant', 'GS-JOU-01', 'Jouets', 9000, 15000, 'Enfant'],
+                    ['Jeu de construction', 'GS-JOU-02', 'Jouets', 20000, 45000, 'Enfant'],
+                    ['Polo homme', 'GS-POL-01', 'Polos', 15000, 22000, 'Homme'],
+                    ['Robe portefeuille', 'GS-ROB-01', 'Robes', 28000, 45000, 'Femme'],
                 ],
             ],
-            'colors' => ['Noir', 'Blanc', 'Bleu marine', 'Beige', 'Rouge', 'Vert', 'Gris'],
         ];
     }
 
@@ -142,7 +138,6 @@ class RetailDemoProfiles
             'totals_only' => true,
             'default_family' => 'Repas sur place',
             'articles' => [],
-            'colors' => [],
         ];
     }
 
@@ -169,20 +164,19 @@ class RetailDemoProfiles
             ],
             'articles' => [
                 'Estuaire Distribution' => [
-                    ['Soda cola 33 cl (pack 24)', 'PGC-SOD-01', 'Sodas', 9000, 11000, '', []],
-                    ['Soda orange 1,5 L (pack 6)', 'PGC-SOD-02', 'Sodas', 5500, 7000, '', []],
-                    ['Eau minérale 1,5 L (pack 6)', 'PGC-EAU-01', 'Eaux', 2500, 3200, '', []],
-                    ['Jus de fruits 1 L (carton 12)', 'PGC-JUS-01', 'Jus', 14000, 18000, '', []],
-                    ['Riz parfumé sac 25 kg', 'PGC-RIZ-01', 'Riz', 16000, 19000, '', []],
-                    ['Riz brisé sac 50 kg', 'PGC-RIZ-02', 'Riz', 24000, 28000, '', []],
-                    ['Huile végétale bidon 20 L', 'PGC-HUI-01', 'Huiles', 24000, 30000, '', []],
-                    ['Sardines à l’huile (carton 50)', 'PGC-CON-01', 'Conserves', 22000, 27000, '', []],
-                    ['Concentré de tomate (carton 48)', 'PGC-CON-02', 'Conserves', 15000, 19000, '', []],
-                    ['Savon de ménage (carton 72)', 'PGC-SAV-01', 'Savons', 18000, 22000, '', []],
-                    ['Lessive poudre 5 kg', 'PGC-LES-01', 'Lessives', 7000, 9500, '', []],
+                    ['Soda cola 33 cl (pack 24)', 'PGC-SOD-01', 'Sodas', 9000, 11000, ''],
+                    ['Soda orange 1,5 L (pack 6)', 'PGC-SOD-02', 'Sodas', 5500, 7000, ''],
+                    ['Eau minérale 1,5 L (pack 6)', 'PGC-EAU-01', 'Eaux', 2500, 3200, ''],
+                    ['Jus de fruits 1 L (carton 12)', 'PGC-JUS-01', 'Jus', 14000, 18000, ''],
+                    ['Riz parfumé sac 25 kg', 'PGC-RIZ-01', 'Riz', 16000, 19000, ''],
+                    ['Riz brisé sac 50 kg', 'PGC-RIZ-02', 'Riz', 24000, 28000, ''],
+                    ['Huile végétale bidon 20 L', 'PGC-HUI-01', 'Huiles', 24000, 30000, ''],
+                    ['Sardines à l’huile (carton 50)', 'PGC-CON-01', 'Conserves', 22000, 27000, ''],
+                    ['Concentré de tomate (carton 48)', 'PGC-CON-02', 'Conserves', 15000, 19000, ''],
+                    ['Savon de ménage (carton 72)', 'PGC-SAV-01', 'Savons', 18000, 22000, ''],
+                    ['Lessive poudre 5 kg', 'PGC-LES-01', 'Lessives', 7000, 9500, ''],
                 ],
             ],
-            'colors' => [],
         ];
     }
 

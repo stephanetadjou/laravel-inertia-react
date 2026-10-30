@@ -98,7 +98,7 @@ Comparaison des marques (12 mois) : Adidas 106,5 M (34 %), Carré 81,6 M (26 %),
 
 - **Constat** : près d'une paire de sandales Mango sur quatre revient.
 - **Où le voir** : « À retenir » → *« Retours élevés sur Chaussures femme : 23,8 % des ventes »* (1,8 M FCFA retournés) ; **Ventes**, filtre « Retours seulement » ; chaque retour est relié à son ticket d'origine.
-- **Décision** : alerte qualité (fournisseur, guide des tailles, contrôle en boutique).
+- **Décision** : alerte qualité (fournisseur, contrôle en boutique).
 - **Exporter / relancer** : clients concernés via **Clients ↓** (enquête de satisfaction).
 
 ### 8. Grand Store : près d'un ticket sur deux est anonyme → collecte du téléphone en caisse

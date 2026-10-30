@@ -145,7 +145,7 @@ export default function PurchaseImportModal({ isOpen, onClose, preview }: Purcha
                         ses mots-clés ; aucune fiche produit n'est créée
                     </li>
                     <li>
-                        <b>toute autre colonne</b> (genre, marque, taille…) — gardée comme attribut de la vente, pour analyser et cibler (ex. genre = Femme)
+                        <b>toute autre colonne</b> (genre, marque, canal…) — gardée comme attribut de la vente, pour analyser et cibler (ex. genre = Femme)
                     </li>
                 </ul>
             </div>

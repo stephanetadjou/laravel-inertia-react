@@ -360,7 +360,7 @@ class SeedRetailDemo extends Command
             foreach ($ticket as $line) {
                 $rows[] = $line;
 
-                // Histoire 7 : les sandales sont souvent rapportées (taille, confort).
+                // Histoire 7 : les sandales sont souvent rapportées (confort, qualité).
                 $returnRate = $line['Famille'] === 'Chaussures femme' ? 24 : 1;
                 $back = $date->copy()->addDays(mt_rand(2, 12));
 
@@ -619,15 +619,14 @@ class SeedRetailDemo extends Command
         }
 
         foreach ($picked as $index) {
-            [$label, $code, $fam, $min, $max, $genre, $sizes] = $articles[$index];
+            [$label, $code, $fam, $min, $max, $genre] = $articles[$index];
             $qty = ! empty($p['business_share']) ? mt_rand(2, 40) : (str_contains($label, 'T-shirt') || str_contains($label, 'Chaussettes') ? mt_rand(1, 2) : 1);
             $price = (int) (round(mt_rand($min, $max) / 500) * 500);
             $discount = mt_rand(1, 100) <= $sale ? (int) (round($qty * $price * mt_rand(10, 20) / 100 / 100) * 100) : 0;
 
             $lines[] = [...$base, 'Famille' => $fam, 'Catégorie' => (string) $family($fam), 'Désignation' => $label, 'Code article' => $code,
                 'Qté' => $qty, 'Prix unitaire' => $price, 'Remise' => $discount, 'Montant' => $qty * $price - $discount,
-                'Genre' => $genre ?: ($person['gender'] ?? ''), 'Taille' => $sizes ? $sizes[array_rand($sizes)] : '',
-                'Couleur' => $p['colors'] ? $p['colors'][array_rand($p['colors'])] : ''];
+                'Genre' => $genre ?: ($person['gender'] ?? '')];
         }
 
         return $lines;

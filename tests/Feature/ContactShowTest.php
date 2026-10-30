@@ -28,7 +28,7 @@ it('shows rfm, the last purchases and messages on the customer page', function (
     $contact = Contact::factory()->create([
         'store_id' => $store->id,
         'name' => 'Amanda Obame',
-        'custom_attributes' => ['Taille' => 'M', 'Pointure' => ''],
+        'custom_attributes' => ['Quartier' => 'Glass', 'Profession' => ''],
     ]);
     MessageTemplate::factory()->create(['organization_id' => $organization->id, 'name' => 'bienvenue', 'category' => 'utility', 'is_active' => true]);
 
@@ -54,7 +54,7 @@ it('shows rfm, the last purchases and messages on the customer page', function (
             ->has('messages', 1)
             ->where('messagesCount', 1)
             ->where('messages.0.label', 'Vente VIP')
-            ->where('contacts.0.attributes', ['Taille' => 'M'])
+            ->where('contacts.0.attributes', ['Quartier' => 'Glass'])
             ->where('welcomeTemplates', ['bienvenue']),
         );
 });

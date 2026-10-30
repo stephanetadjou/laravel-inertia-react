@@ -72,7 +72,7 @@ class SalesImport
         'family' => ['label' => 'Famille', 'help' => 'Famille de l’article (ou catégorie, ou famille par défaut).', 'aliases' => ['famille', 'famille article', 'sous categorie', 'rayon', 'family']],
         'category' => ['label' => 'Catégorie', 'help' => 'Niveau au-dessus de la famille (ex. Boissons).', 'aliases' => ['categorie', 'categorie article', 'univers', 'departement', 'category']],
         'article' => ['label' => 'Article (désignation)', 'help' => 'Facultatif.', 'aliases' => ['article', 'designation', 'libelle', 'produit', 'description', 'plat', 'item']],
-        'article_code' => ['label' => 'Code article', 'help' => 'Facultatif (code-barres, référence, SKU).', 'aliases' => ['code article', 'reference', 'ref', 'sku', 'ean', 'code barre', 'code produit']],
+        'article_code' => ['label' => 'Code article', 'help' => 'Facultatif (code-barres, référence).', 'aliases' => ['code article', 'reference', 'ref', 'sku', 'ean', 'code barre', 'code produit']],
         'quantity' => ['label' => 'Quantité', 'help' => '1 par défaut.', 'aliases' => ['quantite', 'qte', 'qty', 'nombre']],
         'unit_price' => ['label' => 'Prix unitaire', 'help' => 'Montant = quantité × prix − remise si pas de montant.', 'aliases' => ['prix', 'prix unitaire', 'pu', 'prix vente', 'unit price']],
         'discount' => ['label' => 'Remise', 'help' => 'Montant de remise de la ligne.', 'aliases' => ['remise', 'reduction', 'discount', 'rabais']],

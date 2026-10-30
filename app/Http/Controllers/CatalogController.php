@@ -105,7 +105,7 @@ class CatalogController extends Controller
             'bookable_online' => ['nullable', 'boolean'],
             'store_ids' => ['nullable', 'array'],
             'store_ids.*' => ['integer', Rule::exists('stores', 'id')->where('organization_id', $organizationId)],
-            // Attributs génériques (genre, marque, taille…), mêmes clés que les colonnes libres de l'import.
+            // Attributs génériques (genre, marque, canal…), mêmes clés que les colonnes libres de l'import.
             'properties' => ['nullable', 'array', 'max:10'],
             'properties.*.name' => ['nullable', 'string', 'max:64'],
             'properties.*.value' => ['nullable', 'string', 'max:100'],

@@ -78,7 +78,7 @@ function ItemModal({
         reference: item?.reference ?? '',
         store_ids: item?.store_ids ?? ([] as number[]),
         bookable_online: item?.bookable_online ?? true,
-        // Attributs génériques (genre, marque, taille…) : mêmes clés que les colonnes libres de l'import.
+        // Attributs génériques (genre, marque, canal…) : mêmes clés que les colonnes libres de l'import.
         properties: Object.entries(item?.properties ?? {}).map(([name, value]) => ({ name: keyLabel(name), value })),
     });
 
@@ -153,7 +153,7 @@ function ItemModal({
 
                 <div>
                     <p className="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-300">Attributs (facultatif)</p>
-                    <p className="mb-2 text-xs text-gray-500 dark:text-gray-400">Genre (Homme, Femme, Enfant), marque, taille… pour analyser et cibler les clients qui achètent cet article.</p>
+                    <p className="mb-2 text-xs text-gray-500 dark:text-gray-400">Genre (Homme, Femme, Enfant), marque… pour analyser et cibler les clients qui achètent cet article.</p>
                     <datalist id="cat-property-names">
                         {propertyNames.map((n) => (
                             <option key={n} value={n} />

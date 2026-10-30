@@ -406,7 +406,7 @@ class RetailAnalytics
             'tone' => 'bad',
             'title' => "Retours élevés sur {$name} : {$rows['rate']} % des ventes",
             'detail' => number_format((int) $rows['returns'], 0, ',', ' ').' FCFA retournés sur la période.',
-            'action' => 'Alerte qualité : vérifier les produits et les tailles',
+            'action' => 'Alerte qualité : vérifier les produits de cette famille',
             'link' => '/purchases?type=return&category='.rawurlencode((string) $name),
             'audience' => ['family' => (int) $rows['category_id'], 'family_days' => 0] + $this->bought(),
             'score' => 55 + $rows['rate'],
