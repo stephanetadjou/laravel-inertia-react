@@ -7,7 +7,7 @@ import { buildSections, currentSection } from './navigation';
 interface SidebarProps {
     auth?: {
         user: { can_manage_organization?: boolean } | null;
-        organization?: { whatsapp_api_enabled?: boolean } | null;
+        organization?: { whatsapp_api_enabled?: boolean; has_agenda?: boolean; sells_products?: boolean } | null;
     };
     [key: string]: unknown;
 }
@@ -20,6 +20,8 @@ const AppSidebar: React.FC = () => {
     const sections = buildSections({
         canManageOrganization: props.auth?.user?.can_manage_organization ?? false,
         whatsappApiEnabled: props.auth?.organization?.whatsapp_api_enabled ?? true,
+        hasAgenda: props.auth?.organization?.has_agenda ?? true,
+        sellsProducts: props.auth?.organization?.sells_products ?? false,
     });
     const active = currentSection(sections, url);
     const showLabels = isExpanded || isHovered || isMobileOpen;

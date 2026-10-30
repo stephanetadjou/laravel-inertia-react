@@ -108,13 +108,16 @@ class PurchaseController extends Controller
         $purchases = fn (Carbon $start, Carbon $end): Builder => Purchase::query()
             ->whereIn('purchases.store_id', $storeIds)
             ->whereBetween('purchases.purchased_at', [$start, $end])
-            ->when($category !== null, fn ($q) => $q->where('purchases.product_category', $category))
+            // Catégorie du fichier ou famille reconnue portant ce nom.
+            ->when($category !== null, fn ($q) => $q->where(fn ($q) => $q->where('purchases.product_category', $category)
+                ->orWhereIn('purchases.category_id', Category::where('organization_id', $user->organization_id)->where('name', $category)->select('id'))))
             ->when($kind !== null, fn ($q) => $q->whereHas('items', fn ($i) => $i->where('type', $kind)))
             ->when($search !== '', function ($q) use ($search) {
                 $digits = ltrim(preg_replace('/\D+/', '', $search), '0'); // 0 du format local ignoré
 
                 $q->where(function ($q) use ($search, $digits) {
                     $q->where('purchases.product_category', 'like', "%{$search}%")
+                        ->orWhere('purchases.article', 'like', "%{$search}%")
                         ->orWhereHas('items', fn ($i) => $i->where('name', 'like', "%{$search}%"))
                         ->orWhereHas('contact', function ($q) use ($search, $digits) {
                             $q->where('name', 'like', "%{$search}%");
@@ -139,7 +142,7 @@ class PurchaseController extends Controller
         $perPage = in_array($perPage, [25, 50, 100], true) ? $perPage : 25;
 
         $page = $purchases($period['from'], $period['to'])
-            ->with(['contact', 'store.brand', 'items:id,purchase_id,type,name,quantity'])
+            ->with(['contact', 'store.brand', 'category:id,name', 'items:id,purchase_id,type,name,quantity'])
             ->when(
                 $sort === 'amount',
                 fn ($q) => $q->orderBy('amount', $direction),
@@ -191,7 +194,9 @@ class PurchaseController extends Controller
                 ],
                 'store_name' => $purchase->store->name,
                 'brand_name' => $purchase->store->brand?->name,
-                'product_category' => $purchase->product_category,
+                // Famille reconnue en priorité, sinon la catégorie telle qu'importée.
+                'product_category' => $purchase->category?->name ?? $purchase->product_category,
+                'article' => $purchase->article,
                 'lines' => $purchase->items->map(fn ($item) => ['name' => $item->name, 'type' => $item->type, 'quantity' => $item->quantity])->values(),
                 'quantity' => $purchase->quantity,
                 'amount' => (int) $purchase->amount,

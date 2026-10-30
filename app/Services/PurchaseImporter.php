@@ -2,11 +2,13 @@
 
 namespace App\Services;
 
+use App\Models\Category;
 use App\Models\Contact;
 use App\Models\Organization;
 use App\Models\Purchase;
 use App\Models\Store;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Str;
 
 /**
  * Importe un historique d'achats (CSV/Excel) toutes boutiques de
@@ -21,15 +23,25 @@ use Illuminate\Http\UploadedFile;
  * Colonnes attendues (en-tête, insensible à la casse) :
  *   telephone, boutique, date_achat   -> obligatoires
  *   nom                                -> optionnelle (sert si le contact est créé)
- *   categorie                          -> optionnelle
+ *   categorie                          -> optionnelle (famille, cf. FamilyMatcher)
+ *   article (ou produit, libelle)      -> optionnelle : libellé de l'article, sert aussi à
+ *                                          reconnaître la famille ; aucune fiche produit créée
  *   quantite                           -> optionnelle (défaut 1)
  *   consentement                       -> optionnelle : oui / non (vide = inchangé)
  *   prix (prix unitaire) et/ou montant -> l'un des deux obligatoire
  *                                          (montant, si présent, prime sur quantite × prix)
+ *   toute autre colonne                -> attribut générique de la vente (genre, marque,
+ *                                          taille…), enregistré dans purchases.properties
  */
 class PurchaseImporter
 {
     private const SAMPLE_SIZE = 5;
+
+    /** Colonnes reconnues ; les autres deviennent des attributs de la vente. */
+    private const KNOWN_COLUMNS = ['telephone', 'boutique', 'date_achat', 'nom', 'categorie', 'quantite', 'prix', 'montant', 'article', 'produit', 'libelle'];
+
+    /** Au-delà, les colonnes supplémentaires sont ignorées (fichier de caisse très large). */
+    private const MAX_PROPERTIES = 10;
 
     /**
      * @param  array<int, int>|null  $allowedStoreIds  Périmètre de l'utilisateur (marque/boutique) ;
@@ -47,6 +59,8 @@ class PurchaseImporter
 
         $contactsToCreate = 0;
         $sample = [];
+        $matcher = FamilyMatcher::for($organization->id);
+        $classified = 0;
 
         foreach ($valid as $row) {
             $isNew = ! in_array("{$row['store']->id}:{$row['phone']}", $existingKeys, true);
@@ -54,11 +68,18 @@ class PurchaseImporter
                 $contactsToCreate++;
             }
 
+            $family = $row['product_category'] !== null || $row['article'] !== null
+                ? $matcher->match($row['product_category'], $row['article'])
+                : null;
+            $classified += $family !== null ? 1 : 0;
+
             if (count($sample) < self::SAMPLE_SIZE) {
                 $sample[] = [
                     'contact_name' => $row['name'] ?? "Client {$row['phone']}",
                     'store_name' => $row['store']->name,
                     'category' => $row['product_category'],
+                    'article' => $row['article'],
+                    'family' => $family !== null ? Category::whereKey($family)->value('name') : null,
                     'quantity' => $row['quantity'],
                     'amount' => $row['amount'],
                     'purchased_at' => $row['purchased_at'],
@@ -74,6 +95,10 @@ class PurchaseImporter
             'consents' => ContactImporter::consentCounts(array_column($valid, 'consent')),
             'skipped' => $skipped,
             'sample' => $sample,
+            // Familles : lignes rangées automatiquement, et celles à classer après l'import.
+            'classified' => $classified,
+            'to_classify' => count(array_filter($valid, fn ($row) => $row['product_category'] !== null || $row['article'] !== null)) - $classified,
+            'properties' => collect($valid)->flatMap(fn ($row) => array_keys($row['properties']))->unique()->values()->all(),
         ];
     }
 
@@ -129,6 +154,8 @@ class PurchaseImporter
                 'amount' => $row['amount'],
                 'quantity' => $row['quantity'],
                 'product_category' => $row['product_category'],
+                'article' => $row['article'],
+                'properties' => $row['properties'] ?: null,
                 'purchased_at' => $row['purchased_at'],
             ]);
             $recorded++;
@@ -146,6 +173,14 @@ class PurchaseImporter
     {
         $headerRow = array_shift($rows) ?: [];
         $header = array_map(fn ($col) => strtolower(trim((string) $col)), $headerRow);
+
+        // Colonnes libres (genre, marque, taille…) : clé « tranche_age » pour « Tranche d'âge ».
+        $propertyColumns = collect($header)
+            ->reject(fn ($col) => $col === '' || in_array($col, self::KNOWN_COLUMNS, true) || in_array($col, ImportedConsent::COLUMNS, true))
+            ->mapWithKeys(fn ($col) => [$col => Str::slug($col, '_')])
+            ->filter(fn ($key) => $key !== '')
+            ->unique()
+            ->take(self::MAX_PROPERTIES);
 
         $stores = Store::where('organization_id', $organization->id)
             ->when($allowedStoreIds !== null, fn ($q) => $q->whereIn('id', $allowedStoreIds))
@@ -223,8 +258,22 @@ class PurchaseImporter
                 $consent = null;
             }
 
+            $properties = [];
+
+            foreach ($propertyColumns as $column => $key) {
+                $value = self::propertyValue($data[$column] ?? null);
+
+                if ($value !== null) {
+                    $properties[$key] = $value;
+                }
+            }
+
+            $article = trim((string) ($data['article'] ?? $data['produit'] ?? $data['libelle'] ?? ''));
+
             $valid[] = [
                 'consent' => $consent,
+                'article' => $article !== '' ? mb_substr($article, 0, 255) : null,
+                'properties' => $properties,
                 'phone' => $phone,
                 'name' => ! empty($data['nom']) ? trim((string) $data['nom']) : null,
                 'store' => $store,
@@ -236,5 +285,24 @@ class PurchaseImporter
         }
 
         return ['valid' => $valid, 'skipped' => $skipped];
+    }
+
+    /**
+     * Valeur d'attribut nettoyée : « HOMME » et « homme » deviennent « Homme »
+     * pour être comptés ensemble ; les codes courts (XL, 42) restent tels quels.
+     */
+    public static function propertyValue(mixed $raw): ?string
+    {
+        $value = trim(preg_replace('/\s+/', ' ', (string) $raw));
+
+        if ($value === '') {
+            return null;
+        }
+
+        if (mb_strlen($value) > 3 && ! preg_match('/\d/', $value) && ($value === mb_strtoupper($value) || $value === mb_strtolower($value))) {
+            $value = mb_strtoupper(mb_substr($value, 0, 1)).mb_strtolower(mb_substr($value, 1));
+        }
+
+        return mb_substr($value, 0, 100);
     }
 }

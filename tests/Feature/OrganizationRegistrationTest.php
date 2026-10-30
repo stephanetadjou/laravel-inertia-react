@@ -8,6 +8,7 @@ function registrationPayload(array $overrides = []): array
 {
     return [
         'organization_name' => 'Boutique Akanda',
+        'sector' => 'commerce',
         'store_name' => 'Akanda Centre',
         'name' => 'Awa Mba',
         'email' => 'awa@example.com',

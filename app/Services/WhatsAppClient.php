@@ -159,6 +159,29 @@ class WhatsAppClient
     }
 
     /**
+     * Abonne l'app Meta (celle du token) au compte WhatsApp Business, pour
+     * que Meta envoie les événements de ce compte au webhook de l'app.
+     * Sans cet abonnement, le webhook est validé mais ne reçoit rien.
+     * Idempotent : un compte déjà abonné renvoie aussi success.
+     */
+    public function subscribeAppToBusinessAccount(string $businessAccountId): array
+    {
+        if (self::simulated()) {
+            Log::info('[WhatsApp simulé] Abonnement de l\'app au compte WhatsApp', ['waba_id' => $businessAccountId]);
+
+            return ['success' => true];
+        }
+
+        $response = $this->baseRequest()->post("/{$businessAccountId}/subscribed_apps");
+
+        if ($response->failed()) {
+            throw new WhatsAppApiException($businessAccountId, $response->status(), $response->json());
+        }
+
+        return $response->json();
+    }
+
+    /**
      * Envoie un message template WhatsApp approuvé à un destinataire.
      *
      * @param  string  $to  Numéro au format international sans "+" (ex: 24177123456)

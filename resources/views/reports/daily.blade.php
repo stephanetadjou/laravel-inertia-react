@@ -197,6 +197,16 @@
         <table class="two">
             <tr>
                 <td>
+                    @if (count($report['families'] ?? []) > 0 && (($report['sells_products'] ?? false) || count($report['services']) === 0))
+                    @php $maxFamily = max(1, collect($report['families'])->max('revenue')); @endphp
+                    <h2>Familles du jour</h2>
+                    <table class="data">
+                        <tr><th>Famille</th><th class="r">Clients</th><th class="r">CA</th><th style="width:30%"></th></tr>
+                        @foreach ($report['families'] as $f)
+                            <tr><td>{{ $f['name'] }}</td><td class="r">{{ $f['customers'] }}</td><td class="r">{{ $money($f['revenue']) }}</td><td><div class="mini"><i style="width: {{ round($f['revenue'] / $maxFamily * 100) }}%"></i></div></td></tr>
+                        @endforeach
+                    </table>
+                    @else
                     <h2>Prestations du jour</h2>
                     @if (count($report['services']) === 0)
                         <div class="empty">Aucune prestation encaissée.</div>
@@ -207,6 +217,7 @@
                                 <tr><td>{{ $s['name'] }}</td><td class="r">{{ $s['count'] }}</td><td class="r">{{ $money($s['revenue']) }}</td><td><div class="mini"><i style="width: {{ round($s['revenue'] / $maxService * 100) }}%"></i></div></td></tr>
                             @endforeach
                         </table>
+                    @endif
                     @endif
                 </td>
                 <td>
@@ -225,7 +236,7 @@
             </tr>
         </table>
     </div>
-    <div class="foot">Menentia · Connaissez vos clients. Remplissez votre agenda.<span>page 1 / 2</span></div>
+    <div class="foot">Menentia · Connaissez mieux vos clients. Faites grandir votre activité.<span>page 1 / 2</span></div>
 </div>
 
 <div class="sheet">

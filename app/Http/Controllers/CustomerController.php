@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Appointment;
 use App\Models\Brand;
 use App\Models\CampaignMessage;
+use App\Models\Category;
 use App\Models\Contact;
 use App\Models\Customer;
 use App\Models\CustomerFollowUp;
@@ -20,6 +21,7 @@ use App\Services\ActionLists;
 use App\Services\CustomerLifecycle;
 use App\Services\CustomerScoring;
 use App\Services\CustomerSearch;
+use App\Services\FamilyAnalytics;
 use App\Services\Loyalty;
 use App\Services\PhoneNormalizer;
 use App\Services\RfmCalculator;
@@ -112,12 +114,22 @@ class CustomerController extends Controller
                 'brand_hidden' => $search->brandFilter['hidden'],
                 'store' => $search->storeId,
                 'group' => $search->group?->id,
+                'family' => $search->family?->id,
+                'family_mode' => $search->familyMode,
+                'family_days' => $search->familyDays,
+                'family_not' => $search->familyNot?->id,
+                'prop' => $search->property !== null ? $search->property['key'].':'.$search->property['value'] : null,
                 'brands' => $search->roleStores->pluck('brand')->filter()->unique('id')->sortBy('name')->values()
                     ->map(fn (Brand $brand) => ['id' => $brand->id, 'name' => $brand->name]),
                 'label' => $search->label(),
                 'groups' => Group::where('organization_id', $request->user()->organization_id)->orderBy('name')->get(['id', 'name']),
             ],
             'stores' => $search->brandStores->map(fn (Store $s) => ['id' => $s->id, 'name' => $s->name])->values(),
+            // Ciblage par famille de produits et par attribut d'achat (genre…).
+            'families' => Category::where('organization_id', $request->user()->organization_id)->orderBy('name')->get(['id', 'name']),
+            'properties' => collect((new FamilyAnalytics($search->roleStores->pluck('id')->all()))->propertyValues())
+                ->map(fn ($values, $key) => ['key' => $key, 'label' => FamilyAnalytics::propertyLabel($key), 'values' => array_slice($values, 0, 50)])
+                ->values(),
             'stages' => collect(Customer::STAGES)->map(fn ($label, $key) => [
                 'key' => $key,
                 'label' => $label,
@@ -217,6 +229,8 @@ class CustomerController extends Controller
             ],
             'scoped' => $scoped,
             'rfm' => $rfm->forCustomer($customer, $storeIds),
+            // Habitudes d'achat : familles préférées, visites, panier moyen, attributs (genre…).
+            'habits' => $this->habits($customer, $storeIds),
             // Score et alerte de churn enregistrés (toute l'organisation, cf. CustomerScoring).
             'scoring' => [
                 'score' => $customer->score,
@@ -298,6 +312,18 @@ class CustomerController extends Controller
                 ->orderBy('name')
                 ->pluck('name'),
         ]);
+    }
+
+    /** @param  array<int, int>  $storeIds */
+    private function habits(Customer $customer, array $storeIds): array
+    {
+        $analytics = new FamilyAnalytics($storeIds);
+        $names = Category::where('organization_id', $customer->organization_id)->pluck('name', 'id');
+
+        return [
+            ...$analytics->forCustomer($customer->id, $names),
+            'properties' => $analytics->customerProperties($customer->id),
+        ];
     }
 
     /**

@@ -149,7 +149,17 @@ class Store extends Model
 
     public function webhookUrl(): ?string
     {
-        return $this->webhook_key ? route('webhooks.whatsapp', $this->webhook_key) : null;
+        if (! $this->webhook_key) {
+            return null;
+        }
+
+        // En local, Meta ne peut pas joindre localhost : WHATSAPP_WEBHOOK_BASE_URL
+        // donne l'adresse publique d'un tunnel (ngrok, cloudflared).
+        $base = config('services.meta_whatsapp.webhook_base_url');
+
+        return filled($base)
+            ? rtrim($base, '/').route('webhooks.whatsapp', $this->webhook_key, false)
+            : route('webhooks.whatsapp', $this->webhook_key);
     }
 
     /**

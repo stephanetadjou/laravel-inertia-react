@@ -6,9 +6,12 @@ use App\Models\CatalogItem;
 use App\Models\Category;
 use App\Models\PurchaseItem;
 use App\Models\Store;
+use App\Services\FamilyAnalytics;
+use App\Services\PurchaseImporter;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -45,6 +48,11 @@ class CatalogController extends Controller
             'categories' => Category::where('organization_id', $organizationId)->orderBy('name')->get(['id', 'name']),
             'stores' => Store::where('organization_id', $organizationId)->orderBy('name')->get(['id', 'name']),
             'types' => CatalogItem::TYPES,
+            // Attributs déjà utilisés (ventes importées et catalogue), proposés à la saisie.
+            'propertyNames' => collect(array_keys((new FamilyAnalytics(Store::where('organization_id', $organizationId)->pluck('id')->all()))->propertyValues()))
+                ->merge($items->flatMap(fn (CatalogItem $item) => array_keys($item->properties ?? [])))
+                ->unique()->sort()->values()
+                ->map(fn ($key) => FamilyAnalytics::propertyLabel($key)),
         ]);
     }
 
@@ -97,6 +105,10 @@ class CatalogController extends Controller
             'bookable_online' => ['nullable', 'boolean'],
             'store_ids' => ['nullable', 'array'],
             'store_ids.*' => ['integer', Rule::exists('stores', 'id')->where('organization_id', $organizationId)],
+            // Attributs génériques (genre, marque, taille…), mêmes clés que les colonnes libres de l'import.
+            'properties' => ['nullable', 'array', 'max:10'],
+            'properties.*.name' => ['nullable', 'string', 'max:64'],
+            'properties.*.value' => ['nullable', 'string', 'max:100'],
         ], [
             'duration_minutes.required_if' => 'Indiquez la durée de la prestation.',
         ]);
@@ -115,6 +127,10 @@ class CatalogController extends Controller
             'duration_minutes' => $service ? $data['duration_minutes'] : null,
             'reference' => $service ? null : ($data['reference'] ?? null),
             'bookable_online' => $service && ($data['bookable_online'] ?? true),
+            'properties' => collect($data['properties'] ?? [])
+                ->mapWithKeys(fn ($p) => [Str::slug((string) ($p['name'] ?? ''), '_') => PurchaseImporter::propertyValue($p['value'] ?? null)])
+                ->filter(fn ($value, $key) => $key !== '' && $value !== null)
+                ->all() ?: null,
         ];
     }
 

@@ -249,6 +249,7 @@ it('starts a newly registered company without the WhatsApp API', function () {
 
     $this->post('/register', [
         'organization_name' => 'Institut Nyota',
+        'sector' => 'beaute',
         'store_name' => 'Nyota Centre',
         'name' => 'Nadia Ondo',
         'email' => 'nadia@example.com',

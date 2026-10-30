@@ -232,3 +232,99 @@ it('explains a PIN mismatch reported by Meta', function () {
 
     expect($store->fresh()->whatsapp_registered_at)->toBeNull();
 });
+
+it('subscribes the Meta app to the WhatsApp account when testing, so the webhook receives events', function () {
+    Http::fake([
+        'graph.facebook.com/*/subscribed_apps' => Http::response(['success' => true], 200),
+        'graph.facebook.com/*' => Http::response(['verified_name' => 'Test Number', 'display_phone_number' => '+1 555 0100', 'quality_rating' => 'GREEN'], 200),
+    ]);
+
+    $organization = Organization::factory()->create();
+    $store = connectedStore($organization, ['whatsapp_business_account_id' => '987654321']);
+
+    $this->actingAs(settingsAdmin($organization))->post("/settings/whatsapp/{$store->id}/test")
+        ->assertSessionHas('success', fn (string $message) => str_contains($message, 'Test Number')
+            && str_contains($message, 'app abonnée'));
+
+    Http::assertSent(fn (Request $request) => $request->method() === 'POST'
+        && str_ends_with($request->url(), '/987654321/subscribed_apps')
+        && $request->hasHeader('Authorization', 'Bearer valid-token'));
+});
+
+it('keeps the connection test successful when the webhook subscription is refused', function () {
+    Http::fake([
+        'graph.facebook.com/*/subscribed_apps' => Http::response(['error' => ['code' => 200, 'message' => 'Permissions error']], 403),
+        'graph.facebook.com/*' => Http::response(['verified_name' => 'Test Number', 'quality_rating' => 'GREEN'], 200),
+    ]);
+
+    $organization = Organization::factory()->create();
+    $store = connectedStore($organization, ['whatsapp_business_account_id' => '987654321']);
+
+    $this->actingAs(settingsAdmin($organization))->post("/settings/whatsapp/{$store->id}/test")
+        ->assertSessionHas('success', fn (string $message) => str_contains($message, 'abonnement')
+            && str_contains($message, 'permissions'));
+
+    expect($store->fresh()->whatsapp_checked_at)->not->toBeNull();
+});
+
+it('sends the hello_world test message to a Gabonese or foreign number', function (string $input, string $expected) {
+    Http::fake(['graph.facebook.com/*' => Http::response(['messages' => [['id' => 'wamid.TEST']]], 200)]);
+
+    $organization = Organization::factory()->create();
+    $store = connectedStore($organization);
+
+    $this->actingAs(settingsAdmin($organization))->post("/settings/whatsapp/{$store->id}/send-test", ['phone' => $input])
+        ->assertSessionHas('success', fn (string $message) => str_contains($message, "+{$expected}"));
+
+    Http::assertSent(fn (Request $request) => str_ends_with($request->url(), '/123456789/messages')
+        && $request['to'] === $expected
+        && $request['template']['name'] === 'hello_world'
+        && $request['template']['language']['code'] === 'en_US');
+})->with([
+    'local Airtel' => ['074 00 00 01', '24174000001'],
+    'international Gabon' => ['+241 62 60 50 54', '24162605054'],
+    'France' => ['+33 6 12 34 56 78', '33612345678'],
+]);
+
+it('rejects an invalid test number without calling Meta', function () {
+    Http::fake();
+
+    $organization = Organization::factory()->create();
+    $store = connectedStore($organization);
+
+    $this->actingAs(settingsAdmin($organization))->post("/settings/whatsapp/{$store->id}/send-test", ['phone' => '12345'])
+        ->assertSessionHasErrors('phone');
+
+    Http::assertNothingSent();
+});
+
+it('explains that the recipient is not allowed by the Meta test number', function () {
+    Http::fake(['graph.facebook.com/*' => Http::response(['error' => ['code' => 131030, 'message' => 'Recipient phone number not in allowed list']], 400)]);
+
+    $organization = Organization::factory()->create();
+    $store = connectedStore($organization);
+
+    $this->actingAs(settingsAdmin($organization))->post("/settings/whatsapp/{$store->id}/send-test", ['phone' => '074000001'])
+        ->assertSessionHas('error', fn (string $message) => str_contains($message, 'pas autorisé') && str_contains($message, '131030'));
+});
+
+it('reserves the test message to administrators of the organization', function () {
+    Http::fake();
+
+    $organization = Organization::factory()->create();
+    $store = connectedStore($organization);
+    $other = settingsAdmin(Organization::factory()->create());
+
+    $this->actingAs($other)->post("/settings/whatsapp/{$store->id}/send-test", ['phone' => '074000001'])->assertStatus(403);
+
+    Http::assertNothingSent();
+});
+
+it('shows the webhook URL on the tunnel address when one is configured', function () {
+    config(['services.meta_whatsapp.webhook_base_url' => 'https://abcd.ngrok-free.app/']);
+
+    $store = connectedStore(Organization::factory()->create());
+    $store->ensureWebhookCredentials();
+
+    expect($store->webhookUrl())->toBe("https://abcd.ngrok-free.app/webhooks/whatsapp/{$store->webhook_key}");
+});

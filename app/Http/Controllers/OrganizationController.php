@@ -7,6 +7,7 @@ use App\Models\Organization;
 use App\Services\CustomerLifecycle;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Validation\Rule;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -26,7 +27,13 @@ class OrganizationController extends Controller
             'organization' => [
                 'id' => $organization->id,
                 'name' => $organization->name,
+                'sector' => $organization->sector,
             ],
+            'sectors' => collect(Organization::SECTORS)->map(fn ($sector, $key) => [
+                'key' => $key,
+                'label' => $sector['label'],
+                'description' => $sector['description'],
+            ])->values(),
             'privacy' => [
                 'url' => $organization->privacyPolicyUrl(),
                 'legal_name' => $organization->legal_name,
@@ -120,9 +127,11 @@ class OrganizationController extends Controller
     {
         $data = $request->validate([
             'name' => ['required', 'string', 'max:255'],
+            // Secteur facultatif ici : les organisations historiques n'en ont pas.
+            'sector' => ['nullable', Rule::in(array_keys(Organization::SECTORS))],
         ]);
 
-        $request->user()->organization->update($data);
+        $request->user()->organization->update($request->has('sector') ? $data : ['name' => $data['name']]);
 
         return back()->with('success', 'Organisation mise à jour.');
     }

@@ -75,6 +75,7 @@ it('requires a contact email and refuses non administrators', function () {
 it('creates the policy page with the company at registration', function () {
     $this->post('/register', [
         'organization_name' => 'Boutique Owendo',
+        'sector' => 'commerce',
         'store_name' => 'Owendo Centre',
         'name' => 'Paul',
         'email' => 'paul@example.com',
@@ -90,6 +91,7 @@ it('gives a registered company a free slug when its name is already taken', func
 
     $this->post('/register', [
         'organization_name' => 'RETAIL GROUP',
+        'sector' => 'commerce',
         'store_name' => 'MOODA',
         'name' => 'MOODA',
         'email' => 'mooda@example.com',

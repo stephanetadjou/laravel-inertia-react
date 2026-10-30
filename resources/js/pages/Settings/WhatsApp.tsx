@@ -82,8 +82,10 @@ function StoreCard({ store }: { store: StoreSettings }) {
         app_secret: '',
     });
     const [pin, setPin] = useState('');
-    const [busy, setBusy] = useState<'test' | 'register' | null>(null);
+    const [busy, setBusy] = useState<'test' | 'register' | 'send' | null>(null);
     const [pinError, setPinError] = useState<string | null>(null);
+    const [testPhone, setTestPhone] = useState('');
+    const [testPhoneError, setTestPhoneError] = useState<string | null>(null);
 
     const save: FormEventHandler = (e) => {
         e.preventDefault();
@@ -108,6 +110,20 @@ function StoreCard({ store }: { store: StoreSettings }) {
                 preserveScroll: true,
                 onSuccess: () => setPin(''),
                 onError: (errs) => setPinError(errs.pin ?? null),
+                onFinish: () => setBusy(null),
+            },
+        );
+    }
+
+    function sendTest() {
+        setBusy('send');
+        setTestPhoneError(null);
+        router.post(
+            `/settings/whatsapp/${store.id}/send-test`,
+            { phone: testPhone },
+            {
+                preserveScroll: true,
+                onError: (errs) => setTestPhoneError(errs.phone ?? null),
                 onFinish: () => setBusy(null),
             },
         );
@@ -278,6 +294,28 @@ function StoreCard({ store }: { store: StoreSettings }) {
                         </div>
                         {pinError && <p className="mt-1.5 text-sm text-error-500">{pinError}</p>}
                         {store.registered_at && <p className={hint}>Enregistré le {formatDate(store.registered_at)}.</p>}
+                    </div>
+
+                    <div className="border-t border-gray-100 pt-4 dark:border-gray-800">
+                        <h3 className="mb-1 font-semibold text-gray-800 dark:text-white/90">Envoyer un message de test</h3>
+                        <p className={`${hint} mb-2`}>
+                            Envoie le modèle « hello_world » de Meta. Avec le numéro de test de Meta, le destinataire doit être dans la liste « À » de
+                            votre app Meta.
+                        </p>
+                        <div className="flex gap-2">
+                            <input
+                                aria-label={`Numéro de test pour ${store.name}`}
+                                type="tel"
+                                value={testPhone}
+                                onChange={(e) => setTestPhone(e.target.value)}
+                                placeholder="+241 74 00 00 00"
+                                className={`${input} max-w-44`}
+                            />
+                            <Button type="button" variant="outline" disabled={!store.connected || testPhone.trim() === '' || busy !== null} onClick={sendTest}>
+                                {busy === 'send' ? 'Envoi…' : 'Envoyer'}
+                            </Button>
+                        </div>
+                        {testPhoneError && <p className="mt-1.5 text-sm text-error-500">{testPhoneError}</p>}
                     </div>
                 </aside>
             </div>

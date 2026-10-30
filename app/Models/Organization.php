@@ -29,6 +29,7 @@ class Organization extends Model
         'booking_settings',
         'report_settings',
         'loyalty_settings',
+        'sector',
     ];
 
     /**
@@ -107,6 +108,64 @@ class Organization extends Model
         $saved = array_intersect_key($this->lifecycle_settings ?? [], self::LIFECYCLE_DEFAULTS);
 
         return array_map('intval', [...self::LIFECYCLE_DEFAULTS, ...$saved]);
+    }
+
+    /**
+     * Secteurs proposés à l'inscription (mêmes familles que le site vitrine).
+     * `agenda` : rendez-vous, réservation en ligne, intervenants et fermetures
+     * affichés dans le menu ; le commerce s'en passe et analyse ses ventes par
+     * familles de produits.
+     *
+     * @var array<string, array{label: string, description: string, agenda: bool}>
+     */
+    public const SECTORS = [
+        'beaute' => [
+            'label' => 'Beauté et soins',
+            'description' => 'Salons, barbiers, onglerie, esthétique, spas : agenda et réservation en ligne, et un rappel quand une cliente dépasse son délai habituel.',
+            'agenda' => true,
+        ],
+        'sante' => [
+            'label' => 'Santé',
+            'description' => 'Cabinets, cliniques, dentistes, optique, kiné : rendez-vous des patients, rappels de contrôle et suivi de chaque dossier client.',
+            'agenda' => true,
+        ],
+        'sport' => [
+            'label' => 'Sport et bien-être',
+            'description' => 'Salles de sport, coachs, yoga, danse : séances réservées, membres qui décrochent repérés à temps, fidélité.',
+            'agenda' => true,
+        ],
+        'technique' => [
+            'label' => 'Services techniques',
+            'description' => 'Garages, entretien, réparation, installation : rendez-vous atelier et rappel à l’échéance du prochain entretien.',
+            'agenda' => true,
+        ],
+        'pro' => [
+            'label' => 'Services professionnels',
+            'description' => 'Conseil, formation, agences, cabinets : rendez-vous clients, suivi de la relation et relances.',
+            'agenda' => true,
+        ],
+        'commerce' => [
+            'label' => 'Commerce et distribution',
+            'description' => 'Boutiques, supermarchés, quincailleries, grossistes : import des ventes, analyse des achats par famille de produits et campagnes ciblées. Sans agenda.',
+            'agenda' => false,
+        ],
+        'autre' => [
+            'label' => 'Autre activité',
+            'description' => 'Toutes les fonctions sont affichées. Vous pourrez changer de secteur plus tard dans Paramètres › Entreprise.',
+            'agenda' => true,
+        ],
+    ];
+
+    /** Agenda et réservation affichés (organisation historique sans secteur : oui). */
+    public function hasAgenda(): bool
+    {
+        return self::SECTORS[$this->sector]['agenda'] ?? true;
+    }
+
+    /** Le commerce parle de « familles » de produits, les autres de « catégories ». */
+    public function sellsProducts(): bool
+    {
+        return $this->sector === 'commerce';
     }
 
     /**

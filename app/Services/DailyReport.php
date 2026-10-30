@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Models\Appointment;
+use App\Models\Category;
 use App\Models\Closure;
 use App\Models\Contact;
 use App\Models\Customer;
@@ -95,6 +96,9 @@ class DailyReport
             'tomorrow' => $tomorrow,
             'by_store' => $this->byStore($day, $appointments),
             'services' => $this->services($day),
+            // Familles de produits vendues dans la journée (commerce surtout).
+            'families' => (new FamilyAnalytics($this->storeIds))->day($day, Category::where('organization_id', $this->organization->id)->pluck('name', 'id')),
+            'sells_products' => $this->organization->sellsProducts(),
             'payments' => $this->payments($day),
             'at_risk' => $risk,
             'team' => $this->team($day),

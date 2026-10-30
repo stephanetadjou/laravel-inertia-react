@@ -11,10 +11,15 @@ export interface PurchaseImportPreview {
     total_amount: number;
     consents: { opt_in: number; opt_out: number };
     skipped: string[];
+    classified?: number;
+    to_classify?: number;
+    properties?: string[];
     sample: {
         contact_name: string;
         store_name: string;
         category: string | null;
+        article?: string | null;
+        family?: string | null;
         quantity: number;
         amount: number;
         purchased_at: string;
@@ -133,7 +138,14 @@ export default function PurchaseImportModal({ isOpen, onClose, preview }: Purcha
                         deux sont présents, <code className="rounded bg-gray-200 px-1 dark:bg-white/10">montant</code> est utilisé tel quel
                     </li>
                     <li>
-                        <code className="rounded bg-gray-200 px-1 dark:bg-white/10">categorie</code> — optionnel
+                        <code className="rounded bg-gray-200 px-1 dark:bg-white/10">categorie</code> — optionnel : famille ou catégorie (Boissons, Chaussures…)
+                    </li>
+                    <li>
+                        <code className="rounded bg-gray-200 px-1 dark:bg-white/10">article</code> — optionnel : libellé de l'article, sert aussi à reconnaître la famille par
+                        ses mots-clés ; aucune fiche produit n'est créée
+                    </li>
+                    <li>
+                        <b>toute autre colonne</b> (genre, marque, taille…) — gardée comme attribut de la vente, pour analyser et cibler (ex. genre = Femme)
                     </li>
                 </ul>
             </div>
@@ -183,6 +195,13 @@ export default function PurchaseImportModal({ isOpen, onClose, preview }: Purcha
                             <p className="mt-1 text-xl font-semibold text-gray-800 dark:text-white/90">{formatFcfa(preview.total_amount)}</p>
                         </div>
                     </div>
+                    {(preview.classified ?? 0) + (preview.to_classify ?? 0) > 0 && (
+                        <p className="rounded-lg bg-brand-50 px-3 py-2 text-sm text-gray-700 dark:bg-white/[0.04] dark:text-gray-300">
+                            Familles : <b>{preview.classified} ligne(s) rangée(s) automatiquement</b>
+                            {(preview.to_classify ?? 0) > 0 && <>, {preview.to_classify} à ranger ensuite dans « À classer » (Ventes › Familles)</>}.
+                            {(preview.properties?.length ?? 0) > 0 && <> Attributs gardés : {preview.properties?.join(', ')}.</>}
+                        </p>
+                    )}
                     {(preview.consents?.opt_in ?? 0) + (preview.consents?.opt_out ?? 0) > 0 ? (
                         <p className="rounded-lg bg-success-50 px-3 py-2 text-sm text-success-700 dark:bg-success-500/15 dark:text-success-400">
                             Consentement WhatsApp déclaré en caisse : <b>{preview.consents.opt_in} accord(s)</b> (opt-in) et <b>{preview.consents.opt_out} refus</b> (opt-out).
@@ -207,6 +226,9 @@ export default function PurchaseImportModal({ isOpen, onClose, preview }: Purcha
                                                 Boutique
                                             </TableCell>
                                             <TableCell isHeader className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase dark:text-gray-400">
+                                                Article / famille
+                                            </TableCell>
+                                            <TableCell isHeader className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase dark:text-gray-400">
                                                 Qté
                                             </TableCell>
                                             <TableCell isHeader className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase dark:text-gray-400">
@@ -226,6 +248,10 @@ export default function PurchaseImportModal({ isOpen, onClose, preview }: Purcha
                                                     )}
                                                 </TableCell>
                                                 <TableCell className="px-3 py-2 text-sm text-gray-600 dark:text-gray-400">{row.store_name}</TableCell>
+                                                <TableCell className="px-3 py-2 text-sm text-gray-600 dark:text-gray-400">
+                                                    {row.article ?? row.category ?? '—'}
+                                                    <span className="block text-xs text-gray-400">{row.family ?? (row.category || row.article ? 'à classer' : '')}</span>
+                                                </TableCell>
                                                 <TableCell className="px-3 py-2 text-sm text-gray-600 dark:text-gray-400">{row.quantity}</TableCell>
                                                 <TableCell className="px-3 py-2 text-sm text-gray-600 dark:text-gray-400">{formatFcfa(row.amount)}</TableCell>
                                             </TableRow>

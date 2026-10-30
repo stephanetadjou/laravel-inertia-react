@@ -22,7 +22,8 @@ interface BrandRow {
 }
 
 interface PageProps {
-    organization: { id: number; name: string };
+    organization: { id: number; name: string; sector: string | null };
+    sectors: { key: string; label: string; description: string }[];
     brands: BrandRow[];
     lifecycleSettings: LifecycleSettings;
     lifecycleDefaults: LifecycleSettings;
@@ -32,11 +33,12 @@ interface PageProps {
 }
 
 function OrganisationIndex() {
-    const { organization, brands, lifecycleSettings, lifecycleDefaults, privacy, whatsappApiEnabled } = usePage<PageProps>().props;
+    const { organization, sectors, brands, lifecycleSettings, lifecycleDefaults, privacy, whatsappApiEnabled } = usePage<PageProps>().props;
     const [modalBrand, setModalBrand] = useState<BrandFormValues | null | undefined>(undefined);
     const [newStoreBrand, setNewStoreBrand] = useState<{ id: number; name: string } | null>(null);
 
-    const { data, setData, put, processing, errors } = useForm({ name: organization.name });
+    const { data, setData, put, processing, errors } = useForm({ name: organization.name, sector: organization.sector ?? '' });
+    const sector = sectors.find((s) => s.key === data.sector);
 
     const submitOrganization: FormEventHandler = (e) => {
         e.preventDefault();
@@ -87,6 +89,19 @@ function OrganisationIndex() {
                             <label htmlFor="org_name">Nom de l'organisation</label>
                             <input id="org_name" type="text" value={data.name} onChange={(e) => setData('name', e.target.value)} />
                             {errors.name && <span className="err">{errors.name}</span>}
+                        </div>
+                        <div className="mpage-field">
+                            <label htmlFor="org_sector">Secteur d’activité</label>
+                            <select id="org_sector" value={data.sector} onChange={(e) => setData('sector', e.target.value)}>
+                                {!organization.sector && <option value="">Non précisé (tout afficher)</option>}
+                                {sectors.map((s) => (
+                                    <option key={s.key} value={s.key}>
+                                        {s.label}
+                                    </option>
+                                ))}
+                            </select>
+                            <small>{sector ? sector.description : 'Le secteur adapte le menu : par exemple, pas d’agenda pour le commerce.'}</small>
+                            {errors.sector && <span className="err">{errors.sector}</span>}
                         </div>
                         <div className="mpage-form-actions">
                             <button type="submit" className="mdash-btn brand" disabled={processing || !data.name.trim()}>

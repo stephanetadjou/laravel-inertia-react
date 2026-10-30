@@ -26,16 +26,24 @@ export interface NavSection {
 export interface NavContext {
     canManageOrganization: boolean;
     whatsappApiEnabled: boolean;
+    /** Secteur sur rendez-vous : agenda, réservation, intervenants, fermetures. */
+    hasAgenda?: boolean;
+    /** Commerce : ni prestations ni catalogue, l'analyse se fait par familles de produits. */
+    sellsProducts?: boolean;
 }
 
-export function buildSections({ canManageOrganization, whatsappApiEnabled }: NavContext): NavSection[] {
+export function buildSections({ canManageOrganization, whatsappApiEnabled, hasAgenda = true, sellsProducts = false }: NavContext): NavSection[] {
     const settingsTabs: NavTab[] = [
         ...(canManageOrganization
             ? [
                   { name: 'Entreprise', path: '/organisation' },
-                  { name: 'Réservation en ligne', path: '/settings/booking' },
-                  { name: 'Intervenants', path: '/settings/staff' },
-                  { name: 'Fermetures', path: '/settings/closures' },
+                  ...(hasAgenda
+                      ? [
+                            { name: 'Réservation en ligne', path: '/settings/booking' },
+                            { name: 'Intervenants', path: '/settings/staff' },
+                            { name: 'Fermetures', path: '/settings/closures' },
+                        ]
+                      : []),
                   { name: 'Fidélité', path: '/settings/loyalty' },
                   { name: 'Rapports', path: '/settings/reports' },
               ]
@@ -48,7 +56,7 @@ export function buildSections({ canManageOrganization, whatsappApiEnabled }: Nav
     const sections: NavSection[] = [
         { key: 'home', name: 'Accueil', icon: <PieChartIcon />, path: '/dashboard', tabs: [] },
         { key: 'actions', name: 'À faire', icon: <TaskIcon />, path: '/actions', tabs: [] },
-        { key: 'agenda', name: 'Agenda', icon: <CalenderIcon />, path: '/appointments', tabs: [] },
+        ...(hasAgenda ? [{ key: 'agenda', name: 'Agenda', icon: <CalenderIcon />, path: '/appointments', tabs: [] }] : []),
         {
             key: 'customers',
             name: 'Clients',
@@ -67,8 +75,8 @@ export function buildSections({ canManageOrganization, whatsappApiEnabled }: Nav
             path: '/purchases',
             tabs: [
                 { name: 'Ventes', path: '/purchases' },
-                ...(canManageOrganization ? [{ name: 'Catalogue', path: '/catalog' }] : []),
-                { name: 'Catégories', path: '/categories' },
+                ...(canManageOrganization && !sellsProducts ? [{ name: 'Catalogue', path: '/catalog' }] : []),
+                { name: sellsProducts ? 'Familles' : 'Catégories', path: '/categories' },
             ],
         },
     ];

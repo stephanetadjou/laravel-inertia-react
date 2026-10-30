@@ -25,6 +25,7 @@ export interface CatalogItem {
     active: boolean;
     bookable_online: boolean;
     store_ids: number[];
+    properties?: Record<string, string>;
     sold?: number;
     revenue?: number;
 }
@@ -34,6 +35,7 @@ interface PageProps {
     categories: { id: number; name: string }[];
     stores: { id: number; name: string }[];
     types: Record<string, string>;
+    propertyNames: string[];
     [key: string]: unknown;
 }
 
@@ -50,7 +52,23 @@ export function formatDuration(minutes: number | null): string {
     return h ? `${h} h${m ? ` ${String(m).padStart(2, '0')}` : ''}` : `${m} min`;
 }
 
-function ItemModal({ item, type, categories, stores, onClose }: { item: CatalogItem | null; type: 'service' | 'product'; categories: PageProps['categories']; stores: PageProps['stores']; onClose: () => void }) {
+const keyLabel = (key: string) => (key.charAt(0).toUpperCase() + key.slice(1)).replace(/_/g, ' ');
+
+function ItemModal({
+    item,
+    type,
+    categories,
+    stores,
+    propertyNames,
+    onClose,
+}: {
+    item: CatalogItem | null;
+    type: 'service' | 'product';
+    categories: PageProps['categories'];
+    stores: PageProps['stores'];
+    propertyNames: string[];
+    onClose: () => void;
+}) {
     const { data, setData, post, put, processing, errors } = useForm({
         type: item?.type ?? type,
         name: item?.name ?? '',
@@ -60,7 +78,13 @@ function ItemModal({ item, type, categories, stores, onClose }: { item: CatalogI
         reference: item?.reference ?? '',
         store_ids: item?.store_ids ?? ([] as number[]),
         bookable_online: item?.bookable_online ?? true,
+        // Attributs génériques (genre, marque, taille…) : mêmes clés que les colonnes libres de l'import.
+        properties: Object.entries(item?.properties ?? {}).map(([name, value]) => ({ name: keyLabel(name), value })),
     });
+
+    function setProperty(index: number, field: 'name' | 'value', value: string) {
+        setData('properties', data.properties.map((p, i) => (i === index ? { ...p, [field]: value } : p)));
+    }
     const isService = data.type === 'service';
 
     const submit: FormEventHandler = (e) => {
@@ -128,11 +152,42 @@ function ItemModal({ item, type, categories, stores, onClose }: { item: CatalogI
                 </div>
 
                 <div>
+                    <p className="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-300">Attributs (facultatif)</p>
+                    <p className="mb-2 text-xs text-gray-500 dark:text-gray-400">Genre (Homme, Femme, Enfant), marque, taille… pour analyser et cibler les clients qui achètent cet article.</p>
+                    <datalist id="cat-property-names">
+                        {propertyNames.map((n) => (
+                            <option key={n} value={n} />
+                        ))}
+                    </datalist>
+                    <div className="space-y-2">
+                        {data.properties.map((p, index) => (
+                            <div key={index} className="flex gap-2">
+                                <input aria-label="Attribut" list="cat-property-names" value={p.name} onChange={(e) => setProperty(index, 'name', e.target.value)} className={fieldClasses()} placeholder="ex. Genre" />
+                                <input aria-label="Valeur" value={p.value} onChange={(e) => setProperty(index, 'value', e.target.value)} className={fieldClasses()} placeholder="ex. Femme" />
+                                <button
+                                    type="button"
+                                    aria-label="Retirer l’attribut"
+                                    className="px-2 text-gray-400 hover:text-error-500"
+                                    onClick={() => setData('properties', data.properties.filter((_, i) => i !== index))}
+                                >
+                                    ×
+                                </button>
+                            </div>
+                        ))}
+                    </div>
+                    {data.properties.length < 10 && (
+                        <button type="button" className="mt-2 text-sm font-medium text-brand-text hover:underline" onClick={() => setData('properties', [...data.properties, { name: '', value: '' }])}>
+                            + Ajouter un attribut
+                        </button>
+                    )}
+                </div>
+
+                <div>
                     <label htmlFor="cat-category" className="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-300">
-                        Catégorie
+                        {isService ? 'Catégorie' : 'Famille de produits'}
                     </label>
                     <select id="cat-category" value={data.category_id} onChange={(e) => setData('category_id', e.target.value)} className={fieldClasses()}>
-                        <option value="">Sans catégorie</option>
+                        <option value="">{isService ? 'Sans catégorie' : 'Sans famille'}</option>
                         {categories.map((c) => (
                             <option key={c.id} value={c.id}>
                                 {c.name}
@@ -175,7 +230,7 @@ function ItemModal({ item, type, categories, stores, onClose }: { item: CatalogI
 }
 
 function CatalogIndex() {
-    const { items, categories, stores } = usePage<PageProps>().props;
+    const { items, categories, stores, propertyNames } = usePage<PageProps>().props;
     const [tab, setTab] = useState<Tab>('service');
     const [search, setSearch] = useState('');
     const [modal, setModal] = useState<CatalogItem | null | undefined>(undefined);
@@ -265,7 +320,7 @@ function CatalogIndex() {
                 )}
             </Panel>
 
-            {modal !== undefined && <ItemModal key={modal?.id ?? 'new'} item={modal} type={tab === 'product' ? 'product' : 'service'} categories={categories} stores={stores} onClose={() => setModal(undefined)} />}
+            {modal !== undefined && <ItemModal key={modal?.id ?? 'new'} item={modal} type={tab === 'product' ? 'product' : 'service'} categories={categories} stores={stores} propertyNames={propertyNames} onClose={() => setModal(undefined)} />}
         </Page>
     );
 }

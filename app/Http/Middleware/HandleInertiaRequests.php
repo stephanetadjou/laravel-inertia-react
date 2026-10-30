@@ -55,6 +55,10 @@ class HandleInertiaRequests extends Middleware
                 'organization' => $user?->organization ? [
                     'name' => $user->organization->name,
                     'whatsapp_api_enabled' => $user->organization->usesWhatsAppApi(),
+                    // Secteur : agenda affiché ou non, vocabulaire « familles » du commerce.
+                    'sector' => $user->organization->sector,
+                    'has_agenda' => $user->organization->hasAgenda(),
+                    'sells_products' => $user->organization->sellsProducts(),
                 ] : null,
             ],
             // Tarifs indicatifs par message, pour le coût estimé avant envoi d'une campagne.

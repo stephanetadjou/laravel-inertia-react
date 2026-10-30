@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Http\Controllers\Concerns\ResolvesBrandFilter;
+use App\Models\Category;
 use App\Models\Contact;
 use App\Models\Customer;
 use App\Models\Group;
@@ -63,8 +64,27 @@ class CustomerSearch
     /** Groupe choisi (de l'organisation) : seuls ses membres. */
     public ?Group $group;
 
+    /** Famille de produits ciblée (cf. FamilyAnalytics). */
+    public ?Category $family;
+
+    /** bought = a acheté la famille dans les N derniers jours (0 = un jour), lapsed = l'a achetée mais plus depuis N jours. */
+    public string $familyMode;
+
+    public int $familyDays;
+
+    /** Famille jamais achetée (vente croisée : « achète A mais jamais B »). */
+    public ?Category $familyNot;
+
+    /** Attribut d'achat ciblé (« genre:Femme ») : a acheté un article avec cette valeur. */
+    public ?array $property = null;
+
+    public const FAMILY_MODES = ['bought', 'lapsed'];
+
+    public const FAMILY_DAYS = [0, 30, 60, 90, 180, 365];
+
     /**
-     * @param  array<string, mixed>  $filters  stage, vip, consent, q, brand, store, group, segment, risk
+     * @param  array<string, mixed>  $filters  stage, vip, consent, q, brand, store, group, segment, risk,
+     *                                         family, family_mode, family_days, family_not, prop
      */
     public function __construct(public User $user, array $filters)
     {
@@ -93,11 +113,29 @@ class CustomerSearch
         $this->search = trim((string) ($filters['q'] ?? ''));
         $groupId = (int) ($filters['group'] ?? 0);
         $this->group = $groupId ? Group::where('organization_id', $user->organization_id)->find($groupId) : null;
+
+        $familyId = (int) ($filters['family'] ?? 0);
+        $familyNotId = (int) ($filters['family_not'] ?? 0);
+        $this->family = $familyId ? Category::where('organization_id', $user->organization_id)->find($familyId) : null;
+        $this->familyNot = $familyNotId ? Category::where('organization_id', $user->organization_id)->find($familyNotId) : null;
+        $this->familyMode = in_array($filters['family_mode'] ?? null, self::FAMILY_MODES, true) ? (string) $filters['family_mode'] : 'bought';
+        $days = (int) ($filters['family_days'] ?? 90);
+        $this->familyDays = in_array($days, self::FAMILY_DAYS, true) ? $days : 90;
+
+        $prop = (string) ($filters['prop'] ?? '');
+        if (preg_match('/^([a-z0-9_]{1,64}):(.{1,100})$/u', $prop, $m)) {
+            $this->property = ['key' => $m[1], 'value' => $m[2]];
+        }
+
+        // « N'achète plus » sans délai n'a pas de sens : 90 jours par défaut.
+        if ($this->familyMode === 'lapsed' && $this->familyDays === 0) {
+            $this->familyDays = 90;
+        }
     }
 
     public static function fromRequest(Request $request): self
     {
-        return new self($request->user(), $request->only(['stage', 'vip', 'consent', 'q', 'brand', 'store', 'group', 'segment', 'risk']));
+        return new self($request->user(), $request->only(['stage', 'vip', 'consent', 'q', 'brand', 'store', 'group', 'segment', 'risk', 'family', 'family_mode', 'family_days', 'family_not', 'prop']));
     }
 
     /**
@@ -128,11 +166,40 @@ class CustomerSearch
             ->when($this->segment !== null, fn ($q) => $q->where('rfm_segment', $this->segment))
             ->when($this->risk === 'any', fn ($q) => $q->whereIn('churn_risk', ['medium', 'high']))
             ->when(in_array($this->risk, ['medium', 'high'], true), fn ($q) => $q->where('churn_risk', $this->risk))
+            ->when($this->family !== null || $this->familyNot !== null || $this->property !== null, fn ($q) => $this->applyFamilies($q))
             ->when($this->search !== '', function ($q) {
                 $digits = ltrim(preg_replace('/\D+/', '', $this->search), '0'); // 0 du format local ignoré
                 $q->where(fn ($q) => $q->where('name', 'like', "%{$this->search}%")
                     ->when($digits !== '', fn ($q) => $q->orWhere('phone_e164', 'like', "%{$digits}%")));
             });
+    }
+
+    /**
+     * Critères de famille, calculés sur les achats des boutiques retenues.
+     *
+     * @param  Builder<Customer>  $query
+     */
+    private function applyFamilies(Builder $query): void
+    {
+        $analytics = new FamilyAnalytics($this->storeIds);
+        $since = $this->familyDays > 0 ? today()->subDays($this->familyDays) : null;
+
+        if ($this->family !== null) {
+            if ($this->familyMode === 'lapsed') {
+                $query->whereIn('customers.id', $analytics->buyers($this->family->id))
+                    ->whereNotIn('customers.id', $analytics->buyers($this->family->id, $since));
+            } else {
+                $query->whereIn('customers.id', $analytics->buyers($this->family->id, $since));
+            }
+        }
+
+        if ($this->familyNot !== null) {
+            $query->whereNotIn('customers.id', $analytics->buyers($this->familyNot->id));
+        }
+
+        if ($this->property !== null) {
+            $query->whereIn('customers.id', $analytics->propertyBuyers($this->property['key'], $this->property['value']));
+        }
     }
 
     /**
@@ -176,6 +243,7 @@ class CustomerSearch
             $this->vip ? 'VIP' : null,
             $this->segment !== null ? RfmCalculator::SEGMENTS[$this->segment]['label'] : null,
             $this->risk !== null ? 'Risque de churn' : null,
+            $this->familyLabel(),
             match ($this->consent) {
                 'opt_in' => 'Opt-in',
                 'unknown' => 'Consentement inconnu',
@@ -190,5 +258,29 @@ class CustomerSearch
         ]);
 
         return $parts === [] ? 'Clients' : implode(' · ', $parts);
+    }
+
+    /** « Boissons depuis 90 j », « Plus de Boissons depuis 90 j », « Jamais Épicerie ». */
+    private function familyLabel(): ?string
+    {
+        $parts = [];
+
+        if ($this->family !== null) {
+            $parts[] = match (true) {
+                $this->familyMode === 'lapsed' => "Plus de {$this->family->name} depuis {$this->familyDays} j",
+                $this->familyDays > 0 => "{$this->family->name} depuis {$this->familyDays} j",
+                default => "A acheté {$this->family->name}",
+            };
+        }
+
+        if ($this->familyNot !== null) {
+            $parts[] = "Jamais {$this->familyNot->name}";
+        }
+
+        if ($this->property !== null) {
+            $parts[] = FamilyAnalytics::propertyLabel($this->property['key']).' : '.$this->property['value'];
+        }
+
+        return $parts === [] ? null : implode(' · ', $parts);
     }
 }

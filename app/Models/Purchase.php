@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Services\CustomerLifecycle;
+use App\Services\FamilyMatcher;
 use App\Services\Loyalty;
 use Database\Factories\PurchaseFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -21,6 +22,9 @@ class Purchase extends Model
         'amount',
         'quantity',
         'product_category',
+        'category_id',
+        'article',
+        'properties',
         'purchased_at',
         'payment_method',
     ];
@@ -41,6 +45,7 @@ class Purchase extends Model
     {
         return [
             'purchased_at' => 'date',
+            'properties' => 'array',
         ];
     }
 
@@ -50,6 +55,19 @@ class Purchase extends Model
      */
     protected static function booted(): void
     {
+        // Famille reconnue à partir de la catégorie ou de l'article du fichier,
+        // sauf si elle est choisie explicitement (cf. FamilyMatcher).
+        static::saving(function (Purchase $purchase) {
+            if ($purchase->isDirty('category_id') || ! $purchase->isDirty(['product_category', 'article'])) {
+                return;
+            }
+
+            $organizationId = Store::whereKey($purchase->store_id)->value('organization_id');
+            $purchase->category_id = $organizationId
+                ? FamilyMatcher::for($organizationId)->match($purchase->product_category, $purchase->article)
+                : null;
+        });
+
         $refresh = function (Purchase $purchase) {
             app(CustomerLifecycle::class)->touch(
                 Contact::whereKey($purchase->contact_id)->value('customer_id'),
@@ -75,6 +93,11 @@ class Purchase extends Model
     public function items(): HasMany
     {
         return $this->hasMany(PurchaseItem::class);
+    }
+
+    public function category(): BelongsTo
+    {
+        return $this->belongsTo(Category::class);
     }
 
     public function contact(): BelongsTo

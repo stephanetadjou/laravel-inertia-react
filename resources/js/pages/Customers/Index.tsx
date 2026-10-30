@@ -26,6 +26,11 @@ interface Filters {
     brand_hidden: boolean;
     store: number | null;
     group: number | null;
+    family: number | null;
+    family_mode: 'bought' | 'lapsed';
+    family_days: number;
+    family_not: number | null;
+    prop: string | null;
     groups: { id: number; name: string }[];
     brands: { id: number; name: string }[];
     label: string;
@@ -53,6 +58,8 @@ interface CustomerRow {
 interface PageProps {
     filters: Filters;
     stores: { id: number; name: string }[];
+    families: { id: number; name: string }[];
+    properties: { key: string; label: string; values: string[] }[];
     stages: { key: Stage; label: string; count: number }[];
     vipCount: number;
     segments: { key: string; label: string }[];
@@ -96,7 +103,7 @@ function plural(n: number, word: string, pluralWord = word + 's'): string {
 }
 
 function CustomersIndex() {
-    const { filters, stores, stages, vipCount, segments, riskCount, apiEnabled, consentCounts, reachableCount, templates, customers, flash } = usePage<PageProps>().props;
+    const { filters, stores, families, properties, stages, vipCount, segments, riskCount, apiEnabled, consentCounts, reachableCount, templates, customers, flash } = usePage<PageProps>().props;
     const segmentLabel = (key: string | null) => segments.find((s) => s.key === key)?.label ?? '—';
     const [search, setSearch] = useState(filters.q);
     const [isNewContactOpen, setIsNewContactOpen] = useState(false);
@@ -125,9 +132,30 @@ function CustomersIndex() {
                     brand: filters.brand_locked ? null : filters.brand,
                     store: filters.store,
                     group: filters.group,
+                    family: filters.family,
+                    family_mode: filters.family && filters.family_mode !== 'bought' ? filters.family_mode : null,
+                    family_days: filters.family && filters.family_days !== 90 ? filters.family_days : null,
+                    family_not: filters.family_not,
+                    prop: filters.prop,
                 }).filter(([, v]) => v !== null && v !== ''),
             ) as Record<string, string | number>,
-        [filters.stage, filters.vip, filters.segment, filters.risk, filters.consent, filters.q, filters.brand, filters.brand_locked, filters.store, filters.group],
+        [
+            filters.stage,
+            filters.vip,
+            filters.segment,
+            filters.risk,
+            filters.consent,
+            filters.q,
+            filters.brand,
+            filters.brand_locked,
+            filters.store,
+            filters.group,
+            filters.family,
+            filters.family_mode,
+            filters.family_days,
+            filters.family_not,
+            filters.prop,
+        ],
     );
 
     // Un changement de filtre vide la sélection (elle ne correspondrait plus).
@@ -284,6 +312,62 @@ function CustomersIndex() {
                                 </option>
                             ))}
                         </select>
+                        {families.length > 0 && (
+                            <select aria-label="Famille achetée" value={filters.family ?? ''} onChange={(e) => visit({ family: e.target.value ? Number(e.target.value) : null, family_mode: null, family_days: null })}>
+                                <option value="">Toutes les familles</option>
+                                {families.map((f) => (
+                                    <option key={f.id} value={f.id}>
+                                        Famille : {f.name}
+                                    </option>
+                                ))}
+                            </select>
+                        )}
+                        {filters.family !== null && (
+                            <>
+                                <select
+                                    aria-label="Achat dans la famille"
+                                    value={filters.family_mode}
+                                    onChange={(e) => visit({ family_mode: e.target.value === 'bought' ? null : e.target.value, family_days: e.target.value === 'lapsed' && filters.family_days === 0 ? null : filters.family_days })}
+                                >
+                                    <option value="bought">a acheté</option>
+                                    <option value="lapsed">n’achète plus</option>
+                                </select>
+                                <select aria-label="Depuis" value={filters.family_days} onChange={(e) => visit({ family_days: Number(e.target.value) === 90 ? null : Number(e.target.value) })}>
+                                    {filters.family_mode === 'bought' && <option value={0}>un jour ou l’autre</option>}
+                                    {[30, 60, 90, 180, 365].map((d) => (
+                                        <option key={d} value={d}>
+                                            {filters.family_mode === 'bought' ? `ces ${d} derniers jours` : `depuis ${d} jours`}
+                                        </option>
+                                    ))}
+                                </select>
+                            </>
+                        )}
+                        {families.length > 1 && (
+                            <select aria-label="Famille jamais achetée" value={filters.family_not ?? ''} onChange={(e) => visit({ family_not: e.target.value ? Number(e.target.value) : null })}>
+                                <option value="">Jamais acheté : —</option>
+                                {families
+                                    .filter((f) => f.id !== filters.family)
+                                    .map((f) => (
+                                        <option key={f.id} value={f.id}>
+                                            Jamais acheté : {f.name}
+                                        </option>
+                                    ))}
+                            </select>
+                        )}
+                        {properties.length > 0 && (
+                            <select aria-label="Attribut des achats" value={filters.prop ?? ''} onChange={(e) => visit({ prop: e.target.value || null })}>
+                                <option value="">Tous les attributs</option>
+                                {properties.map((p) => (
+                                    <optgroup key={p.key} label={p.label}>
+                                        {p.values.map((v) => (
+                                            <option key={v} value={`${p.key}:${v}`}>
+                                                {p.label} : {v}
+                                            </option>
+                                        ))}
+                                    </optgroup>
+                                ))}
+                            </select>
+                        )}
                         <select aria-label="Trier par" value={filters.sort} onChange={(e) => visit({ sort: e.target.value === 'last_purchase' ? null : e.target.value })}>
                             <option value="last_purchase">Dernier achat</option>
                             <option value="total_spent">CA total</option>

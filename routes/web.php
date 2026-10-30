@@ -103,6 +103,9 @@ Route::middleware('auth')->group(function () {
     Route::delete('/groups/{group}/customers', [GroupController::class, 'removeCustomers'])->name('groups.customers.remove');
 
     Route::get('/categories', [CategoryController::class, 'index'])->name('categories.index');
+    Route::get('/categories/a-classer', [CategoryController::class, 'unclassified'])->name('categories.unclassified');
+    Route::post('/categories/a-classer', [CategoryController::class, 'assign'])->name('categories.assign');
+    Route::get('/categories/{category}', [CategoryController::class, 'show'])->name('categories.show');
     Route::post('/categories', [CategoryController::class, 'store'])->name('categories.store');
     Route::put('/categories/{category}', [CategoryController::class, 'update'])->name('categories.update');
     Route::delete('/categories/{category}', [CategoryController::class, 'destroy'])->name('categories.destroy');
@@ -161,6 +164,7 @@ Route::middleware('auth')->group(function () {
         Route::put('/settings/whatsapp/{store}', [WhatsAppSettingsController::class, 'update'])->middleware('whatsapp-api')->name('settings.whatsapp.update');
         Route::post('/settings/whatsapp/{store}/test', [WhatsAppSettingsController::class, 'test'])->middleware('whatsapp-api')->name('settings.whatsapp.test');
         Route::post('/settings/whatsapp/{store}/register', [WhatsAppSettingsController::class, 'register'])->middleware('whatsapp-api')->name('settings.whatsapp.register');
+        Route::post('/settings/whatsapp/{store}/send-test', [WhatsAppSettingsController::class, 'sendTest'])->middleware('whatsapp-api')->name('settings.whatsapp.send-test');
 
         Route::get('/users', [UserController::class, 'index'])->name('users.index');
         Route::post('/users', [UserController::class, 'store'])->name('users.store');

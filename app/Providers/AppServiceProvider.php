@@ -29,5 +29,8 @@ class AppServiceProvider extends ServiceProvider
 
         RateLimiter::for('booking-submit', fn (Request $request) => Limit::perMinute(10)->by('booking-submit|'.$request->ip())
             ->response(fn () => back()->withErrors(['time' => 'Trop de tentatives depuis cet appareil. Réessayez dans une minute.'])));
+
+        // Formulaire de démo du site vitrine.
+        RateLimiter::for('leads', fn (Request $request) => Limit::perMinute(5)->by('leads|'.$request->ip()));
     }
 }

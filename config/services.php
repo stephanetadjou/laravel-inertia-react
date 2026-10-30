@@ -35,6 +35,12 @@ return [
         ],
     ],
 
+    // Site vitrine : retour après le formulaire de démo, et adresse qui reçoit les demandes.
+    'menentia' => [
+        'site_url' => env('MENENTIA_SITE_URL', 'https://menentia.com'),
+        'leads_email' => env('MENENTIA_LEADS_EMAIL'),
+    ],
+
     'meta_whatsapp' => [
         'token' => env('META_WHATSAPP_TOKEN'),
         'phone_number_id' => env('META_PHONE_NUMBER_ID'),
@@ -42,6 +48,10 @@ return [
         // cloud : vraie API Meta. log : simulation locale, aucun appel externe
         // (ignoré en production), cf. App\Services\WhatsAppClient.
         'driver' => env('WHATSAPP_DRIVER', 'cloud'),
+        // Adresse publique (https) qui précède /webhooks/whatsapp/{clé} dans
+        // l'URL de rappel affichée, quand l'app tourne derrière un tunnel en
+        // local. Vide : APP_URL.
+        'webhook_base_url' => env('WHATSAPP_WEBHOOK_BASE_URL'),
         // Envoi des campagnes : messages par lot (un job par lot) et pause
         // entre deux messages pour rester sous le débit autorisé par Meta.
         'batch_size' => (int) env('WHATSAPP_BATCH_SIZE', 50),

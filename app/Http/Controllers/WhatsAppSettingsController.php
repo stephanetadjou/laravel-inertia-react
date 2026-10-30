@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Store;
+use App\Services\PhoneNormalizer;
 use App\Services\WhatsAppApiException;
 use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Http\RedirectResponse;
@@ -133,14 +134,86 @@ class WhatsAppSettingsController extends Controller
 
         $limit = $store->dailyMessagingLimit();
 
-        return back()->with('success', sprintf(
+        $message = sprintf(
             '%s connecté : %s (%s), qualité %s, limite %s.',
             $store->name,
             $info['verified_name'] ?? 'nom non vérifié',
             $info['display_phone_number'] ?? '?',
             self::qualityLabel($info['quality_rating'] ?? null),
             $limit ? number_format($limit, 0, ',', ' ').' destinataires / 24 h' : 'non communiquée',
-        ));
+        );
+
+        // Sans cet abonnement, Meta n'envoie aucun événement au webhook,
+        // même validé : on le fait ici pour que personne n'ait à passer par
+        // l'explorateur de l'API Graph. Un échec n'invalide pas la connexion.
+        if (filled($store->whatsapp_business_account_id)) {
+            try {
+                $store->whatsappClient()->subscribeAppToBusinessAccount($store->whatsapp_business_account_id);
+                $message .= ' Webhook : app abonnée au compte WhatsApp.';
+            } catch (WhatsAppApiException $e) {
+                $message .= " Webhook : abonnement de l'app au compte WhatsApp refusé ({$e->explanation()}).";
+            } catch (ConnectionException) {
+                $message .= " Webhook : abonnement de l'app non vérifié (Meta injoignable).";
+            }
+        }
+
+        return back()->with('success', $message);
+    }
+
+    /**
+     * Envoie le modèle hello_world (fourni par Meta, en anglais, déjà
+     * approuvé) à un numéro : vérifie toute la chaîne d'envoi avant une
+     * campagne. Avec le numéro de test de Meta, le destinataire doit faire
+     * partie des 5 numéros autorisés dans l'app Meta.
+     */
+    public function sendTest(Request $request, Store $store): RedirectResponse
+    {
+        $this->authorizeStore($request, $store);
+
+        $data = $request->validate([
+            'phone' => ['required', 'string', 'max:30'],
+        ]);
+
+        $to = self::recipient($data['phone']);
+
+        if ($to === null) {
+            return back()->withErrors(['phone' => 'Numéro invalide : '.PhoneNormalizer::EXPECTED_FORMAT.', ou un numéro étranger commençant par +.']);
+        }
+
+        if (! $store->canSendWhatsApp()) {
+            return back()->with('error', "{$store->name} : renseignez d'abord le Phone Number ID et le token d'accès.");
+        }
+
+        try {
+            $store->whatsappClient()->sendTemplate($to, 'hello_world', 'en_US');
+        } catch (WhatsAppApiException $e) {
+            return back()->with('error', "{$store->name} : {$e->explanation()}");
+        } catch (ConnectionException) {
+            return back()->with('error', "{$store->name} : impossible de joindre Meta (réseau ou délai dépassé). Réessayez.");
+        }
+
+        return back()->with('success', "Message de test « hello_world » envoyé au +{$to} depuis {$store->name}. Il doit arriver sur WhatsApp dans la minute.");
+    }
+
+    /**
+     * Numéro gabonais sous toutes ses formes, ou numéro étranger saisi avec
+     * son indicatif (+33…) pour un testeur hors du Gabon.
+     */
+    private static function recipient(string $raw): ?string
+    {
+        if ($gabon = PhoneNormalizer::normalize($raw)) {
+            return $gabon;
+        }
+
+        $digits = preg_replace('/\D/', '', $raw);
+
+        if (str_starts_with(trim($raw), '00')) {
+            $digits = substr($digits, 2);
+        } elseif (! str_starts_with(trim($raw), '+')) {
+            return null;
+        }
+
+        return preg_match('/^[1-9]\d{7,14}$/', $digits) ? $digits : null;
     }
 
     /**

@@ -73,6 +73,15 @@ interface MessageRow {
     at: string;
 }
 
+interface Habits {
+    visits: number;
+    average_basket: number;
+    families_count: number;
+    total: number;
+    families: { id: number | null; name: string; amount: number; share: number; days: number; last_day: string }[];
+    properties: { key: string; label: string; value: string; share: number }[];
+}
+
 interface PageProps {
     customer: CustomerData;
     scoped: boolean;
@@ -103,6 +112,8 @@ interface PageProps {
     catalog: CatalogEntry[];
     paymentMethods: Record<string, string>;
     loyalty: LoyaltyData | null;
+    habits: Habits;
+    auth?: { organization?: { has_agenda?: boolean; sells_products?: boolean } | null };
     staff: { id: number; name: string; store_id: number; color: string | null }[];
     followUps: { id: number; label: string; channel: string; user_name: string | null; store_name: string | null; at: string }[];
     flash?: { success: string | null; error: string | null };
@@ -212,6 +223,8 @@ function CustomerShow() {
         catalog,
         paymentMethods,
         loyalty,
+        habits,
+        auth,
         staff,
         followUps,
         flash,
@@ -538,8 +551,49 @@ function CustomerShow() {
                     )}
                 </article>
 
+                {habits.total > 0 && (
+                    <article className="mdash-panel c6">
+                        <div className="mdash-ph">
+                            <h2>Habitudes d’achat</h2>
+                            <span className="mdash-sub">
+                                {plural(habits.visits, 'visite')} · panier moyen {formatNumber(habits.average_basket)} F · {plural(habits.families_count, auth?.organization?.sells_products ? 'famille' : 'catégorie')}
+                            </span>
+                        </div>
+                        <ul className="mcust-timeline">
+                            {habits.families.slice(0, 6).map((f) => (
+                                <li key={f.id ?? 'none'}>
+                                    <span className="dot" />
+                                    <span>
+                                        {f.id !== null ? (
+                                            <Link href={`/categories/${f.id}`} className="mdash-link">
+                                                {f.name}
+                                            </Link>
+                                        ) : (
+                                            f.name
+                                        )}
+                                        <span className="sub">
+                                            {f.share} % de ses achats · {plural(f.days, 'jour')} d’achat · dernier le {formatDate(f.last_day)}
+                                        </span>
+                                    </span>
+                                    <span className="mcust-amount">{formatNumber(f.amount)} F</span>
+                                </li>
+                            ))}
+                        </ul>
+                        {habits.properties.length > 0 && (
+                            <p className="mcust-rfm-action">
+                                {habits.properties.map((p) => (
+                                    <span key={p.key} className="mdash-pill idle" title={`${p.share} % de ses achats renseignés`}>
+                                        {p.label} : {p.value}
+                                    </span>
+                                ))}
+                            </p>
+                        )}
+                    </article>
+                )}
+
                 {loyalty && <LoyaltyPanel customerId={customer.id} customerName={customer.name} loyalty={loyalty} />}
 
+                {(auth?.organization?.has_agenda ?? true) && (
                 <article className="mdash-panel c6">
                     <div className="mdash-ph">
                         <h2>Rendez-vous</h2>
@@ -580,6 +634,7 @@ function CustomerShow() {
                         </ul>
                     )}
                 </article>
+                )}
 
                 <article className="mdash-panel c6">
                     <div className="mdash-ph">

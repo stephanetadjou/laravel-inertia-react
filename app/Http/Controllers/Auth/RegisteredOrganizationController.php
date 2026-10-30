@@ -12,6 +12,7 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\Rule;
 use Illuminate\Validation\Rules\Password;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -20,19 +21,27 @@ use Inertia\Response;
  * Inscription d'une entreprise cliente : crée en une fois l'organisation,
  * ses rôles par défaut, son premier établissement (marque + boutique du même
  * nom) et le compte de la personne qui s'inscrit, Super administrateur.
+ * Le secteur choisi adapte le menu (cf. Organization::SECTORS).
  * La connexion WhatsApp de l'établissement se fait ensuite dans Paramètres.
  */
 class RegisteredOrganizationController extends Controller
 {
     public function create(): Response
     {
-        return Inertia::render('Auth/Register');
+        return Inertia::render('Auth/Register', [
+            'sectors' => collect(Organization::SECTORS)->map(fn ($sector, $key) => [
+                'key' => $key,
+                'label' => $sector['label'],
+                'description' => $sector['description'],
+            ])->values(),
+        ]);
     }
 
     public function store(Request $request): RedirectResponse
     {
         $validated = $request->validate([
             'organization_name' => ['required', 'string', 'max:255'],
+            'sector' => ['required', Rule::in(array_keys(Organization::SECTORS))],
             'store_name' => ['required', 'string', 'max:255'],
             'name' => ['required', 'string', 'max:255'],
             'email' => ['required', 'string', 'lowercase', 'email', 'max:255', 'unique:users,email'],
@@ -47,6 +56,7 @@ class RegisteredOrganizationController extends Controller
             $organization = Organization::create([
                 'name' => $validated['organization_name'],
                 'slug' => $slug,
+                'sector' => $validated['sector'],
                 // Sans compte Meta vérifié au départ : relances manuelles par lien wa.me,
                 // l'API WhatsApp s'active plus tard dans Organisation.
                 'whatsapp_api_enabled' => false,

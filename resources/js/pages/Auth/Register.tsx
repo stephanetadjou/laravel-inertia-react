@@ -1,17 +1,25 @@
-import { Head, Link, useForm } from '@inertiajs/react';
+import { Head, Link, useForm, usePage } from '@inertiajs/react';
 import { FormEventHandler } from 'react';
 
 import Button from '../../components/ui/button/Button';
 import MenentiaLogo from '../../components/common/MenentiaLogo';
 
-type Field = 'organization_name' | 'store_name' | 'name' | 'email' | 'password' | 'password_confirmation';
+type Field = 'organization_name' | 'sector' | 'store_name' | 'name' | 'email' | 'password' | 'password_confirmation';
+
+interface Sector {
+    key: string;
+    label: string;
+    description: string;
+}
 
 const inputClass =
     'w-full rounded-lg border border-gray-300 px-3 py-2.5 text-sm text-gray-800 focus:border-brand-300 focus:outline-hidden dark:border-gray-700 dark:bg-white/[0.03] dark:text-white/90';
 
 export default function Register() {
+    const { sectors } = usePage<{ sectors: Sector[] }>().props;
     const { data, setData, post, processing, errors } = useForm<Record<Field, string>>({
         organization_name: '',
+        sector: '',
         store_name: '',
         name: '',
         email: '',
@@ -55,6 +63,38 @@ export default function Register() {
                         <fieldset className="space-y-4">
                             <legend className="mb-2 text-xs font-semibold tracking-wide text-gray-500 uppercase">Entreprise</legend>
                             {field('organization_name', "Nom de l'entreprise")}
+                            <div role="radiogroup" aria-labelledby="sector-label">
+                                <p id="sector-label" className="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-300">
+                                    Secteur d’activité
+                                </p>
+                                <div className="space-y-2">
+                                    {sectors.map((sector) => {
+                                        const checked = data.sector === sector.key;
+                                        return (
+                                            <label
+                                                key={sector.key}
+                                                className={`flex cursor-pointer gap-3 rounded-lg border px-3 py-2.5 text-sm transition-colors ${
+                                                    checked ? 'border-brand-500 bg-brand-50 dark:bg-white/10' : 'border-gray-200 hover:border-gray-300 dark:border-gray-700'
+                                                }`}
+                                            >
+                                                <input
+                                                    type="radio"
+                                                    name="sector"
+                                                    value={sector.key}
+                                                    checked={checked}
+                                                    onChange={() => setData('sector', sector.key)}
+                                                    className="mt-1 accent-brand-500"
+                                                />
+                                                <span>
+                                                    <span className="block font-medium text-gray-800 dark:text-white/90">{sector.label}</span>
+                                                    <span className="block text-xs text-gray-500 dark:text-gray-400">{sector.description}</span>
+                                                </span>
+                                            </label>
+                                        );
+                                    })}
+                                </div>
+                                {errors.sector && <p className="mt-1.5 text-sm text-error-500">Choisissez votre secteur d’activité.</p>}
+                            </div>
                             {field('store_name', 'Premier établissement', 'text', 'Vous pourrez en ajouter d’autres plus tard.')}
                         </fieldset>
 

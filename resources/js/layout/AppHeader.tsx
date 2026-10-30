@@ -10,7 +10,7 @@ import { buildSections, currentSection, tabIsActive } from './navigation';
 interface SharedAuthProps {
     auth?: {
         user: { name: string; email: string; role_name: string | null; can_manage_organization: boolean } | null;
-        organization: { name: string; whatsapp_api_enabled?: boolean } | null;
+        organization: { name: string; whatsapp_api_enabled?: boolean; has_agenda?: boolean; sells_products?: boolean } | null;
     };
     [key: string]: unknown;
 }
@@ -30,6 +30,8 @@ const AppHeader: React.FC = () => {
     const sections = buildSections({
         canManageOrganization: auth?.user?.can_manage_organization ?? false,
         whatsappApiEnabled: auth?.organization?.whatsapp_api_enabled ?? true,
+        hasAgenda: auth?.organization?.has_agenda ?? true,
+        sellsProducts: auth?.organization?.sells_products ?? false,
     });
     const section = currentSection(sections, url);
     const tabs = section?.tabs ?? [];
