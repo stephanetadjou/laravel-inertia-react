@@ -72,12 +72,14 @@ Route::middleware('auth')->group(function () {
     Route::get('/actions', [ActionController::class, 'index'])->name('actions.index');
     Route::post('/actions/done', [ActionController::class, 'done'])->name('actions.done');
 
-    Route::get('/appointments', [AppointmentController::class, 'index'])->name('appointments.index');
-    Route::post('/appointments', [AppointmentController::class, 'store'])->name('appointments.store');
-    Route::put('/appointments/{appointment}', [AppointmentController::class, 'update'])->name('appointments.update');
-    Route::patch('/appointments/{appointment}/status', [AppointmentController::class, 'updateStatus'])->name('appointments.status');
-    Route::delete('/appointments/{appointment}', [AppointmentController::class, 'destroy'])->name('appointments.destroy');
-    Route::post('/appointments/{appointment}/checkout', [AppointmentController::class, 'checkout'])->name('appointments.checkout');
+    Route::middleware('agenda')->group(function () {
+        Route::get('/appointments', [AppointmentController::class, 'index'])->name('appointments.index');
+        Route::post('/appointments', [AppointmentController::class, 'store'])->name('appointments.store');
+        Route::put('/appointments/{appointment}', [AppointmentController::class, 'update'])->name('appointments.update');
+        Route::patch('/appointments/{appointment}/status', [AppointmentController::class, 'updateStatus'])->name('appointments.status');
+        Route::delete('/appointments/{appointment}', [AppointmentController::class, 'destroy'])->name('appointments.destroy');
+        Route::post('/appointments/{appointment}/checkout', [AppointmentController::class, 'checkout'])->name('appointments.checkout');
+    });
 
     Route::get('/contacts', [ContactController::class, 'index'])->name('contacts.index');
     Route::post('/contacts', [ContactController::class, 'store'])->name('contacts.store');
@@ -154,18 +156,20 @@ Route::middleware('auth')->group(function () {
         Route::put('/settings/reports', [ReportController::class, 'update'])->name('settings.reports.update');
         Route::post('/settings/reports/test', [ReportController::class, 'test'])->middleware('throttle:5,1')->name('settings.reports.test');
 
-        Route::get('/settings/staff', [ScheduleSettingsController::class, 'staff'])->name('settings.staff');
-        Route::post('/settings/staff', [ScheduleSettingsController::class, 'storeStaff'])->name('settings.staff.store');
-        Route::put('/settings/staff/{staff}', [ScheduleSettingsController::class, 'updateStaff'])->name('settings.staff.update');
-        Route::post('/settings/staff/{staff}/toggle', [ScheduleSettingsController::class, 'toggleStaff'])->name('settings.staff.toggle');
-        Route::get('/settings/closures', [ScheduleSettingsController::class, 'closures'])->name('settings.closures');
-        Route::post('/settings/closures', [ScheduleSettingsController::class, 'storeClosure'])->name('settings.closures.store');
-        Route::post('/settings/closures/holidays', [ScheduleSettingsController::class, 'holidays'])->name('settings.closures.holidays');
-        Route::delete('/settings/closures/{closure}', [ScheduleSettingsController::class, 'destroyClosure'])->name('settings.closures.destroy');
+        Route::middleware('agenda')->group(function () {
+            Route::get('/settings/staff', [ScheduleSettingsController::class, 'staff'])->name('settings.staff');
+            Route::post('/settings/staff', [ScheduleSettingsController::class, 'storeStaff'])->name('settings.staff.store');
+            Route::put('/settings/staff/{staff}', [ScheduleSettingsController::class, 'updateStaff'])->name('settings.staff.update');
+            Route::post('/settings/staff/{staff}/toggle', [ScheduleSettingsController::class, 'toggleStaff'])->name('settings.staff.toggle');
+            Route::get('/settings/closures', [ScheduleSettingsController::class, 'closures'])->name('settings.closures');
+            Route::post('/settings/closures', [ScheduleSettingsController::class, 'storeClosure'])->name('settings.closures.store');
+            Route::post('/settings/closures/holidays', [ScheduleSettingsController::class, 'holidays'])->name('settings.closures.holidays');
+            Route::delete('/settings/closures/{closure}', [ScheduleSettingsController::class, 'destroyClosure'])->name('settings.closures.destroy');
 
-        Route::get('/settings/booking', [BookingSettingsController::class, 'index'])->name('settings.booking');
-        Route::put('/settings/booking', [BookingSettingsController::class, 'update'])->name('settings.booking.update');
-        Route::put('/settings/booking/stores/{store}', [BookingSettingsController::class, 'updateStore'])->name('settings.booking.store');
+            Route::get('/settings/booking', [BookingSettingsController::class, 'index'])->name('settings.booking');
+            Route::put('/settings/booking', [BookingSettingsController::class, 'update'])->name('settings.booking.update');
+            Route::put('/settings/booking/stores/{store}', [BookingSettingsController::class, 'updateStore'])->name('settings.booking.store');
+        });
 
         Route::get('/catalog', [CatalogController::class, 'index'])->name('catalog.index');
         Route::post('/catalog', [CatalogController::class, 'store'])->name('catalog.store');

@@ -283,7 +283,10 @@ class CustomerController extends Controller
                 ->take(10)
                 ->get()
                 ->map(fn (Appointment $a) => AppointmentController::present($a, $user->organization->actionMessages())),
-            'appointmentStores' => Store::whereIn('id', $contacts->pluck('store_id'))->orderBy('name')->get(['id', 'name']),
+            // Pas de prise de rendez-vous pour un secteur sans agenda (commerce).
+            'appointmentStores' => $user->organization->hasAgenda()
+                ? Store::whereIn('id', $contacts->pluck('store_id'))->orderBy('name')->get(['id', 'name'])
+                : [],
             'appointmentStatuses' => Appointment::STATUSES,
             'paymentMethods' => Purchase::PAYMENT_METHODS,
             'loyalty' => $this->loyalty($customer, $user),

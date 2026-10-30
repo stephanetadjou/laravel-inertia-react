@@ -119,7 +119,7 @@ function MultibrandIndex() {
                     )}
                 </Panel>
 
-                <Panel title="Par marque" sub="Nouveaux : premier achat dans la marque depuis moins d’un an" className="c12">
+                <Panel title="Par marque" sub="Nouveaux : premier achat dans la marque depuis moins d’un an. Récurrents : au moins 2 tickets dans la marque" className="c12">
                     <div className="mdash-tbl mpage-table">
                         <table>
                             <thead>

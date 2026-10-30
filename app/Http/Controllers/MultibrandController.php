@@ -83,7 +83,8 @@ class MultibrandController extends Controller
                     'name' => $brand->name,
                     'customers' => $rows->count(),
                     'new' => $rows->where('first_purchase_at', '>=', $sinceYear)->count(),
-                    'returning' => $rows->where('first_purchase_at', '<', $sinceYear)->count(),
+                    // Récurrents : au moins deux tickets dans la marque.
+                    'returning' => $rows->where('order_count', '>=', 2)->count(),
                     'also_elsewhere' => $rows->filter(fn ($r) => $byCustomer->get($r->customer_id)->count() >= 2)->count(),
                     'net' => (int) $rows->sum('net_spend'),
                     'orders' => (int) $rows->sum('order_count'),
