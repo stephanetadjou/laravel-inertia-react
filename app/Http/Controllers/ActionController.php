@@ -24,17 +24,24 @@ class ActionController extends Controller
     {
         $user = $request->user();
         $storeId = $request->integer('store') ?: null;
-        $lists = new ActionLists($user, $storeId);
-        $counts = $lists->counts();
+        $visible = $user->visibleStoreIds();
+        $scopeStores = Store::where('organization_id', $user->organization_id)
+            ->when($visible !== null, fn ($q) => $q->whereIn('id', $visible))
+            ->with('brand:id,name')
+            ->orderBy('name')
+            ->get(['id', 'name', 'brand_id']);
+        $brandId = $scopeStores->contains('brand_id', $request->integer('brand')) ? $request->integer('brand') : null;
+        $lists = new ActionLists($user, $storeId, $brandId);
+        $multibrand = $scopeStores->pluck('brand_id')->unique()->count() >= 2;
+        $available = collect(ActionLists::LISTS)->reject(fn ($list) => ! empty($list['multibrand']) && ! $multibrand);
+        $counts = collect($available->keys())->mapWithKeys(fn ($key) => [$key => count($lists->rows($key))])->all();
 
-        $active = array_key_exists((string) $request->query('list'), ActionLists::LISTS)
+        $active = $available->has((string) $request->query('list'))
             ? (string) $request->query('list')
             : (collect($counts)->filter()->keys()->first() ?? 'at_risk');
 
-        $visible = $user->visibleStoreIds();
-
         return Inertia::render('Actions/Index', [
-            'lists' => collect(ActionLists::LISTS)->map(fn ($list, $key) => [
+            'lists' => $available->map(fn ($list, $key) => [
                 'key' => $key,
                 'label' => $list['label'],
                 'description' => $list['description'],
@@ -44,10 +51,9 @@ class ActionController extends Controller
             'rows' => $lists->rows($active),
             'limit' => ActionLists::LIMIT,
             'store' => $storeId,
-            'stores' => Store::where('organization_id', $user->organization_id)
-                ->when($visible !== null, fn ($q) => $q->whereIn('id', $visible))
-                ->orderBy('name')
-                ->get(['id', 'name']),
+            'stores' => $scopeStores->map(fn ($s) => ['id' => $s->id, 'name' => $s->name])->values(),
+            'brand' => $brandId,
+            'brands' => $multibrand ? $scopeStores->pluck('brand')->filter()->unique('id')->sortBy('name')->values()->map(fn ($b) => ['id' => $b->id, 'name' => $b->name]) : [],
             'messages' => $user->organization->actionMessages(),
             'defaultMessages' => ActionLists::DEFAULT_MESSAGES,
             'canEditMessages' => $user->canManageOrganization(),

@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Models\Appointment;
+use App\Models\Brand;
 use App\Models\Contact;
 use App\Models\Customer;
 use App\Models\CustomerFollowUp;
@@ -11,6 +12,7 @@ use App\Models\User;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\DB;
 
 /**
  * Listes d'actions du jour : quels clients relancer, pourquoi, avec quel
@@ -60,6 +62,12 @@ class ActionLists
             'description' => 'Clients dont l\'anniversaire tombe dans les 7 prochains jours.',
             'cooldown_days' => 300,
         ],
+        'cross_sell' => [
+            'label' => 'Vente croisée entre marques',
+            'description' => 'Clients fidèles d\'une marque du groupe, jamais venus dans une autre : faites-la-leur découvrir.',
+            'cooldown_days' => 60,
+            'multibrand' => true,
+        ],
     ];
 
     /**
@@ -73,7 +81,11 @@ class ActionLists
         'appointment_reminder' => 'Bonjour {prenom}, nous vous rappelons votre rendez-vous chez {boutique} le {date_rdv} à {heure_rdv}. Pouvez-vous nous confirmer votre présence ?',
         'no_show' => 'Bonjour {prenom}, nous ne vous avons pas vu à votre rendez-vous chez {boutique} le {date_rdv}. Souhaitez-vous en fixer un nouveau ?',
         'birthday' => 'Joyeux anniversaire {prenom} ! Toute l\'équipe de {boutique} vous souhaite une excellente journée.',
+        'cross_sell' => 'Bonjour {prenom}, merci pour votre fidélité chez {boutique}. Saviez-vous que {autre_marque} fait aussi partie de notre groupe ? Passez découvrir la boutique, vous y serez accueilli comme un client fidèle.',
     ];
+
+    /** Segments considérés comme « fidèles » pour la vente croisée. */
+    public const CROSS_SELL_SEGMENTS = ['champions', 'loyal', 'cant_lose'];
 
     /** Nombre maximum de lignes affichées par liste. */
     public const LIMIT = 200;
@@ -84,12 +96,23 @@ class ActionLists
     /** @var array<string, string> */
     private array $messages;
 
-    public function __construct(private User $user, ?int $storeId = null)
+    /** Marques du périmètre (vente croisée : marques proposées). @var array<int, int> */
+    private array $brandIds;
+
+    /**
+     * @param  int|null  $brandId  marque choisie : listes limitées à ses points de vente
+     *                             (et, en vente croisée, ses clients fidèles)
+     */
+    public function __construct(private User $user, ?int $storeId = null, private ?int $brandId = null)
     {
         $visible = $user->visibleStoreIds();
-        $this->storeIds = Store::where('organization_id', $user->organization_id)
-            ->when($visible !== null, fn ($q) => $q->whereIn('id', $visible))
+        $scope = Store::where('organization_id', $user->organization_id)
+            ->when($visible !== null, fn ($q) => $q->whereIn('id', $visible));
+        $this->brandIds = (clone $scope)->distinct()->pluck('brand_id')->all();
+
+        $this->storeIds = $scope
             ->when($storeId !== null, fn ($q) => $q->whereKey($storeId))
+            ->when($brandId !== null, fn ($q) => $q->where('brand_id', $brandId))
             ->pluck('id')
             ->all();
         $this->messages = $user->organization->actionMessages();
@@ -126,6 +149,7 @@ class ActionLists
             'appointment_reminder' => $this->appointmentReminders(),
             'no_show' => $this->noShows(),
             'birthday' => $this->birthdays(),
+            'cross_sell' => $this->crossSell(),
             default => $this->customerList($key),
         };
     }
@@ -161,6 +185,56 @@ class ActionLists
             ->values()
             ->all();
     }
+
+    /**
+     * Vente croisée : clients fidèles (segment RFM de la marque) d'une marque
+     * du périmètre, qui n'ont jamais acheté dans une autre marque du
+     * périmètre. Chaque client est proposé pour sa marque principale et la
+     * première marque qu'il ne connaît pas encore.
+     *
+     * @return list<array<string, mixed>>
+     */
+    private function crossSell(): array
+    {
+        if (count($this->brandIds) < 2) {
+            return [];
+        }
+
+        $sourceBrands = DB::table('stores')->whereIn('id', $this->storeIds)->distinct()->pluck('brand_id')->all();
+        $metrics = DB::table('customer_brand_metrics')
+            ->whereIn('brand_id', $this->brandIds)
+            ->where('order_count', '>', 0)
+            ->whereIn('customer_id', $this->customers('cross_sell')->select('customers.id'))
+            ->get(['customer_id', 'brand_id', 'order_count', 'net_spend', 'rfm_segment'])
+            ->groupBy('customer_id');
+
+        $brandNames = Brand::whereKey($this->brandIds)->orderBy('name')->pluck('name', 'id');
+        $candidates = [];
+
+        foreach ($metrics as $customerId => $rows) {
+            $loyal = $rows->whereIn('brand_id', $sourceBrands)->whereIn('rfm_segment', self::CROSS_SELL_SEGMENTS)->sortByDesc('net_spend')->first();
+            $target = $brandNames->keys()->first(fn ($id) => ! $rows->contains('brand_id', $id));
+
+            if ($loyal !== null && $target !== null) {
+                $candidates[] = ['customer_id' => (int) $customerId, 'source' => (int) $loyal->brand_id, 'orders' => (int) $loyal->order_count, 'net' => (int) $loyal->net_spend, 'target' => (int) $target];
+            }
+        }
+
+        $candidates = collect($candidates)->sortByDesc('net')->take(self::LIMIT);
+        $customers = Customer::whereKey($candidates->pluck('customer_id'))->get()->keyBy('id');
+
+        return $candidates->map(function (array $c) use ($customers, $brandNames) {
+            $this->otherBrand = (string) $brandNames[$c['target']];
+            $sourceStores = DB::table('stores')->where('brand_id', $c['source'])->whereIn('id', $this->storeIds)->pluck('id')->all();
+            $row = $this->row('cross_sell', $customers[$c['customer_id']], "Fidèle de {$brandNames[$c['source']]} ({$c['orders']} achats) · jamais venu chez {$brandNames[$c['target']]}", null, $sourceStores);
+            $this->otherBrand = '';
+
+            return $row;
+        })->filter()->values()->all();
+    }
+
+    /** Marque proposée dans le message de vente croisée ({autre_marque}). */
+    private string $otherBrand = '';
 
     /** @return list<array<string, mixed>> */
     private function birthdays(): array
@@ -274,13 +348,16 @@ class ActionLists
     /**
      * @return array<string, mixed>|null null si le client n'a aucun contact joignable dans le périmètre
      */
-    private function row(string $key, ?Customer $customer, string $reason, ?Appointment $appointment = null): ?array
+    /**
+     * @param  array<int, int>|null  $storeIds  points de vente où chercher le contact (vente croisée : ceux de la marque fidèle)
+     */
+    private function row(string $key, ?Customer $customer, string $reason, ?Appointment $appointment = null, ?array $storeIds = null): ?array
     {
         if ($customer === null) {
             return null;
         }
 
-        $contact = $this->contactFor($customer, $appointment?->store_id);
+        $contact = $this->contactFor($customer, $appointment?->store_id, $storeIds);
 
         if ($contact === null) {
             return null;
@@ -311,11 +388,11 @@ class ActionLists
      * Contact par lequel joindre le client : celui de la boutique du rendez-vous,
      * sinon celui du dernier achat, sinon le plus récent ; jamais un opt-out.
      */
-    private function contactFor(Customer $customer, ?int $storeId): ?Contact
+    private function contactFor(Customer $customer, ?int $storeId, ?array $storeIds = null): ?Contact
     {
         /** @var Collection<int, Contact> $contacts */
         $contacts = $customer->contacts()
-            ->whereIn('store_id', $storeId !== null ? [$storeId] : $this->storeIds)
+            ->whereIn('store_id', $storeId !== null ? [$storeId] : ($storeIds ?? $this->storeIds))
             ->where('consent_status', '!=', 'opt_out')
             ->with('store:id,name')
             ->withMax('purchases', 'purchased_at')
@@ -335,6 +412,7 @@ class ActionLists
             '{date_rdv}' => $appointment ? self::date($appointment->starts_at) : '',
             '{heure_rdv}' => $appointment ? $appointment->starts_at->format('H\hi') : '',
             '{prestation}' => $appointment?->service ?? '',
+            '{autre_marque}' => $this->otherBrand,
         ]);
 
         // « Bonjour , » quand le prénom est inconnu.

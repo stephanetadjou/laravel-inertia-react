@@ -38,6 +38,8 @@ interface PageProps {
     limit: number;
     store: number | null;
     stores: { id: number; name: string }[];
+    brand: number | null;
+    brands: { id: number; name: string }[];
     messages: Record<string, string>;
     defaultMessages: Record<string, string>;
     canEditMessages: boolean;
@@ -45,7 +47,7 @@ interface PageProps {
     [key: string]: unknown;
 }
 
-const VARIABLES = '{prenom}, {nom}, {boutique}, {date_rdv}, {heure_rdv}, {prestation}';
+const VARIABLES = '{prenom}, {nom}, {boutique}, {date_rdv}, {heure_rdv}, {prestation}, {autre_marque}';
 
 function MessagesEditor({ lists, messages, defaults, onClose }: { lists: ListInfo[]; messages: Record<string, string>; defaults: Record<string, string>; onClose: () => void }) {
     const { data, setData, put, processing } = useForm({ messages: { ...messages } });
@@ -83,7 +85,7 @@ function MessagesEditor({ lists, messages, defaults, onClose }: { lists: ListInf
 }
 
 function ActionsIndex() {
-    const { lists, active, rows, limit, store, stores, messages, defaultMessages, canEditMessages, apiEnabled } = usePage<PageProps>().props;
+    const { lists, active, rows, limit, store, stores, brand, brands, messages, defaultMessages, canEditMessages, apiEnabled } = usePage<PageProps>().props;
     const [editing, setEditing] = useState(false);
     const [done, setDone] = useState<Set<string>>(new Set());
     const [drafts, setDrafts] = useState<Record<string, string>>({});
@@ -92,7 +94,7 @@ function ActionsIndex() {
 
     function go(changes: Record<string, string | number | null>) {
         const params: Record<string, string | number> = {};
-        Object.entries({ list: active, store, ...changes }).forEach(([k, v]) => {
+        Object.entries({ list: active, store, brand, ...changes }).forEach(([k, v]) => {
             if (v !== null && v !== undefined && v !== '') params[k] = v;
         });
         router.get('/actions', params, { preserveScroll: true, preserveState: false });
@@ -126,7 +128,18 @@ function ActionsIndex() {
                     </button>
                 )
             }
-            filters={stores.length > 1 ? <SelectFilter label="Établissement" value={store} allLabel="Tous les établissements" options={stores.map((s) => ({ value: s.id, label: s.name }))} onChange={(v) => go({ store: v })} /> : undefined}
+            filters={
+                stores.length > 1 || brands.length > 1 ? (
+                    <>
+                        {brands.length > 1 && (
+                            <SelectFilter label="Marque" value={brand} allLabel="Toutes les marques" options={brands.map((b) => ({ value: b.id, label: b.name }))} onChange={(v) => go({ brand: v, store: null })} />
+                        )}
+                        {stores.length > 1 && (
+                            <SelectFilter label="Établissement" value={store} allLabel="Tous les établissements" options={stores.map((s) => ({ value: s.id, label: s.name }))} onChange={(v) => go({ store: v })} />
+                        )}
+                    </>
+                ) : undefined
+            }
         >
             {editing && <MessagesEditor lists={lists} messages={messages} defaults={defaultMessages} onClose={() => setEditing(false)} />}
 
