@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\ActionController;
+use App\Http\Controllers\AnalyticsController;
 use App\Http\Controllers\AppointmentController;
 use App\Http\Controllers\AuditLogController;
 use App\Http\Controllers\Auth\AuthenticatedSessionController;
@@ -109,6 +110,11 @@ Route::middleware('auth')->group(function () {
     Route::delete('/groups/{group}', [GroupController::class, 'destroy'])->name('groups.destroy');
     Route::post('/groups/{group}/customers', [GroupController::class, 'addCustomers'])->name('groups.customers.add');
     Route::delete('/groups/{group}/customers', [GroupController::class, 'removeCustomers'])->name('groups.customers.remove');
+
+    // Analyses Menentia Retail : tableaux de bord, exports, rapport de direction.
+    Route::get('/analytics/report', [AnalyticsController::class, 'report'])->name('analytics.report');
+    Route::get('/analytics/{tab}/export/{table}', [AnalyticsController::class, 'export'])->name('analytics.export');
+    Route::get('/analytics/{tab?}', [AnalyticsController::class, 'index'])->name('analytics.index');
 
     Route::get('/categories', [CategoryController::class, 'index'])->name('categories.index');
     Route::get('/categories/a-classer', [CategoryController::class, 'unclassified'])->name('categories.unclassified');

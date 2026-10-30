@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Http\Controllers\Concerns\ResolvesBrandFilter;
+use App\Models\Article;
 use App\Models\Category;
 use App\Models\Contact;
 use App\Models\Customer;
@@ -78,6 +79,9 @@ class CustomerSearch
     /** Attribut d'achat ciblé (« genre:Femme ») : a acheté un article avec cette valeur. */
     public ?array $property = null;
 
+    /** Article ciblé (niveau d'analyse « article ») : a acheté cet article. */
+    public ?Article $article = null;
+
     public const FAMILY_MODES = ['bought', 'lapsed'];
 
     public const FAMILY_DAYS = [0, 30, 60, 90, 180, 365];
@@ -122,6 +126,9 @@ class CustomerSearch
         $days = (int) ($filters['family_days'] ?? 90);
         $this->familyDays = in_array($days, self::FAMILY_DAYS, true) ? $days : 90;
 
+        $articleId = (int) ($filters['article'] ?? 0);
+        $this->article = $articleId ? Article::where('organization_id', $user->organization_id)->find($articleId) : null;
+
         $prop = (string) ($filters['prop'] ?? '');
         if (preg_match('/^([a-z0-9_]{1,64}):(.{1,100})$/u', $prop, $m)) {
             $this->property = ['key' => $m[1], 'value' => $m[2]];
@@ -135,7 +142,7 @@ class CustomerSearch
 
     public static function fromRequest(Request $request): self
     {
-        return new self($request->user(), $request->only(['stage', 'vip', 'consent', 'q', 'brand', 'store', 'group', 'segment', 'risk', 'family', 'family_mode', 'family_days', 'family_not', 'prop']));
+        return new self($request->user(), $request->only(['stage', 'vip', 'consent', 'q', 'brand', 'store', 'group', 'segment', 'risk', 'family', 'family_mode', 'family_days', 'family_not', 'prop', 'article']));
     }
 
     /**
@@ -166,7 +173,7 @@ class CustomerSearch
             ->when($this->segment !== null, fn ($q) => $q->where('rfm_segment', $this->segment))
             ->when($this->risk === 'any', fn ($q) => $q->whereIn('churn_risk', ['medium', 'high']))
             ->when(in_array($this->risk, ['medium', 'high'], true), fn ($q) => $q->where('churn_risk', $this->risk))
-            ->when($this->family !== null || $this->familyNot !== null || $this->property !== null, fn ($q) => $this->applyFamilies($q))
+            ->when($this->family !== null || $this->familyNot !== null || $this->property !== null || $this->article !== null, fn ($q) => $this->applyFamilies($q))
             ->when($this->search !== '', function ($q) {
                 $digits = ltrim(preg_replace('/\D+/', '', $this->search), '0'); // 0 du format local ignoré
                 $q->where(fn ($q) => $q->where('name', 'like', "%{$this->search}%")
@@ -181,8 +188,14 @@ class CustomerSearch
      */
     private function applyFamilies(Builder $query): void
     {
-        $analytics = new FamilyAnalytics($this->storeIds);
         $since = $this->familyDays > 0 ? today()->subDays($this->familyDays) : null;
+        // Une catégorie (famille qui en regroupe d'autres) cible les acheteurs de toutes ses familles.
+        $analytics = new FamilyAnalytics($this->storeIds, $this->family !== null && $this->family->children()->exists() ? 'category' : 'family');
+
+        if ($this->article !== null) {
+            $articles = new FamilyAnalytics($this->storeIds, 'product');
+            $query->whereIn('customers.id', $articles->buyers($this->article->id, $this->familyMode === 'bought' ? $since : null));
+        }
 
         if ($this->family !== null) {
             if ($this->familyMode === 'lapsed') {
@@ -275,6 +288,10 @@ class CustomerSearch
 
         if ($this->familyNot !== null) {
             $parts[] = "Jamais {$this->familyNot->name}";
+        }
+
+        if ($this->article !== null) {
+            $parts[] = "A acheté {$this->article->label}";
         }
 
         if ($this->property !== null) {

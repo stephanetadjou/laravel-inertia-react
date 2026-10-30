@@ -54,6 +54,7 @@ class CategoryController extends Controller
                 'id' => $category->id,
                 'name' => $category->name,
                 'keywords' => $category->keywords,
+                'parent_id' => $category->parent_id,
                 'purchases_count' => (int) ($purchaseCounts[$category->id] ?? 0),
             ]),
             'overview' => $overview,
@@ -190,7 +191,7 @@ class CategoryController extends Controller
         return back()->with('success', 'Supprimée : ses ventes sont de nouveau à classer.');
     }
 
-    /** @return array{name: string, keywords: ?string} */
+    /** @return array{name: string, keywords: ?string, parent_id?: ?int} */
     private function validated(Request $request, ?Category $category = null): array
     {
         $data = $request->validate([
@@ -201,11 +202,17 @@ class CategoryController extends Controller
                 )->ignore($category?->id),
             ],
             'keywords' => ['nullable', 'string', 'max:2000'],
+            // Catégorie parente (niveau au-dessus) : une catégorie de premier niveau, jamais elle-même.
+            'parent_id' => ['nullable', 'integer', Rule::exists('categories', 'id')->where(fn ($q) => $q->where('organization_id', $request->user()->organization_id)->whereNull('parent_id')), Rule::notIn(array_filter([$category?->id]))],
         ]);
 
         $keywords = collect(explode(',', (string) ($data['keywords'] ?? '')))->map(fn ($k) => trim($k))->filter()->unique()->implode(', ');
 
-        return ['name' => trim($data['name']), 'keywords' => $keywords !== '' ? $keywords : null];
+        return [
+            'name' => trim($data['name']),
+            'keywords' => $keywords !== '' ? $keywords : null,
+            ...($request->has('parent_id') ? ['parent_id' => $data['parent_id'] ?? null] : []),
+        ];
     }
 
     private function firstOrCreateCategory(int $organizationId, string $name): Category

@@ -81,12 +81,13 @@ export function buildSections({ canManageOrganization, whatsappApiEnabled, hasAg
             tabs: [
                 { name: 'Ventes', path: '/purchases' },
                 ...(canManageOrganization && !sellsProducts ? [{ name: 'Catalogue', path: '/catalog' }] : []),
-                { name: sellsProducts ? 'Familles' : 'Catégories', path: '/categories' },
+                // Retail : les familles sont dans la rubrique Analyses.
+                ...(sellsProducts ? [] : [{ name: 'Catégories', path: '/categories' }]),
             ],
         },
     ];
 
-    // Menentia Retail : imports des ventes (fichiers de caisse / ERP) et des clients.
+    // Menentia Retail : imports des ventes (fichiers de caisse / ERP) et des clients, puis analyses.
     if (sellsProducts) {
         sections.push({
             key: 'imports',
@@ -94,6 +95,17 @@ export function buildSections({ canManageOrganization, whatsappApiEnabled, hasAg
             icon: <DownloadIcon />,
             path: canImport ? '/sales-imports' : '/imports',
             tabs: [...(canImport ? [{ name: 'Ventes', path: '/sales-imports' }] : []), { name: 'Clients', path: '/imports' }],
+        });
+        sections.push({
+            key: 'analytics',
+            name: 'Analyses',
+            icon: <PieChartIcon />,
+            path: '/analytics',
+            tabs: [
+                { name: 'Tableaux de bord', path: '/analytics' },
+                { name: 'Familles', path: '/categories' },
+                { name: 'Multimarque', path: '/multibrand' },
+            ],
         });
     }
 

@@ -13,6 +13,7 @@ interface CategoryRow {
     id: number;
     name: string;
     keywords: string | null;
+    parent_id?: number | null;
     purchases_count: number;
 }
 
@@ -54,9 +55,13 @@ function fieldClasses() {
     return 'w-full rounded-lg border border-gray-300 px-3 py-2.5 text-sm text-gray-800 focus:border-brand-300 focus:outline-hidden dark:border-gray-700 dark:bg-white/[0.03] dark:text-white/90';
 }
 
-function CategoryFormModal({ onClose, category, word }: { onClose: () => void; category: CategoryRow | null; word: string }) {
+function CategoryFormModal({ onClose, category, word, parents }: { onClose: () => void; category: CategoryRow | null; word: string; parents: CategoryRow[] }) {
     const isEditing = category !== null;
-    const { data, setData, post, put, processing, errors, reset } = useForm({ name: category?.name ?? '', keywords: category?.keywords ?? '' });
+    const { data, setData, post, put, processing, errors, reset } = useForm({
+        name: category?.name ?? '',
+        keywords: category?.keywords ?? '',
+        parent_id: category?.parent_id ? String(category.parent_id) : '',
+    });
 
     const submit: FormEventHandler = (e) => {
         e.preventDefault();
@@ -89,6 +94,24 @@ function CategoryFormModal({ onClose, category, word }: { onClose: () => void; c
                         Séparés par des virgules. Un article importé qui contient l’un de ces mots est rangé ici automatiquement (« COCA 33CL » → Boissons).
                     </p>
                     {errors.keywords && <p className="mt-1.5 text-sm text-error-500">{errors.keywords}</p>}
+                </div>
+
+                <div>
+                    <label htmlFor="parent_id" className="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-300">
+                        Rangée sous la catégorie (facultatif)
+                    </label>
+                    <select id="parent_id" value={data.parent_id} onChange={(e) => setData('parent_id', e.target.value)} className={fieldClasses()}>
+                        <option value="">— Aucune (premier niveau) —</option>
+                        {parents
+                            .filter((p) => p.id !== category?.id && !p.parent_id)
+                            .map((p) => (
+                                <option key={p.id} value={p.id}>
+                                    {p.name}
+                                </option>
+                            ))}
+                    </select>
+                    <p className="mt-1.5 text-xs text-gray-500 dark:text-gray-400">Ex. Sodas rangée sous Boissons : les analyses « par catégorie » regroupent ses ventes avec celles de Boissons.</p>
+                    {errors.parent_id && <p className="mt-1.5 text-sm text-error-500">{errors.parent_id}</p>}
                 </div>
 
                 <div className="flex justify-end gap-2 border-t border-gray-100 pt-4 dark:border-gray-800">
@@ -306,7 +329,7 @@ function CategoriesIndex() {
                 cibler.
             </div>
 
-            {modalCategory !== undefined && <CategoryFormModal key={modalCategory?.id ?? 'new'} onClose={() => setModalCategory(undefined)} category={modalCategory} word={familyWord} />}
+            {modalCategory !== undefined && <CategoryFormModal key={modalCategory?.id ?? 'new'} onClose={() => setModalCategory(undefined)} category={modalCategory} word={familyWord} parents={categories} />}
         </Page>
     );
 }

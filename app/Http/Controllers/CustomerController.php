@@ -120,6 +120,8 @@ class CustomerController extends Controller
                 'family_days' => $search->familyDays,
                 'family_not' => $search->familyNot?->id,
                 'prop' => $search->property !== null ? $search->property['key'].':'.$search->property['value'] : null,
+                'article' => $search->article?->id,
+                'article_label' => $search->article?->label,
                 'brands' => $search->roleStores->pluck('brand')->filter()->unique('id')->sortBy('name')->values()
                     ->map(fn (Brand $brand) => ['id' => $brand->id, 'name' => $brand->name]),
                 'label' => $search->label(),

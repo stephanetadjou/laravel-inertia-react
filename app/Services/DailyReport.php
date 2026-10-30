@@ -3,7 +3,6 @@
 namespace App\Services;
 
 use App\Models\Appointment;
-use App\Models\Category;
 use App\Models\Closure;
 use App\Models\Contact;
 use App\Models\Customer;
@@ -97,7 +96,8 @@ class DailyReport
             'by_store' => $this->byStore($day, $appointments),
             'services' => $this->services($day),
             // Familles de produits vendues dans la journée (commerce surtout).
-            'families' => (new FamilyAnalytics($this->storeIds))->day($day, Category::where('organization_id', $this->organization->id)->pluck('name', 'id')),
+            // Au niveau d'analyse choisi par l'entreprise : articles, familles ou catégories.
+            'families' => (new FamilyAnalytics($this->storeIds, $this->organization->analysisLevel()))->day($day, FamilyAnalytics::dimensionItems($this->organization->id, $this->organization->analysisLevel())->pluck('name', 'id')),
             'sells_products' => $this->organization->sellsProducts(),
             'payments' => $this->payments($day),
             'at_risk' => $risk,

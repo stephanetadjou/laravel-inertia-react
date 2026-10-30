@@ -23,8 +23,29 @@ class FamilyAnalytics
 {
     /**
      * @param  array<int, int>  $storeIds  boutiques du périmètre
+     * @param  string  $level  niveau d'analyse (cf. Organization::ANALYSIS_LEVELS) : la colonne
+     *                         category_id des lignes porte la famille (family), la catégorie
+     *                         au-dessus de la famille (category) ou l'article (product)
      */
-    public function __construct(private array $storeIds) {}
+    public function __construct(private array $storeIds, private string $level = 'family') {}
+
+    /**
+     * Éléments analysés à un niveau, pour nommer les lignes : familles,
+     * catégories (familles sans parent) ou articles vus dans les imports.
+     *
+     * @return Collection<int, object{id: int, name: string}>
+     */
+    public static function dimensionItems(int $organizationId, string $level): Collection
+    {
+        if ($level === 'product') {
+            return DB::table('articles')->where('organization_id', $organizationId)->orderBy('label')->get(['id', 'label as name']);
+        }
+
+        return Category::where('organization_id', $organizationId)
+            ->when($level === 'category', fn ($q) => $q->whereNull('parent_id'))
+            ->orderBy('name')
+            ->get(['id', 'name', 'parent_id']);
+    }
 
     /**
      * Lignes d'achat du périmètre : customer_id, store_id, category_id, amount, day, purchase_id,
@@ -43,7 +64,7 @@ class FamilyAnalytics
             ->where('purchases.status', Purchase::STATUS_VALID)
             ->whereNotExists(fn ($q) => $q->from('purchase_items')->whereColumn('purchase_items.purchase_id', 'purchases.id'))
             ->tap($period)
-            ->selectRaw('contacts.customer_id as customer_id, purchases.store_id as store_id, purchases.category_id as category_id, purchases.amount as amount, date(purchases.purchased_at) as day, purchases.id as purchase_id, purchases.properties as properties');
+            ->selectRaw('contacts.customer_id as customer_id, purchases.store_id as store_id, purchases.category_id as category_id, NULL as article_id, purchases.amount as amount, date(purchases.purchased_at) as day, purchases.id as purchase_id, purchases.properties as properties');
 
         $itemized = DB::table('purchase_items')
             ->join('purchases', 'purchases.id', '=', 'purchase_items.purchase_id')
@@ -53,9 +74,23 @@ class FamilyAnalytics
             ->where('purchases.status', Purchase::STATUS_VALID)
             ->tap($period)
             // Ligne importée : sa famille et ses attributs ; ligne encaissée : ceux de l'article du catalogue.
-            ->selectRaw('contacts.customer_id as customer_id, purchases.store_id as store_id, COALESCE(purchase_items.category_id, catalog_items.category_id) as category_id, purchase_items.amount as amount, date(purchases.purchased_at) as day, purchases.id as purchase_id, COALESCE(purchase_items.properties, catalog_items.properties) as properties');
+            ->selectRaw('contacts.customer_id as customer_id, purchases.store_id as store_id, COALESCE(purchase_items.category_id, catalog_items.category_id) as category_id, purchase_items.article_id as article_id, purchase_items.amount as amount, date(purchases.purchased_at) as day, purchases.id as purchase_id, COALESCE(purchase_items.properties, catalog_items.properties) as properties');
 
-        return DB::query()->fromSub($imported->unionAll($itemized), 'lines')->whereNotNull('lines.customer_id');
+        $lines = DB::query()->fromSub($imported->unionAll($itemized), 'lines')->whereNotNull('lines.customer_id');
+
+        // Autre niveau d'analyse : category_id porte la catégorie (parent de la famille) ou l'article.
+        return match ($this->level) {
+            'category' => DB::query()->fromSub(
+                $lines->leftJoin('categories as dim', 'dim.id', '=', 'lines.category_id')
+                    ->selectRaw('lines.customer_id, lines.store_id, COALESCE(dim.parent_id, lines.category_id) as category_id, lines.amount, lines.day, lines.purchase_id, lines.properties'),
+                'lines',
+            ),
+            'product' => DB::query()->fromSub(
+                $lines->selectRaw('lines.customer_id, lines.store_id, lines.article_id as category_id, lines.amount, lines.day, lines.purchase_id, lines.properties'),
+                'lines',
+            ),
+            default => $lines,
+        };
     }
 
     /**
@@ -79,7 +114,7 @@ class FamilyAnalytics
         $lapsed = $this->lapsedCounts($lapseDays, $to);
         $total = (int) $perCustomer->flatten(1)->sum('amount');
 
-        $rows = $categories->map(function (Category $category) use ($perCustomer, $lapsed, $total) {
+        $rows = $categories->map(function (object $category) use ($perCustomer, $lapsed, $total) {
             $rows = $perCustomer->get($category->id, collect());
             $customers = $rows->count();
             $amount = (int) $rows->sum('amount');
