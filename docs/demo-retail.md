@@ -32,16 +32,16 @@ Mot de passe de tous les comptes : `Demo-Retail-2026` (ou la valeur de `DEMO_PAS
 
 | Indicateur | Valeur |
 |---|---|
-| CA net (ventes − retours − remises) | 312,8 M FCFA |
+| CA net (ventes − retours − remises) | 311,8 M FCFA |
 | Tickets | 3 955 |
-| Panier moyen | 80 238 FCFA |
-| Clients identifiés | 840 (81 % des tickets) |
+| Panier moyen | 79 989 FCFA |
+| Clients identifiés | 839 (81 % des tickets) |
 | Clients actifs (90 j) | 550 |
-| Retours / remises | 4,5 M / 7,5 M FCFA |
+| Retours / remises | 4,6 M / 7,7 M FCFA |
 
 L'encart **« À retenir »** liste automatiquement les constats principaux, calculés par des règles simples (pas d'IA), chacun avec une décision suggérée, un lien « Voir et agir » et les boutons **Clients ↓** (export Excel) et **Relancer** (groupe + Actions du jour).
 
-Comparaison des marques (12 mois) : Adidas 106,5 M (34 %), Carré 81,6 M (26 %), Mango 68,0 M (22 %), Grand Store 56,7 M (18 %).
+Comparaison des marques (12 mois) : Adidas 106,6 M (34 %), Carré 80,7 M (26 %), Mango 69,1 M (22 %), Grand Store 55,5 M (18 %).
 
 ---
 
@@ -50,24 +50,24 @@ Comparaison des marques (12 mois) : Adidas 106,5 M (34 %), Carré 81,6 M (26 %),
 ### 1. Mango : de bonnes clientes ne viennent plus → reconquête
 
 - **Constat** : un groupe de très bonnes clientes Mango (5 à 8 achats, gros paniers) n'a plus rien acheté depuis 4 mois.
-- **Où le voir** : « À retenir » → *« Mango : 57 bons clients n'achètent plus »* (30,6 M FCFA dépensés chez Mango) ; **Analyses › Multimarque › Segments RFM par marque**, colonne Mango : 32 « À risque » et 25 « À ne pas perdre » ; **Clients › Fiches clients**, filtre marque Mango + segment.
-- **Chiffre clé** : 57 clientes, 30,6 M FCFA de CA historique.
+- **Où le voir** : « À retenir » → *« Mango : 57 bons clients n'achètent plus »* (30,8 M FCFA dépensés chez Mango) ; **Analyses › Multimarque › Segments RFM par marque**, colonne Mango : 32 « À risque » et 25 « À ne pas perdre » ; **Clients › Fiches clients**, filtre marque Mango + segment.
+- **Chiffre clé** : 57 clientes, 30,8 M FCFA de CA historique.
 - **Décision** : campagne de reconquête ciblée (nouvelle collection, attention en boutique).
 - **Exporter / relancer** : bouton **Clients ↓** du constat, ou groupe déjà préparé **« Reconquête Mango »** (57 clientes) → **À faire › Groupe de clients**, un lien WhatsApp prérempli par cliente ; campagne en brouillon du même nom (active quand l'API WhatsApp l'est).
 
 ### 2. Adidas → Grand Store : la vente croisée à deux pas
 
 - **Constat** : les deux boutiques sont dans le même quartier (Glass) mais les fidèles d'Adidas ne vont presque jamais chez Grand Store.
-- **Où le voir** : « À retenir » → *« 246 clients fidèles de Adidas ne sont jamais venus chez Grand Store »* (79 % des clients Adidas ayant au moins 2 achats) ; **Analyses › Multimarque**, matrice des clients communs (ligne Adidas, colonne Grand Store) ; **À faire › Vente croisée entre marques**, filtre Adidas.
-- **Chiffre clé** : 246 clients, 79 %.
+- **Où le voir** : « À retenir » → *« 245 clients fidèles de Adidas ne sont jamais venus chez Grand Store »* (79 % des clients Adidas ayant au moins 2 achats) ; **Analyses › Multimarque**, matrice des clients communs (ligne Adidas, colonne Grand Store) ; **À faire › Vente croisée entre marques**, filtre Adidas.
+- **Chiffre clé** : 245 clients, 79 %.
 - **Décision** : offre croisée (10 % sur le premier achat chez Grand Store Glass, message prérempli avec `{autre_marque}`).
-- **Exporter / relancer** : groupe préparé **« Vente croisée Adidas → Grand Store »** (246 clients), export de la liste d'actions (**Exporter la liste**, avec les liens wa.me), campagne en brouillon.
+- **Exporter / relancer** : groupe préparé **« Vente croisée Adidas → Grand Store »** (245 clients), export de la liste d'actions (**Exporter la liste**, avec les liens wa.me), campagne en brouillon.
 
 ### 3. Les clients multimarques : peu nombreux, très précieux → VIP groupe
 
 - **Constat** : les clients qui achètent dans au moins deux enseignes pèsent plus du double de leur poids.
-- **Où le voir** : « À retenir » → *« Les clients multimarques : 18 % des clients, 42 % du CA identifié »* ; **Analyses › Multimarque** (150 clients multimarques, CA moyen comparé au mono-marque) ; **Analyses › Clientèle** (ligne « Multimarques »).
-- **Chiffre clé** : 150 clients = 18 % des clients, 42 % du CA.
+- **Où le voir** : « À retenir » → *« Les clients multimarques : 18 % des clients, 43 % du CA identifié »* ; **Analyses › Multimarque** (150 clients multimarques, CA moyen comparé au mono-marque) ; **Analyses › Clientèle** (ligne « Multimarques »).
+- **Chiffre clé** : 150 clients = 18 % des clients, 43 % du CA.
 - **Décision** : programme VIP groupe (avant-premières, avantages dans les quatre enseignes, palier de fidélité).
 - **Exporter / relancer** : bouton **Clients ↓** « Multimarques » de l'écran Multimarque, groupe préparé **« VIP multimarques »** (150), campagne en brouillon.
 
@@ -83,21 +83,21 @@ Comparaison des marques (12 mois) : Adidas 106,5 M (34 %), Carré 81,6 M (26 %),
 
 - **Constat** : les familles enfant et sneakers explosent à la rentrée (août-septembre) et aux fêtes (décembre).
 - **Où le voir** : **Analyses › Tableaux de bord › Familles** avec un filtre de période (août-septembre, décembre), **Analyses › Direction › Évolution mensuelle** avec le filtre Famille.
-- **Chiffres clés** : Mode enfant 0,4 M/mois en moyenne → 1,3 M en août, 1,8 M en septembre, 1,3 M en décembre ; Jouets 1,8 M en décembre ; Sneakers 12,5 M en août et 13,5 M en septembre (contre ~1 M/mois au printemps).
+- **Chiffres clés** : Mode enfant 0,5 M/mois en moyenne → 1,3 M en août, 1,9 M en septembre, 1,6 M en décembre ; Jouets 1,3 M en décembre et 1,6 M en septembre (0,4 M/mois au printemps) ; Sneakers 11,7 M en août et 12,8 M en septembre (contre ~1 M/mois au printemps).
 - **Décision** : calendrier de campagnes (fin juillet : rentrée enfant et sneakers ; fin novembre : fêtes), stock et mise en avant en conséquence.
 - **Exporter / relancer** : dans **Familles**, bouton **Clients ↓** / **Relancer** sur Mode enfant ou Sneakers pour cibler leurs acheteurs avant la saison suivante.
 
 ### 6. Costumes en baisse, sneakers en hausse → ajustement de l'offre
 
 - **Constat** : les costumes Carré reculent fortement, les sneakers Adidas progressent.
-- **Où le voir** : « À retenir » → *« Costumes en baisse : −75 % sur 90 jours »* (2,6 M contre 10,4 M) et *« Sneakers en hausse »* (33,0 M contre 5,3 M) ; **Analyses › Familles**.
+- **Où le voir** : « À retenir » → *« Costumes en baisse : −67 % sur 90 jours »* (2,9 M contre 8,9 M) et *« Sneakers en hausse »* (30,8 M contre 5,1 M) ; **Analyses › Familles**.
 - **Décision** : revoir l'offre et le réassort costumes (gamme, prix, mise en avant), renforcer stock et visibilité sneakers.
 - **Exporter / relancer** : le constat « Costumes en baisse » exporte les clients qui achetaient des costumes et n'en achètent plus depuis 90 jours (enquête, offre dédiée).
 
 ### 7. Retours élevés sur les chaussures femme → alerte qualité
 
 - **Constat** : près d'une paire de sandales Mango sur quatre revient.
-- **Où le voir** : « À retenir » → *« Retours élevés sur Chaussures femme : 23,8 % des ventes »* (1,8 M FCFA retournés) ; **Ventes**, filtre « Retours seulement » ; chaque retour est relié à son ticket d'origine.
+- **Où le voir** : « À retenir » → *« Retours élevés sur Chaussures femme : 23,3 % des ventes »* (1,8 M FCFA retournés) ; **Ventes**, filtre « Retours seulement » ; chaque retour est relié à son ticket d'origine.
 - **Décision** : alerte qualité (fournisseur, contrôle en boutique).
 - **Exporter / relancer** : clients concernés via **Clients ↓** (enquête de satisfaction).
 
