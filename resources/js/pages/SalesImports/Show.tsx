@@ -75,7 +75,7 @@ function MappingForm() {
 
     return (
         <>
-            <Panel title="1. Associer les colonnes" sub="Chaque champ de Menentia ← une colonne de votre fichier. Les colonnes non associées deviennent des attributs de la vente.">
+            <Panel className="c12" title="1. Associer les colonnes" sub="Chaque champ de Menentia ← une colonne de votre fichier. Les colonnes non associées deviennent des attributs de la vente.">
                 {formErrors?.mapping && <div className="mdash-flash bad">{formErrors.mapping}</div>}
                 <div className="mpage-form-grid" style={{ padding: '4px 18px 18px' }}>
                     {fields.map((f) => (
@@ -123,7 +123,7 @@ function MappingForm() {
             </Panel>
 
             {sample.length > 0 && (
-                <Panel title="Aperçu du fichier" sub="Premières lignes, telles que lues">
+                <Panel className="c12" title="Aperçu du fichier" sub="Premières lignes, telles que lues">
                     <div className="mdash-tbl mpage-table">
                         <table>
                             <thead>
@@ -157,6 +157,7 @@ function Errors() {
 
     return (
         <Panel
+            className="c12"
             title="Lignes rejetées et doublons"
             sub={errorCodes.map((c) => `${c.label} : ${formatNumber(c.total)}`).join(' · ')}
             actions={
@@ -338,8 +339,10 @@ function SalesImportShow() {
                 </div>
             )}
 
-            {isOpen && <MappingForm />}
-            <Errors />
+            <div className="mdash-grid">
+                {isOpen && <MappingForm />}
+                <Errors />
+            </div>
         </Page>
     );
 }

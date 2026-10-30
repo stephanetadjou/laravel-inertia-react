@@ -423,7 +423,7 @@ function PurchasesIndex() {
                                             </button>
                                         </th>
                                         <th>Client</th>
-                                        <th>Boutique</th>
+                                        <th>{retail ? 'Point de vente' : 'Boutique'}</th>
                                         <th>Détail</th>
                                         <th className="r">Qté</th>
                                         <th className="r">
@@ -437,9 +437,11 @@ function PurchasesIndex() {
                                     {purchases.data.map((p) => (
                                         <tr key={p.id} style={p.status === 'cancelled' ? { opacity: 0.55 } : undefined}>
                                             <td className="cell-main">
-                                                <Link href={`/purchases/${p.id}`} className="mono">
-                                                    {formatDate(p.purchased_at)}
-                                                </Link>
+                                                <b>
+                                                    <Link href={`/purchases/${p.id}`} className="mono">
+                                                        {formatDate(p.purchased_at)}
+                                                    </Link>
+                                                </b>
                                                 <span className="mono">
                                                     {p.receipt_number ? `n° ${p.receipt_number}` : ''}
                                                     {p.type === 'return' && <span className="mdash-pill warn"> Retour</span>}

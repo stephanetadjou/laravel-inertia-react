@@ -33,7 +33,10 @@ class ActionController extends Controller
         $brandId = $scopeStores->contains('brand_id', $request->integer('brand')) ? $request->integer('brand') : null;
         $lists = new ActionLists($user, $storeId, $brandId);
         $multibrand = $scopeStores->pluck('brand_id')->unique()->count() >= 2;
-        $available = collect(ActionLists::LISTS)->reject(fn ($list) => ! empty($list['multibrand']) && ! $multibrand);
+        // Commerce sans agenda : pas de listes de rendez-vous ; vente croisée : au moins deux marques.
+        $available = collect(ActionLists::LISTS)
+            ->reject(fn ($list) => ! empty($list['multibrand']) && ! $multibrand)
+            ->reject(fn ($list, $key) => in_array($key, ['appointment_reminder', 'no_show'], true) && ! $user->organization->hasAgenda());
         $counts = collect($available->keys())->mapWithKeys(fn ($key) => [$key => count($lists->rows($key))])->all();
 
         $active = $available->has((string) $request->query('list'))
