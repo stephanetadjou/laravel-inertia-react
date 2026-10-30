@@ -32,9 +32,11 @@ export interface NavContext {
     sellsProducts?: boolean;
     /** Droit d'importer des ventes (rubrique Imports de Menentia Retail). */
     canImport?: boolean;
+    /** Super-admin Menentia : rubrique Plateforme (/admin). */
+    isPlatformAdmin?: boolean;
 }
 
-export function buildSections({ canManageOrganization, whatsappApiEnabled, hasAgenda = true, sellsProducts = false, canImport = false }: NavContext): NavSection[] {
+export function buildSections({ canManageOrganization, whatsappApiEnabled, hasAgenda = true, sellsProducts = false, canImport = false, isPlatformAdmin = false }: NavContext): NavSection[] {
     const settingsTabs: NavTab[] = [
         ...(canManageOrganization
             ? [
@@ -131,6 +133,21 @@ export function buildSections({ canManageOrganization, whatsappApiEnabled, hasAg
         path: settingsTabs[0].path,
         tabs: settingsTabs,
     });
+
+    // Équipe Menentia : back-office plateforme.
+    if (isPlatformAdmin) {
+        sections.push({
+            key: 'platform',
+            name: 'Plateforme',
+            icon: <BoxCubeIcon />,
+            path: '/admin/dashboard',
+            tabs: [
+                { name: 'Tableau de bord', path: '/admin/dashboard' },
+                { name: 'Entreprises', path: '/admin/organizations' },
+                { name: 'Demandes de démo', path: '/admin/leads' },
+            ],
+        });
+    }
 
     return sections;
 }

@@ -2,6 +2,8 @@
 
 use App\Http\Middleware\EnsureAgendaEnabled;
 use App\Http\Middleware\EnsureCanManageOrganization;
+use App\Http\Middleware\EnsureOrganizationActive;
+use App\Http\Middleware\EnsurePlatformAdmin;
 use App\Http\Middleware\EnsureWhatsAppApiEnabled;
 use App\Http\Middleware\HandleInertiaRequests;
 use Illuminate\Foundation\Application;
@@ -19,6 +21,8 @@ return Application::configure(basePath: dirname(__DIR__))
     ->withMiddleware(function (Middleware $middleware): void {
         $middleware->web(append: [
             HandleInertiaRequests::class,
+            // Entreprise suspendue depuis le back-office plateforme.
+            EnsureOrganizationActive::class,
         ]);
 
         $middleware->validateCsrfTokens(except: ['webhooks/*']);
@@ -27,6 +31,7 @@ return Application::configure(basePath: dirname(__DIR__))
             'can-manage-organization' => EnsureCanManageOrganization::class,
             'whatsapp-api' => EnsureWhatsAppApiEnabled::class,
             'agenda' => EnsureAgendaEnabled::class,
+            'platform-admin' => EnsurePlatformAdmin::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {

@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\ActionController;
+use App\Http\Controllers\Admin;
 use App\Http\Controllers\AnalyticsController;
 use App\Http\Controllers\AppointmentController;
 use App\Http\Controllers\AudienceController;
@@ -237,4 +238,20 @@ Route::middleware('auth')->group(function () {
     Route::post('/templates', [MessageTemplateController::class, 'store'])->middleware('whatsapp-api')->name('templates.store');
     Route::put('/templates/{template}', [MessageTemplateController::class, 'update'])->middleware('whatsapp-api')->name('templates.update');
     Route::delete('/templates/{template}', [MessageTemplateController::class, 'destroy'])->middleware('whatsapp-api')->name('templates.destroy');
+});
+
+// Back-office plateforme Menentia (super-admins, cf. menentia:make-admin).
+Route::middleware(['auth', 'platform-admin'])->prefix('admin')->name('admin.')->group(function () {
+    Route::redirect('/', '/admin/dashboard');
+    Route::get('/dashboard', Admin\DashboardController::class)->name('dashboard');
+    Route::get('/organizations', [Admin\OrganizationController::class, 'index'])->name('organizations.index');
+    Route::get('/organizations/{organization}', [Admin\OrganizationController::class, 'show'])->name('organizations.show');
+    Route::post('/organizations/{organization}/trial', [Admin\OrganizationController::class, 'extendTrial'])->name('organizations.trial');
+    Route::put('/organizations/{organization}/plan', [Admin\OrganizationController::class, 'changePlan'])->name('organizations.plan');
+    Route::post('/organizations/{organization}/activate', [Admin\OrganizationController::class, 'activate'])->name('organizations.activate');
+    Route::post('/organizations/{organization}/suspend', [Admin\OrganizationController::class, 'suspend'])->name('organizations.suspend');
+    Route::post('/organizations/{organization}/reactivate', [Admin\OrganizationController::class, 'reactivate'])->name('organizations.reactivate');
+    Route::get('/leads', [Admin\LeadController::class, 'index'])->name('leads.index');
+    Route::get('/leads/export', [Admin\LeadController::class, 'export'])->name('leads.export');
+    Route::put('/leads/{lead}', [Admin\LeadController::class, 'update'])->name('leads.update');
 });

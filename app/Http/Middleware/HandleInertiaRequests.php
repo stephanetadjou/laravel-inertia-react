@@ -53,6 +53,7 @@ class HandleInertiaRequests extends Middleware
                     'can_manage_organization' => $user->canManageOrganization(),
                     'can_import' => $user->canImport(),
                     'can_export' => $user->canExport(),
+                    'is_platform_admin' => $user->isPlatformAdmin(),
                 ] : null,
                 'organization' => $user?->organization ? [
                     'name' => $user->organization->name,

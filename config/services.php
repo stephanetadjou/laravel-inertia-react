@@ -39,6 +39,8 @@ return [
     'menentia' => [
         'site_url' => env('MENENTIA_SITE_URL', 'https://menentia.com'),
         'leads_email' => env('MENENTIA_LEADS_EMAIL'),
+        // Affiché aux entreprises suspendues.
+        'support_email' => env('MENENTIA_SUPPORT_EMAIL', 'contact@menentia.com'),
     ],
 
     'meta_whatsapp' => [

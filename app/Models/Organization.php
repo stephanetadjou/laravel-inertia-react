@@ -34,6 +34,11 @@ class Organization extends Model
         'timezone',
         'product_analysis_level',
         'rfm_settings',
+        'plan',
+        'status',
+        'trial_ends_at',
+        'suspended_at',
+        'suspension_reason',
     ];
 
     /**
@@ -69,6 +74,39 @@ class Organization extends Model
         return $slug;
     }
 
+    /** Durée de l'essai gratuit d'une nouvelle inscription. */
+    public const TRIAL_DAYS = 14;
+
+    public const STATUS_TRIAL = 'trial';
+
+    public const STATUS_ACTIVE = 'active';
+
+    public const STATUS_SUSPENDED = 'suspended';
+
+    public const STATUSES = [
+        self::STATUS_TRIAL => 'Essai',
+        self::STATUS_ACTIVE => 'Active',
+        self::STATUS_SUSPENDED => 'Suspendue',
+    ];
+
+    /** Offres et prix mensuels (FCFA, Gabon) du cahier de cadrage. */
+    public const PLANS = [
+        'solo' => ['label' => 'Solo', 'price' => 9900],
+        'equipe' => ['label' => 'Équipe', 'price' => 25000],
+        'premium' => ['label' => 'Premium', 'price' => 50000],
+    ];
+
+    public function isSuspended(): bool
+    {
+        return $this->status === self::STATUS_SUSPENDED;
+    }
+
+    /** Menentia (PME sur rendez-vous) ou Menentia Retail (commerce). */
+    public function offerLabel(): string
+    {
+        return $this->sector === 'commerce' ? 'Menentia Retail' : 'Menentia';
+    }
+
     public function privacyPolicyUrl(): string
     {
         return route('privacy-policy', $this->slug);
@@ -102,6 +140,8 @@ class Organization extends Model
             'report_settings' => 'array',
             'loyalty_settings' => 'array',
             'rfm_settings' => 'array',
+            'trial_ends_at' => 'datetime',
+            'suspended_at' => 'datetime',
         ];
     }
 

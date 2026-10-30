@@ -60,6 +60,9 @@ class RegisteredOrganizationController extends Controller
                 // Sans compte Meta vérifié au départ : relances manuelles par lien wa.me,
                 // l'API WhatsApp s'active plus tard dans Organisation.
                 'whatsapp_api_enabled' => false,
+                // Essai gratuit, suivi dans le back-office plateforme.
+                'status' => Organization::STATUS_TRIAL,
+                'trial_ends_at' => now()->addDays(Organization::TRIAL_DAYS),
             ]);
 
             Role::seedDefaultsFor($organization);
