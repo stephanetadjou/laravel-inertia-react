@@ -42,6 +42,8 @@ class Purchase extends Model
         'cancelled_at',
         'cancelled_by',
         'cancel_reason',
+        'source',
+        'note',
     ];
 
     public const TYPE_SALE = 'sale';

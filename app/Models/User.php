@@ -60,6 +60,16 @@ class User extends Authenticatable
         return $this->canManageOrganization() || ($this->role?->can_import ?? false);
     }
 
+    /**
+     * Peut saisir une vente à la main (Ventes › Ajouter une vente). Commerce :
+     * les rôles qui importent les ventes ; secteurs sur rendez-vous : toute
+     * l'équipe, comme pour l'encaissement d'un rendez-vous.
+     */
+    public function canRecordSales(): bool
+    {
+        return $this->canImport() || ! ($this->organization?->sellsProducts() ?? false);
+    }
+
     /** Peut exporter des données (listes de clients, ventes, tableaux). */
     public function canExport(): bool
     {

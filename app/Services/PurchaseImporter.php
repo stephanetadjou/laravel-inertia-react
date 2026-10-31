@@ -157,6 +157,7 @@ class PurchaseImporter
                 'article' => $row['article'],
                 'properties' => $row['properties'] ?: null,
                 'purchased_at' => $row['purchased_at'],
+                'source' => 'import',
             ]);
             $recorded++;
         }

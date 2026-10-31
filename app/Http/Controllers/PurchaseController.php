@@ -387,6 +387,8 @@ class PurchaseController extends Controller
                 ->values(),
             'kpis' => ['current' => $current, 'previous' => $previous],
             'canExport' => $user->canExport(),
+            // Ventes › Ajouter une vente (null : pas le droit de saisir).
+            'manualSale' => ManualSaleController::formOptions($user),
             'purchases' => $page->through(fn (Purchase $purchase) => [
                 'id' => $purchase->id,
                 'receipt_number' => $purchase->receipt_number,

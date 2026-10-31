@@ -22,6 +22,7 @@ use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\GroupController;
 use App\Http\Controllers\ImportController;
 use App\Http\Controllers\LoyaltyController;
+use App\Http\Controllers\ManualSaleController;
 use App\Http\Controllers\MessageTemplateController;
 use App\Http\Controllers\MultibrandController;
 use App\Http\Controllers\OrganizationController;
@@ -213,6 +214,8 @@ Route::middleware('auth')->group(function () {
     Route::post('/purchases/preview', [PurchaseController::class, 'preview'])->name('purchases.preview');
     Route::post('/purchases', [PurchaseController::class, 'store'])->name('purchases.store');
     Route::get('/purchases/export', [PurchaseController::class, 'export'])->name('purchases.export');
+    Route::post('/purchases/manual', [ManualSaleController::class, 'store'])->name('purchases.manual.store');
+    Route::get('/purchases/manual/customers', [ManualSaleController::class, 'customers'])->name('purchases.manual.customers');
     Route::get('/purchases/{purchase}', [PurchaseController::class, 'show'])->whereNumber('purchase')->name('purchases.show');
     Route::post('/purchases/{purchase}/cancel', [PurchaseController::class, 'cancel'])->whereNumber('purchase')->name('purchases.cancel');
     Route::post('/purchases/{purchase}/restore', [PurchaseController::class, 'restore'])->whereNumber('purchase')->name('purchases.restore');

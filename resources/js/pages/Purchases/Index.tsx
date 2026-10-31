@@ -6,6 +6,7 @@ import { formatCompact, formatNumber } from '../../components/dashboard/Charts';
 import { Delta, Kpi, percentChange } from '../../components/dashboard/Kpi';
 import { useHeaderHeight } from '../../components/dashboard/useHeaderHeight';
 import PurchaseImportModal, { PurchaseImportPreview } from './PurchaseImportModal';
+import ManualSaleModal, { ManualSaleOptions } from './ManualSaleModal';
 import '../Dashboard/dashboard.css';
 import './purchases.css';
 import { customerUrl } from '../../components/common/customerUrl';
@@ -76,6 +77,7 @@ interface PageProps {
     purchases: Paginated<PurchaseRow>;
     preview: PurchaseImportPreview | null;
     canExport: boolean;
+    manualSale: ManualSaleOptions | null;
     auth: { organization: { sells_products: boolean } | null };
     flash?: { success: string | null; error: string | null };
     [key: string]: unknown;
@@ -100,10 +102,11 @@ function plural(n: number, word: string, pluralWord = word + 's'): string {
 }
 
 function PurchasesIndex() {
-    const { filters, stores, categories, kpis, purchases, preview, flash, canExport, auth } = usePage<PageProps>().props;
+    const { filters, stores, categories, kpis, purchases, preview, flash, canExport, manualSale, auth } = usePage<PageProps>().props;
     const retail = auth.organization?.sells_products ?? false;
     const headerHeight = useHeaderHeight();
     const [isImportOpen, setIsImportOpen] = useState(() => preview !== null);
+    const [isSaleOpen, setIsSaleOpen] = useState(false);
     const [customFrom, setCustomFrom] = useState(filters.from);
     const [customTo, setCustomTo] = useState(filters.to);
     const [search, setSearch] = useState(filters.q);
@@ -227,6 +230,14 @@ function PurchasesIndex() {
                                         <path d="M12 3v12M7 10l5 5 5-5M5 21h14" />
                                     </svg>
                                     Importer un historique
+                                </button>
+                            )}
+                            {manualSale && (
+                                <button type="button" className="mdash-btn brand" onClick={() => setIsSaleOpen(true)}>
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" aria-hidden="true">
+                                        <path d="M12 5v14M5 12h14" />
+                                    </svg>
+                                    Ajouter une vente
                                 </button>
                             )}
                         </div>
@@ -527,6 +538,7 @@ function PurchasesIndex() {
             </section>
 
             <PurchaseImportModal isOpen={isImportOpen} onClose={() => setIsImportOpen(false)} preview={preview} />
+            {manualSale && isSaleOpen && <ManualSaleModal options={manualSale} onClose={() => setIsSaleOpen(false)} />}
         </div>
     );
 }

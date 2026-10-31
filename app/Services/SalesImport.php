@@ -531,6 +531,7 @@ class SalesImport
             'source_key' => $first['source_key'],
             'type' => $isReturn ? Purchase::TYPE_RETURN : Purchase::TYPE_SALE,
             'import_batch_id' => $batch->id,
+            'source' => 'import',
             'original_purchase_id' => $original,
             'customer_code' => $identity['customer_code'],
             'buyer_name' => $contact === null ? $identity['name'] : null,

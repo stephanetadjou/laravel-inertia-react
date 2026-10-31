@@ -217,6 +217,7 @@ class AppointmentController extends Controller
                 'product_category' => $lines->pluck('category')->filter()->first() ?? $lines->first()['name'],
                 'purchased_at' => isset($data['purchased_at']) ? Carbon::parse($data['purchased_at'])->toDateString() : $appointment->starts_at->toDateString(),
                 'payment_method' => $data['payment_method'] ?? null,
+                'source' => 'appointment',
             ]);
             $purchase->items()->createMany($lines->map(fn ($line) => collect($line)->except('category')->all())->all());
 

@@ -19,6 +19,7 @@ class AuditLog extends Model
         'import.completed' => 'Import de ventes traité',
         'import.cancelled' => 'Import de ventes annulé',
         'export' => 'Export de données',
+        'sale.created' => 'Vente saisie',
         'sale.cancelled' => 'Vente annulée',
         'sale.restored' => 'Vente rétablie',
         'customer.merged' => 'Fiches clients fusionnées',
