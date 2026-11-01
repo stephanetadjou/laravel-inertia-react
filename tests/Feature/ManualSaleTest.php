@@ -208,3 +208,40 @@ it('shows the button and accepts sales only for roles allowed to record them', f
     $storeManager = User::factory()->create(['organization_id' => $organization->id, 'role_id' => defaultRole($organization, 'Responsable de boutique')->id, 'store_id' => $store->id]);
     $this->actingAs($storeManager)->get('/purchases')->assertInertia(fn ($page) => $page->has('manualSale.stores', 1));
 });
+
+it('suggests customers as you type: name without accents, partial phone, customer code, scope', function () {
+    $r = retailSetup();
+    $manager = User::factory()->create(['organization_id' => $r['organization']->id, 'role_id' => $r['role']('Responsable de marque'), 'brand_id' => $r['mango']->id]);
+    $aicha = Contact::factory()->create(['store_id' => $r['mangoStore']->id, 'phone_e164' => '24177123456', 'name' => 'Aïcha Makaya'])->fresh()->customer;
+    $aicha->update(['external_code' => 'CL-0042', 'rfm_segment' => 'champions', 'last_purchase_at' => '2026-10-20']);
+    Contact::factory()->create(['store_id' => $r['mangoStore']->id, 'phone_e164' => '24166000111', 'name' => 'Brice Ndong']);
+    $adidasOnly = Contact::factory()->create(['store_id' => $r['adidasStore']->id, 'phone_e164' => '24174999888', 'name' => 'Aïcha Obiang'])->fresh()->customer;
+
+    $search = fn (User $user, string $q) => collect($this->actingAs($user)->getJson('/purchases/manual/customers?q='.urlencode($q))->assertOk()->json())->pluck('id')->all();
+
+    // Nom partiel, sans accents ni majuscules, plusieurs mots dans le désordre.
+    expect($search($r['admin'], 'aich'))->toContain($aicha->id, $adidasOnly->id)
+        ->and($search($r['admin'], 'AICHA'))->toContain($aicha->id)
+        ->and($search($r['admin'], 'mak aïc'))->toBe([$aicha->id])
+        // Début de mot : « ndo » trouve Ndong, « ong » ne trouve rien.
+        ->and($search($r['admin'], 'ndo'))->toHaveCount(1)
+        ->and($search($r['admin'], 'ong'))->toBe([])
+        ->and($search($r['admin'], 'a'))->toBe([]);
+
+    // Téléphone partiel : format local avec 0, avec l'indicatif, avec espaces.
+    expect($search($r['admin'], '0771234'))->toBe([$aicha->id])
+        ->and($search($r['admin'], '+241 77 12'))->toBe([$aicha->id])
+        ->and($search($r['admin'], '3456'))->toBe([$aicha->id]);
+
+    // Code client, et détail de la suggestion.
+    expect($search($r['admin'], 'cl-0042'))->toBe([$aicha->id]);
+    $this->actingAs($r['admin'])->getJson('/purchases/manual/customers?q=cl-0042')
+        ->assertExactJson([['id' => $aicha->id, 'name' => 'Aïcha Makaya', 'phone' => '24177123456', 'code' => 'CL-0042', 'segment' => 'Champions', 'last_purchase_at' => '2026-10-20']]);
+
+    // Périmètre : la responsable Mango ne voit pas la cliente d'Adidas seulement.
+    expect($search($manager, 'aicha'))->toBe([$aicha->id]);
+
+    // Un nom modifié est retrouvé sous son nouveau nom.
+    $aicha->update(['name' => 'Aïcha Nzé']);
+    expect($search($r['admin'], 'nze'))->toBe([$aicha->id]);
+});

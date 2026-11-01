@@ -8,6 +8,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasManyThrough;
+use Illuminate\Support\Str;
 
 /**
  * Fiche client unique d'une personne pour tout le Groupe (une par
@@ -106,6 +107,13 @@ class Customer extends Model
      */
     protected static function booted(): void
     {
+        // Texte de recherche sans accents ni majuscules (cf. ManualSaleController::customers).
+        static::saving(function (Customer $customer) {
+            if ($customer->search_text === null || $customer->isDirty(['name', 'company_name', 'contact_name', 'external_code'])) {
+                $customer->search_text = self::searchTextFor($customer->name, $customer->company_name, $customer->contact_name, $customer->external_code);
+            }
+        });
+
         static::created(function (Customer $customer) {
             CustomerPhone::create(['customer_id' => $customer->id, 'phone_e164' => $customer->phone_e164, 'is_primary' => true, 'valid_from' => today()]);
         });
@@ -123,6 +131,18 @@ class Customer extends Model
                 ['is_primary' => true, 'valid_to' => null, 'valid_from' => today()],
             );
         });
+    }
+
+    /** « Aïcha MAKAYA », « CL-042 » → « aicha makaya cl-042 ». */
+    public static function searchTextFor(?string ...$parts): string
+    {
+        return mb_substr(self::normalizeSearch(implode(' ', array_filter($parts, fn ($p) => filled($p)))), 0, 600);
+    }
+
+    /** Minuscules sans accents, espaces réduites : la même règle pour la saisie et le texte enregistré. */
+    public static function normalizeSearch(string $text): string
+    {
+        return trim(preg_replace('/\s+/', ' ', Str::lower(Str::ascii($text))));
     }
 
     public function organization(): BelongsTo

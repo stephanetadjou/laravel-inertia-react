@@ -1,5 +1,5 @@
 import { useForm } from '@inertiajs/react';
-import { FormEventHandler, useEffect, useState } from 'react';
+import { FormEventHandler, useEffect, useRef, useState } from 'react';
 
 import Button from '../../components/ui/button/Button';
 import { Modal } from '../../components/ui/modal';
@@ -37,6 +37,166 @@ interface Found {
     id: number;
     name: string;
     phone: string | null;
+    code: string | null;
+    segment: string | null;
+    last_purchase_at: string | null;
+}
+
+/** +24177123456 → « +241 77 12 34 56 ». */
+function formatPhone(phone: string | null): string {
+    if (!phone) return '';
+    const local = phone.startsWith('241') ? phone.slice(3) : phone;
+    return `${phone.startsWith('241') ? '+241 ' : '+'}${local.replace(/(\d{2})(?=\d)/g, '$1 ')}`;
+}
+
+function formatDay(day: string): string {
+    return new Date(`${day}T12:00:00`).toLocaleDateString('fr-FR', { day: '2-digit', month: 'short', year: 'numeric' });
+}
+
+/** Téléphone, code client, segment et dernier achat d'une suggestion ou du client choisi. */
+function CustomerMeta({ customer }: { customer: Found }) {
+    const parts = [
+        formatPhone(customer.phone),
+        customer.code ? `code ${customer.code}` : null,
+        customer.segment,
+        customer.last_purchase_at ? `dernier achat le ${formatDay(customer.last_purchase_at)}` : 'aucun achat',
+    ].filter(Boolean);
+
+    return <span className="block text-xs text-gray-500 dark:text-gray-400">{parts.join(' · ')}</span>;
+}
+
+/**
+ * Recherche d'un client existant : suggestions dès 2 caractères (nom,
+ * téléphone même partiel, code client ; sans accents ni majuscules), dans le
+ * périmètre de l'utilisateur. Flèches pour se déplacer, Entrée pour choisir,
+ * Échap pour fermer la liste.
+ */
+function CustomerSearch({ onPick, onCreate }: { onPick: (c: Found) => void; onCreate: (text: string) => void }) {
+    const [query, setQuery] = useState('');
+    const [found, setFound] = useState<Found[]>([]);
+    const [searched, setSearched] = useState('');
+    const [loading, setLoading] = useState(false);
+    const [open, setOpen] = useState(false);
+    const [active, setActive] = useState(0);
+    const input = useRef<HTMLInputElement>(null);
+
+    useEffect(() => input.current?.focus(), []);
+
+    useEffect(() => {
+        const text = query.trim();
+        if (text.length < 2) {
+            setFound([]);
+            setSearched('');
+            return;
+        }
+        setLoading(true);
+        const controller = new AbortController();
+        const timer = setTimeout(() => {
+            fetch(`/purchases/manual/customers?q=${encodeURIComponent(text)}`, {
+                headers: { Accept: 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
+                signal: controller.signal,
+            })
+                .then((r) => (r.ok ? r.json() : []))
+                .then((rows: Found[]) => {
+                    setFound(rows);
+                    setSearched(text);
+                    setActive(0);
+                    setOpen(true);
+                    setLoading(false);
+                })
+                .catch(() => undefined);
+        }, 200);
+        return () => {
+            clearTimeout(timer);
+            controller.abort();
+        };
+    }, [query]);
+
+    const pick = (c: Found) => {
+        setOpen(false);
+        onPick(c);
+    };
+
+    const onKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+        if (e.key === 'ArrowDown' && found.length > 0) {
+            e.preventDefault();
+            setOpen(true);
+            setActive((i) => (i + 1) % found.length);
+        } else if (e.key === 'ArrowUp' && found.length > 0) {
+            e.preventDefault();
+            setActive((i) => (i - 1 + found.length) % found.length);
+        } else if (e.key === 'Enter') {
+            // Entrée ne soumet jamais le formulaire depuis la recherche.
+            e.preventDefault();
+            if (open && found[active]) pick(found[active]);
+        } else if (e.key === 'Escape' && open) {
+            // Échap ferme la liste, pas la fenêtre.
+            e.preventDefault();
+            e.stopPropagation();
+            setOpen(false);
+        }
+    };
+
+    const showEmpty = open && !loading && searched !== '' && searched === query.trim() && found.length === 0;
+
+    return (
+        <div className="relative">
+            <input
+                ref={input}
+                role="combobox"
+                aria-expanded={open && found.length > 0}
+                aria-controls="manual-sale-customers"
+                aria-activedescendant={open && found[active] ? `manual-sale-customer-${found[active].id}` : undefined}
+                aria-autocomplete="list"
+                aria-label="Rechercher un client"
+                value={query}
+                onChange={(e) => {
+                    setQuery(e.target.value);
+                    setOpen(true);
+                }}
+                onFocus={() => setOpen(true)}
+                onBlur={() => setTimeout(() => setOpen(false), 150)}
+                onKeyDown={onKeyDown}
+                placeholder="Rechercher par nom, téléphone ou code client"
+                autoComplete="off"
+                className={`${fieldClasses()} py-2.5 text-[15px]`}
+            />
+            {loading && query.trim().length >= 2 && <span className="absolute right-3 top-3 text-xs text-gray-400">Recherche…</span>}
+
+            {open && found.length > 0 && (
+                <ul id="manual-sale-customers" role="listbox" className="absolute z-20 mt-1 max-h-72 w-full overflow-auto rounded-xl border border-gray-200 bg-white py-1 shadow-theme-lg dark:border-gray-700 dark:bg-gray-900">
+                    {found.map((c, i) => (
+                        <li
+                            key={c.id}
+                            id={`manual-sale-customer-${c.id}`}
+                            role="option"
+                            aria-selected={i === active}
+                            className={`cursor-pointer px-3 py-2 text-sm ${i === active ? 'bg-brand-50 dark:bg-white/10' : ''}`}
+                            onMouseEnter={() => setActive(i)}
+                            onMouseDown={(e) => {
+                                e.preventDefault();
+                                pick(c);
+                            }}
+                        >
+                            <b className="text-gray-900 dark:text-white">{c.name}</b>
+                            <CustomerMeta customer={c} />
+                        </li>
+                    ))}
+                </ul>
+            )}
+
+            {showEmpty && (
+                <div className="mt-2 flex flex-wrap items-center justify-between gap-2 rounded-lg border border-dashed border-gray-300 px-3 py-2 text-sm dark:border-gray-700">
+                    <span className="text-gray-600 dark:text-gray-400">Aucun client trouvé pour « {searched} ».</span>
+                    <button type="button" className="mdash-link" onMouseDown={(e) => e.preventDefault()} onClick={() => onCreate(searched)}>
+                        Créer un nouveau client avec « {searched} »
+                    </button>
+                </div>
+            )}
+
+            <p className="mt-1 text-xs text-gray-500">Dès 2 caractères : nom, téléphone (même partiel) ou code client.</p>
+        </div>
+    );
 }
 
 type Mode = 'existing' | 'new' | 'anonymous';
@@ -73,24 +233,7 @@ export default function ManualSaleModal({ options, onClose }: { options: ManualS
         note: '',
         lines: [emptyLine()],
     });
-    const [query, setQuery] = useState('');
-    const [found, setFound] = useState<Found[]>([]);
     const [chosen, setChosen] = useState<Found | null>(null);
-
-    // Recherche d'un client du périmètre, 300 ms après la frappe.
-    useEffect(() => {
-        if (data.customer_mode !== 'existing' || query.trim().length < 2) {
-            setFound([]);
-            return;
-        }
-        const timer = setTimeout(() => {
-            fetch(`/purchases/manual/customers?q=${encodeURIComponent(query.trim())}`, { headers: { Accept: 'application/json', 'X-Requested-With': 'XMLHttpRequest' } })
-                .then((r) => (r.ok ? r.json() : []))
-                .then(setFound)
-                .catch(() => setFound([]));
-        }, 300);
-        return () => clearTimeout(timer);
-    }, [query, data.customer_mode]);
 
     const lineTotal = (l: Line) => Math.max(0, l.quantity * l.unit_price - l.discount);
     const total = data.lines.reduce((sum, l) => sum + lineTotal(l), 0);
@@ -157,13 +300,14 @@ export default function ManualSaleModal({ options, onClose }: { options: ManualS
 
                     {data.customer_mode === 'existing' &&
                         (chosen ? (
-                            <div className="flex items-center justify-between rounded-lg border border-gray-200 px-3 py-2 text-sm dark:border-gray-700">
-                                <span>
-                                    <b>{chosen.name}</b> {chosen.phone && <span className="text-gray-500">· +{chosen.phone}</span>}
-                                </span>
+                            <div className="flex items-center justify-between gap-3 rounded-xl border border-brand-200 bg-brand-25 px-4 py-3 text-sm dark:border-brand-800 dark:bg-white/[0.03]">
+                                <div>
+                                    <b className="text-gray-900 dark:text-white">{chosen.name}</b>
+                                    <CustomerMeta customer={chosen} />
+                                </div>
                                 <button
                                     type="button"
-                                    className="mdash-link"
+                                    className="mdash-btn ghost sm"
                                     onClick={() => {
                                         setChosen(null);
                                         setData('customer_id', null);
@@ -173,36 +317,13 @@ export default function ManualSaleModal({ options, onClose }: { options: ManualS
                                 </button>
                             </div>
                         ) : (
-                            <div className="relative">
-                                <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Nom, téléphone ou code client" aria-label="Rechercher un client" className={fieldClasses()} />
-                                {found.length > 0 && (
-                                    <ul className="absolute z-10 mt-1 max-h-60 w-full overflow-auto rounded-lg border border-gray-200 bg-white shadow-theme-md dark:border-gray-700 dark:bg-gray-900">
-                                        {found.map((c) => (
-                                            <li key={c.id}>
-                                                <button
-                                                    type="button"
-                                                    className="block w-full px-3 py-2 text-left text-sm hover:bg-gray-50 dark:hover:bg-white/5"
-                                                    onClick={() => {
-                                                        setChosen(c);
-                                                        setData('customer_id', c.id);
-                                                        setFound([]);
-                                                    }}
-                                                >
-                                                    <b>{c.name}</b> {c.phone && <span className="text-gray-500">· +{c.phone}</span>}
-                                                </button>
-                                            </li>
-                                        ))}
-                                    </ul>
-                                )}
-                                {query.trim().length >= 2 && found.length === 0 && (
-                                    <p className="mt-1 text-xs text-gray-500">
-                                        Aucun client trouvé ?{' '}
-                                        <button type="button" className="mdash-link" onClick={() => setData((d) => ({ ...d, customer_mode: 'new', name: /\d/.test(query) ? '' : query, phone: /\d/.test(query) ? query : '' }))}>
-                                            Créer un nouveau client
-                                        </button>
-                                    </p>
-                                )}
-                            </div>
+                            <CustomerSearch
+                                onPick={(c) => {
+                                    setChosen(c);
+                                    setData('customer_id', c.id);
+                                }}
+                                onCreate={(text) => setData((d) => ({ ...d, customer_mode: 'new', name: /\d/.test(text) ? '' : text, phone: /\d/.test(text) ? text : '' }))}
+                            />
                         ))}
 
                     {data.customer_mode === 'new' && (

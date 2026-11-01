@@ -8,6 +8,7 @@ use App\Models\Purchase;
 use App\Models\Store;
 use App\Models\User;
 use App\Services\ManualSale;
+use App\Services\RfmCalculator;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -73,26 +74,57 @@ class ManualSaleController extends Controller
         return redirect()->route('purchases.index')->with('success', 'Vente enregistrée : '.number_format((int) $purchase->amount, 0, ',', ' ').' '.$organization->currencySymbol().'.');
     }
 
-    /** Recherche d'un client du périmètre (nom, entreprise, code client ou numéro). */
+    /**
+     * Suggestions au fil de la frappe (dès 2 caractères), dans le périmètre :
+     * chaque mot saisi doit se trouver dans le nom, l'entreprise, le contact
+     * ou le code client (sans accents ni majuscules), ou bien les chiffres
+     * saisis dans le numéro (partiel, avec ou sans 0 ou indicatif 241).
+     */
     public function customers(Request $request): JsonResponse
     {
         $user = $this->authorizeUser($request);
-        $q = trim((string) $request->query('q', ''));
+        $q = Customer::normalizeSearch((string) $request->query('q', ''));
 
         if (mb_strlen($q) < 2) {
             return response()->json([]);
         }
 
-        $digits = ltrim(preg_replace('/\D+/', '', $q), '0');
+        $terms = array_slice(explode(' ', $q), 0, 5);
+        $digits = preg_replace('/\D+/', '', $q);
+        $digits = preg_replace('/^(00)?241(?=\d{2})/', '', ltrim($digits, '+'));
+        $digits = ltrim($digits, '0');
 
         return response()->json(
             self::scopedCustomers($user)
-                ->where(fn ($w) => $w->where('name', 'like', "%{$q}%")->orWhere('company_name', 'like', "%{$q}%")->orWhere('external_code', $q)
-                    ->when($digits !== '', fn ($w) => $w->orWhere('phone_e164', 'like', "%{$digits}%")))
+                ->where(function ($w) use ($terms, $digits) {
+                    // Chaque mot saisi commence un mot de la fiche (« ma » : Makaya, pas Nguema) ;
+                    // un mot avec des chiffres (code client) peut être n'importe où.
+                    $w->where(function ($all) use ($terms) {
+                        foreach ($terms as $term) {
+                            $like = addcslashes($term, '%_\\');
+                            $all->where(fn ($t) => preg_match('/\d/', $term)
+                                ? $t->where('search_text', 'like', "%{$like}%")
+                                : $t->where('search_text', 'like', "{$like}%")->orWhere('search_text', 'like', "% {$like}%")->orWhere('search_text', 'like', "%-{$like}%"));
+                        }
+                    });
+
+                    if (strlen($digits) >= 2) {
+                        $w->orWhere('phone_e164', 'like', "%{$digits}%");
+                    }
+                })
+                // Le nom qui commence par la saisie d'abord.
+                ->orderByRaw('CASE WHEN search_text LIKE ? THEN 0 ELSE 1 END', [addcslashes($terms[0], '%_\\').'%'])
                 ->orderBy('name')
                 ->take(10)
                 ->get()
-                ->map(fn (Customer $c) => ['id' => $c->id, 'name' => $c->displayName(), 'phone' => $c->phone_e164]),
+                ->map(fn (Customer $c) => [
+                    'id' => $c->id,
+                    'name' => $c->displayName(),
+                    'phone' => $c->phone_e164,
+                    'code' => $c->external_code,
+                    'segment' => RfmCalculator::SEGMENTS[$c->rfm_segment]['label'] ?? null,
+                    'last_purchase_at' => $c->last_purchase_at?->toDateString(),
+                ]),
         );
     }
 
