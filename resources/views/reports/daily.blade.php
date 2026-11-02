@@ -325,6 +325,48 @@
             </tr>
         </table>
 
+        @if (! empty($report['modules']))
+            @php $mod = $report['modules']; @endphp
+            <table class="two">
+                <tr>
+                    @if ($mod['payments'])
+                        <td>
+                            <h2>Échéances</h2>
+                            <table class="data">
+                                <tr><td>Encaissé sur échéances aujourd’hui</td><td class="r"><b>{{ $money($mod['collected']) }}</b></td></tr>
+                                <tr><td>Impayés (tranches en retard)</td><td class="r"><b class="{{ $mod['overdue_count'] ? 'bad' : '' }}">{{ $money($mod['overdue_amount']) }}</b> · {{ $mod['overdue_count'] }}</td></tr>
+                                <tr><td>À encaisser demain</td><td class="r"><b>{{ $money($mod['due_tomorrow']) }}</b></td></tr>
+                                @if ($mod['renewals'] !== null)
+                                    <tr><td>Abonnements à renouveler (30 j)</td><td class="r"><b>{{ $mod['renewals'] }}</b></td></tr>
+                                @endif
+                            </table>
+                        </td>
+                    @endif
+                    @if ($mod['classes'])
+                        <td>
+                            <h2>Cours du jour</h2>
+                            @if (count($mod['sessions']) === 0)
+                                <div class="empty">Aucun cours aujourd’hui.</div>
+                            @else
+                                <table class="data">
+                                    <tr><th>Cours</th><th class="r">Présents</th><th class="r">Absents</th></tr>
+                                    @foreach ($mod['sessions'] as $s)
+                                        <tr><td>{{ $s['time'] }} {{ $s['name'] }}</td>
+                                            @if ($s['cancelled'])
+                                                <td class="r" colspan="2">annulé</td>
+                                            @else
+                                                <td class="r"><b>{{ $s['present'] }}</b></td><td class="r">{{ $s['absent'] }}</td>
+                                            @endif
+                                        </tr>
+                                    @endforeach
+                                </table>
+                            @endif
+                        </td>
+                    @endif
+                </tr>
+            </table>
+        @endif
+
         <h2>Actions recommandées pour demain</h2>
         @if (count($report['actions']) === 0)
             <div class="empty">Rien d’urgent : bonne soirée.</div>

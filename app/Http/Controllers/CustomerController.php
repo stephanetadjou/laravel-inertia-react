@@ -11,6 +11,7 @@ use App\Models\Customer;
 use App\Models\CustomerConsent;
 use App\Models\CustomerFollowUp;
 use App\Models\Group;
+use App\Models\GroupClass;
 use App\Models\LoyaltyReward;
 use App\Models\LoyaltyTransaction;
 use App\Models\MessageTemplate;
@@ -127,6 +128,9 @@ class CustomerController extends Controller
                 'article' => $search->article?->id,
                 'brand_mix' => $search->brands,
                 'never_brand' => $search->neverBrand,
+                'follow' => $search->follow,
+                // Critères des modules actifs (tranches, abonnements, cours).
+                'follow_options' => $this->followOptions($request->user()),
                 'article_label' => $search->article?->label,
                 'brands' => $search->roleStores->pluck('brand')->filter()->unique('id')->sortBy('name')->values()
                     ->map(fn (Brand $brand) => ['id' => $brand->id, 'name' => $brand->name]),
@@ -276,6 +280,8 @@ class CustomerController extends Controller
                 'churn_label' => CustomerScoring::CHURN_RISKS[$customer->churn_risk] ?? null,
                 'avg_interval_days' => $customer->avg_purchase_interval_days,
                 'next_expected_at' => $customer->next_purchase_expected_at?->toDateString(),
+                // Assiduité et impayés (modules) qui expliquent l'alerte.
+                'signals' => CustomerScoring::signals($customer, $user->organization),
             ],
             // Personne suivie : on écrit à son responsable.
             'whatsappUrl' => ($phone = $customer->recipient()->phone_e164) ? ActionLists::whatsappUrl($phone, '') : null,
@@ -361,6 +367,36 @@ class CustomerController extends Controller
                 ->orderBy('name')
                 ->pluck('name'),
         ]);
+    }
+
+    /**
+     * Critères de ciblage des modules actifs (Fiches clients › Suivi).
+     *
+     * @return list<array{value: string, label: string}>
+     */
+    private function followOptions(User $user): array
+    {
+        $organization = $user->organization;
+        $options = [];
+
+        if ($organization->hasModule('tranches') || $organization->hasModule('abonnements')) {
+            $options[] = ['value' => 'unpaid', 'label' => 'Tranche en retard'];
+        }
+        if ($organization->hasModule('abonnements')) {
+            foreach ([7, 15, 30] as $days) {
+                $options[] = ['value' => "ending:{$days}", 'label' => "Abonnement finissant dans {$days} j"];
+            }
+        }
+        if ($organization->hasModule('seances_groupe')) {
+            foreach ([2, 3, 5] as $n) {
+                $options[] = ['value' => "absent:{$n}", 'label' => "Absent {$n} fois ou plus en 30 j"];
+            }
+            foreach (GroupClass::where('organization_id', $organization->id)->where('active', true)->orderBy('name')->get(['id', 'name']) as $class) {
+                $options[] = ['value' => "class:{$class->id}", 'label' => "Inscrits : {$class->name}"];
+            }
+        }
+
+        return $options;
     }
 
     /**

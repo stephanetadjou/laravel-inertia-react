@@ -121,7 +121,76 @@ class CustomerScoring
             DB::table('customer_segment_history')->insert($chunk);
         }
 
+        $this->applyEngagementSignals($organization);
+
         return $updated;
+    }
+
+    /** Absences sur 30 jours qui déclenchent l'alerte : moyenne, puis élevée. */
+    public const ABSENCES_MEDIUM = 3;
+
+    public const ABSENCES_HIGH = 5;
+
+    /** Retard de paiement (jours) qui rend l'alerte élevée. */
+    public const UNPAID_HIGH_DAYS = 30;
+
+    /**
+     * Alerte de départ enrichie par les modules : un adhérent qui manque ses
+     * cours ou ne paie plus ses tranches risque de partir, même si son rythme
+     * d'achat semble normal. On ne baisse jamais une alerte, on la relève.
+     */
+    private function applyEngagementSignals(Organization $organization): void
+    {
+        $raise = function ($ids, string $level) use ($organization) {
+            DB::table('customers')->where('organization_id', $organization->id)->whereIn('id', $ids)
+                ->when($level === 'medium', fn ($q) => $q->whereNull('churn_risk'), fn ($q) => $q->where(fn ($w) => $w->whereNull('churn_risk')->orWhere('churn_risk', '!=', 'high')))
+                ->update(['churn_risk' => $level]);
+        };
+
+        if ($organization->hasModule('seances_groupe')) {
+            $raise(CustomerSearch::followQuery($organization->id, 'absent:'.self::ABSENCES_MEDIUM), 'medium');
+            $raise(CustomerSearch::followQuery($organization->id, 'absent:'.self::ABSENCES_HIGH), 'high');
+        }
+
+        if ($organization->hasModule('tranches') || $organization->hasModule('abonnements')) {
+            $raise(CustomerSearch::followQuery($organization->id, 'unpaid'), 'medium');
+            $late = DB::table('installments')->join('payment_schedules', 'payment_schedules.id', '=', 'installments.payment_schedule_id')
+                ->where('payment_schedules.organization_id', $organization->id)->where('payment_schedules.status', 'active')
+                ->whereNull('installments.paid_at')->where('installments.due_on', '<', today()->subDays(self::UNPAID_HIGH_DAYS)->toDateString());
+            $raise((clone $late)->select('payment_schedules.customer_id'), 'high');
+            $raise((clone $late)->whereNotNull('payment_schedules.beneficiary_id')->select('payment_schedules.beneficiary_id'), 'high');
+        }
+    }
+
+    /**
+     * Signaux des modules sur une fiche (fiche client : « pourquoi cette alerte »).
+     *
+     * @return list<string>
+     */
+    public static function signals(Customer $customer, Organization $organization): array
+    {
+        $signals = [];
+
+        if ($organization->hasModule('seances_groupe')) {
+            $absences = DB::table('attendances')->join('class_sessions', 'class_sessions.id', '=', 'attendances.class_session_id')
+                ->where('attendances.customer_id', $customer->id)->where('attendances.status', 'absent')
+                ->where('class_sessions.session_date', '>=', today()->subDays(30)->toDateString())->count();
+            if ($absences > 0) {
+                $signals[] = "{$absences} absence(s) aux cours ces 30 derniers jours";
+            }
+        }
+
+        if ($organization->hasModule('tranches') || $organization->hasModule('abonnements')) {
+            $overdue = DB::table('installments')->join('payment_schedules', 'payment_schedules.id', '=', 'installments.payment_schedule_id')
+                ->where(fn ($q) => $q->where('payment_schedules.customer_id', $customer->id)->orWhere('payment_schedules.beneficiary_id', $customer->id))
+                ->where('payment_schedules.status', 'active')->whereNull('installments.paid_at')->where('installments.due_on', '<', today()->toDateString());
+            $count = (clone $overdue)->count();
+            if ($count > 0) {
+                $signals[] = "{$count} tranche(s) en retard (".number_format((int) (clone $overdue)->sum('installments.amount'), 0, ',', ' ').' FCFA)';
+            }
+        }
+
+        return $signals;
     }
 
     public static function score(int $r, int $f, int $m): int

@@ -11,6 +11,7 @@ use App\Models\CustomerFollowUp;
 use App\Models\Group;
 use App\Models\Installment;
 use App\Models\Store;
+use App\Models\Subscription;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Carbon;
@@ -77,6 +78,18 @@ class ActionLists
             'cooldown_days' => 60,
             'multibrand' => true,
         ],
+        'absent_members' => [
+            'label' => 'Absences répétées',
+            'description' => 'Inscrits absents au moins 2 fois ces 30 derniers jours : prenez des nouvelles avant qu’ils décrochent.',
+            'cooldown_days' => 14,
+            'modules' => ['seances_groupe'],
+        ],
+        'subscription_ending' => [
+            'label' => 'Abonnements à renouveler',
+            'description' => 'Abonnements qui se terminent dans les 15 prochains jours : proposez le renouvellement.',
+            'cooldown_days' => 20,
+            'modules' => ['abonnements'],
+        ],
         'class_cancelled' => [
             'label' => 'Cours annulés à annoncer',
             'description' => 'Séances annulées ces 7 derniers jours (pluie, coach absent…) : prévenez chaque inscrit, ou son parent.',
@@ -111,6 +124,8 @@ class ActionLists
         'birthday' => 'Joyeux anniversaire {prenom} ! Toute l\'équipe de {boutique} vous souhaite une excellente journée.',
         'group' => 'Bonjour {prenom}, toute l\'équipe de {boutique} a pensé à vous : passez nous voir cette semaine, une attention vous attend.',
         'cross_sell' => 'Bonjour {prenom}, merci pour votre fidélité chez {boutique}. Saviez-vous que {autre_marque} fait aussi partie de notre groupe ? Passez découvrir la boutique, vous y serez accueilli comme un client fidèle.',
+        'absent_members' => 'Bonjour {prenom}, tout va bien ? Nous avons remarqué des absences aux derniers cours{de_beneficiaire}. Dites-nous si nous pouvons aider : nous serons ravis de vous revoir très vite !',
+        'subscription_ending' => 'Bonjour {prenom}, l’abonnement « {formule} »{de_beneficiaire} se termine le {fin}. Souhaitez-vous le renouveler ? Nous pouvons le préparer dès maintenant.',
         'class_cancelled' => 'Bonjour {prenom}, le cours de {cours} du {date_cours} à {heure_cours} est annulé ({motif}). Nous vous tiendrons au courant du rattrapage. Merci de votre compréhension !',
         'class_makeup' => 'Bonjour {prenom}, bonne nouvelle : le cours de {cours} annulé est rattrapé le {date_cours} à {heure_cours}. À bientôt !',
         'installment_due' => 'Bonjour {prenom}, petit rappel de {boutique} : l\'échéance de {montant} ({objet}) est à régler le {echeance}. Merci de votre confiance !',
@@ -212,10 +227,26 @@ class ActionLists
                 ->where('rfm_segment', 'champions')
                 ->orderByDesc('score')
                 ->orderByDesc('total_spent'),
+            'absent_members' => $query
+                ->whereIn('customers.id', CustomerSearch::followQuery($this->user->organization_id, 'absent:2'))
+                ->orderBy('name'),
+            // La personne qui pratique : la personne suivie, sinon le payeur.
+            'subscription_ending' => $query
+                ->whereIn('customers.id', DB::table('subscriptions')->where('organization_id', $this->user->organization_id)->where('status', 'active')
+                    ->whereIn('store_id', $this->storeIds)
+                    ->where('ends_on', '>=', $today->toDateString())->where('ends_on', '<', $today->copy()->addDays(16)->toDateString())
+                    ->selectRaw('COALESCE(beneficiary_id, customer_id)'))
+                ->orderBy('name'),
         };
 
         return $query->limit(self::LIMIT)->get()
-            ->map(fn (Customer $customer) => $this->row($key, $customer, $this->reason($key, $customer)))
+            ->map(function (Customer $customer) use ($key) {
+                $reason = $this->reason($key, $customer);
+                $row = $this->row($key, $customer, $reason);
+                $this->vars = [];
+
+                return $row;
+            })
             ->filter()
             ->values()
             ->all();
@@ -501,6 +532,22 @@ class ActionLists
                 ->where('done_at', '>=', now()->subDays($cooldown))));
     }
 
+    /** Motif et variables ({formule}, {fin}) d'un abonnement qui se termine. */
+    private function endingReason(Customer $customer): string
+    {
+        $subscription = Subscription::current()->with('plan:id,name')
+            ->where(fn ($q) => $q->where('beneficiary_id', $customer->id)->orWhere(fn ($w) => $w->whereNull('beneficiary_id')->where('customer_id', $customer->id)))
+            ->whereNotNull('ends_on')->orderBy('ends_on')->first();
+
+        if ($subscription === null) {
+            return '';
+        }
+
+        $this->vars = ['{formule}' => (string) $subscription->plan?->name, '{fin}' => self::date($subscription->ends_on)];
+
+        return "« {$subscription->plan?->name} » se termine le ".self::date($subscription->ends_on);
+    }
+
     private function reason(string $key, Customer $customer): string
     {
         $days = $customer->last_purchase_at ? (int) $customer->last_purchase_at->diffInDays(today()) : null;
@@ -512,6 +559,8 @@ class ActionLists
             'second_purchase' => "Premier achat il y a {$days} jours",
             'win_back' => "Dernier achat il y a {$days} jours · ".number_format((int) $customer->total_spent, 0, ',', ' ').' FCFA dépensés',
             'vip_thanks' => "Score {$customer->score}/100 · ".number_format((int) $customer->total_spent, 0, ',', ' ').' FCFA dépensés',
+            'absent_members' => implode(' · ', CustomerScoring::signals($customer, $this->user->organization)),
+            'subscription_ending' => $this->endingReason($customer),
             default => '',
         };
     }
@@ -583,6 +632,7 @@ class ActionLists
 
         $text = strtr($this->messages[$key] ?? '', [
             '{beneficiaire}' => $beneficiary ? self::firstNameOf($beneficiary->name) : '',
+            '{de_beneficiaire}' => $beneficiary ? ' de '.self::firstNameOf($beneficiary->name) : '',
             '{prenom}' => $firstName,
             '{nom}' => CustomerLifecycle::isPlaceholderName($customer->name) ? '' : $customer->name,
             '{boutique}' => $storeName,

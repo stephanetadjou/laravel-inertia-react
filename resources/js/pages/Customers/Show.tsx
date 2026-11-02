@@ -106,6 +106,7 @@ interface PageProps {
         segment: string | null;
         churn_risk: 'medium' | 'high' | null;
         churn_label: string | null;
+        signals?: string[];
         avg_interval_days: number | null;
         next_expected_at: string | null;
     };
@@ -393,6 +394,15 @@ function CustomerShow() {
                             )}
                             {scoring.avg_interval_days !== null &&
                                 `Achète en moyenne tous les ${formatNumber(scoring.avg_interval_days)} jours${scoring.next_expected_at ? `, prochain achat attendu vers le ${formatDate(scoring.next_expected_at)}` : ''}.`}
+                        </p>
+                    )}
+                    {(scoring.signals?.length ?? 0) > 0 && (
+                        <p className="mcust-rfm-action">
+                            {scoring.signals?.map((s) => (
+                                <span key={s} className="mdash-pill warn">
+                                    {s}
+                                </span>
+                            ))}
                         </p>
                     )}
                     <p className="mcust-rfm-action">

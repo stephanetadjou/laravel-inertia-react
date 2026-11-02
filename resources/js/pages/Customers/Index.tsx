@@ -35,6 +35,8 @@ interface Filters {
     article_label?: string | null;
     brand_mix?: 'multi' | 'mono' | null;
     never_brand?: number | null;
+    follow?: string | null;
+    follow_options?: { value: string; label: string }[];
     analysis?: Record<string, string | number>;
     prop: string | null;
     groups: { id: number; name: string }[];
@@ -148,6 +150,7 @@ function CustomersIndex() {
                     article: filters.article ?? null,
                     brands: filters.brand_mix ?? null,
                     never_brand: filters.never_brand ?? null,
+                    follow: filters.follow ?? null,
                     ...(filters.analysis ?? {}),
                 }).filter(([, v]) => v !== null && v !== ''),
             ) as Record<string, string | number>,
@@ -170,6 +173,7 @@ function CustomersIndex() {
             filters.article,
             filters.brand_mix,
             filters.never_brand,
+            filters.follow,
             filters.analysis,
         ],
     );
@@ -317,6 +321,16 @@ function CustomersIndex() {
                                 {filters.groups.map((g) => (
                                     <option key={g.id} value={g.id}>
                                         Groupe : {g.name}
+                                    </option>
+                                ))}
+                            </select>
+                        )}
+                        {(filters.follow_options?.length ?? 0) > 0 && (
+                            <select aria-label="Suivi" value={filters.follow ?? ''} onChange={(e) => visit({ follow: e.target.value || null })}>
+                                <option value="">Suivi : tous</option>
+                                {filters.follow_options?.map((o) => (
+                                    <option key={o.value} value={o.value}>
+                                        {o.label}
                                     </option>
                                 ))}
                             </select>

@@ -3,15 +3,18 @@
 namespace App\Services;
 
 use App\Models\Appointment;
+use App\Models\ClassSession;
 use App\Models\Closure;
 use App\Models\Contact;
 use App\Models\Customer;
 use App\Models\CustomerFollowUp;
+use App\Models\Installment;
 use App\Models\Organization;
 use App\Models\Purchase;
 use App\Models\PurchaseItem;
 use App\Models\StaffMember;
 use App\Models\Store;
+use App\Models\Subscription;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
@@ -106,6 +109,8 @@ class DailyReport
             'absents' => $absents,
             'relationship' => $this->relationship($day),
             'base' => $this->base(),
+            // Modules actifs : échéances, présences, abonnements à renouveler.
+            'modules' => $this->modules($day),
         ];
 
         $report['summary'] = $this->summary($report);
@@ -485,9 +490,60 @@ class DailyReport
     }
 
     /** @return list<string> */
+    /**
+     * Chiffres des modules actifs (null si aucun) : encaissé sur échéances,
+     * impayés, présence aux cours du jour, abonnements à renouveler.
+     *
+     * @return array<string, mixed>|null
+     */
+    private function modules(Carbon $day): ?array
+    {
+        $org = $this->organization;
+        $payments = $org->hasModule('tranches') || $org->hasModule('abonnements');
+        $classes = $org->hasModule('seances_groupe');
+
+        if (! $payments && ! $classes) {
+            return null;
+        }
+
+        $schedules = fn () => Installment::query()->join('payment_schedules', 'payment_schedules.id', '=', 'installments.payment_schedule_id')
+            ->whereIn('payment_schedules.store_id', $this->storeIds)->where('payment_schedules.status', 'active');
+        $sessions = $classes ? ClassSession::whereHas('groupClass', fn ($q) => $q->whereIn('store_id', $this->storeIds))
+            ->where('session_date', $day->toDateString())->with('groupClass:id,name')->withCount([
+                'attendances as present' => fn ($q) => $q->where('status', 'present'),
+                'attendances as absent' => fn ($q) => $q->where('status', 'absent'),
+            ])->orderBy('start_time')->get() : collect();
+
+        return [
+            'payments' => $payments,
+            'collected' => $payments ? (int) $schedules()->where('installments.paid_at', '>=', $day->toDateString())->where('installments.paid_at', '<', $day->copy()->addDay()->toDateString())->sum('installments.amount') : 0,
+            'overdue_amount' => $payments ? (int) $schedules()->whereNull('installments.paid_at')->where('installments.due_on', '<', $day->toDateString())->sum('installments.amount') : 0,
+            'overdue_count' => $payments ? $schedules()->whereNull('installments.paid_at')->where('installments.due_on', '<', $day->toDateString())->count() : 0,
+            'due_tomorrow' => $payments ? (int) $schedules()->whereNull('installments.paid_at')->where('installments.due_on', '>=', $day->copy()->addDay()->toDateString())->where('installments.due_on', '<', $day->copy()->addDays(2)->toDateString())->sum('installments.amount') : 0,
+            'renewals' => $org->hasModule('abonnements') ? Subscription::whereIn('store_id', $this->storeIds)->where('status', 'active')
+                ->where('ends_on', '>=', $day->toDateString())->where('ends_on', '<', $day->copy()->addDays(31)->toDateString())->count() : null,
+            'classes' => $classes,
+            'sessions' => $sessions->map(fn (ClassSession $s) => [
+                'name' => $s->groupClass->name,
+                'time' => str_replace(':', 'h', $s->start_time),
+                'cancelled' => $s->isCancelled(),
+                'present' => (int) $s->present,
+                'absent' => (int) $s->absent,
+            ])->all(),
+        ];
+    }
+
     private function actions(array $r): array
     {
         $actions = [];
+
+        if (($r['modules']['overdue_count'] ?? 0) > 0) {
+            $actions[] = "**Relancer les {$r['modules']['overdue_count']} tranche(s) en retard** (".self::money($r['modules']['overdue_amount']).') depuis À faire › « Échéances à rappeler ».';
+        }
+
+        if (($r['modules']['renewals'] ?? 0) > 0) {
+            $actions[] = "**Proposer le renouvellement** des {$r['modules']['renewals']} abonnement(s) qui finissent dans 30 jours.";
+        }
 
         if ($r['tomorrow']['to_confirm'] > 0) {
             $n = $r['tomorrow']['to_confirm'];
