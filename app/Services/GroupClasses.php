@@ -5,7 +5,9 @@ namespace App\Services;
 use App\Models\Attendance;
 use App\Models\ClassEnrollment;
 use App\Models\ClassSession;
+use App\Models\Contact;
 use App\Models\Customer;
+use App\Models\Group;
 use App\Models\GroupClass;
 use App\Models\Subscription;
 use App\Models\User;
@@ -99,7 +101,7 @@ class GroupClasses
         }
 
         $enrolled = $session->groupClass->enrollments()->with('subscription.plan')->get()->keyBy('customer_id');
-        $points = (int) ($session->groupClass->store->organization?->moduleSettings('fidelite')['points_per_attendance'] ?? 0);
+        $points = (int) $session->groupClass->organization->moduleSettings('fidelite')['points_per_attendance'];
         $count = 0;
 
         DB::transaction(function () use ($session, $marks, $user, $enrolled, $points, &$count) {
@@ -119,12 +121,91 @@ class GroupClasses
                 }
 
                 if ($points > 0 && ! $wasPresent && $status === 'present') {
-                    Loyalty::for($session->groupClass->store->organization)->attendance(Customer::find($customerId), $points, $session, $user);
+                    Loyalty::for($session->groupClass->organization)->attendance(Customer::find($customerId), $points, $session, $user);
                 }
             }
         });
 
         return $count;
+    }
+
+    /**
+     * Annule une séance (motif obligatoire). Les inscrits sont à prévenir :
+     * liste « Cours annulés » des Actions du jour (lien wa.me) et, si l'API
+     * WhatsApp est active, un groupe prêt pour une campagne.
+     */
+    public function cancel(ClassSession $session, string $reason, ?string $note, User $user): ?Group
+    {
+        if ($session->isCancelled()) {
+            throw ValidationException::withMessages(['reason' => 'Cette séance est déjà annulée.']);
+        }
+
+        $session->update(['status' => ClassSession::STATUS_CANCELLED, 'cancel_reason' => $reason, 'cancel_note' => $note, 'cancelled_at' => now()]);
+        Audit::record('class_session.cancelled', $session, "Séance annulée : {$session->groupClass->name}, {$session->label()} (".(ClassSession::CANCEL_REASONS[$reason] ?? $reason).')', [], $user);
+
+        return $user->organization->usesWhatsAppApi()
+            ? $this->groupFor($session, 'Annulation '.$session->groupClass->name.' '.$session->session_date)
+            : null;
+    }
+
+    /**
+     * Séances annulées pour intempérie pas encore rattrapées : à partir du
+     * seuil choisi (Paramètres › Modules), un rattrapage est proposé.
+     */
+    public function uncoveredCancellations(GroupClass $class): int
+    {
+        $cancelled = $class->sessions()->where('status', ClassSession::STATUS_CANCELLED)->where('cancel_reason', 'weather')->count();
+        $makeups = $class->sessions()->whereNotNull('makeup_of_id')->count();
+
+        return max(0, $cancelled - $makeups * (int) $class->organization->moduleSettings('seances_groupe')['makeup_after']);
+    }
+
+    /** Prochain jour de rattrapage (Paramètres › Modules), après aujourd'hui. */
+    public function nextMakeupDate(GroupClass $class): Carbon
+    {
+        $weekday = (int) $class->organization->moduleSettings('seances_groupe')['makeup_weekday'];
+        $day = today()->addDay();
+
+        return $day->addDays(($weekday - $day->dayOfWeekIso + 7) % 7);
+    }
+
+    /** Crée la séance de rattrapage et la rattache à la dernière séance annulée. */
+    public function scheduleMakeup(GroupClass $class, ?Carbon $date, User $user): ClassSession
+    {
+        $cancelled = $class->sessions()->where('status', ClassSession::STATUS_CANCELLED)->whereDoesntHave('makeups')->orderByDesc('session_date')->first()
+            ?? throw ValidationException::withMessages(['date' => 'Aucune séance annulée à rattraper.']);
+        $date ??= $this->nextMakeupDate($class);
+
+        if ($class->sessions()->where('session_date', $date->toDateString())->where('start_time', $class->start_time)->exists()) {
+            throw ValidationException::withMessages(['date' => 'Ce cours a déjà une séance ce jour-là à cette heure.']);
+        }
+
+        $makeup = ClassSession::create([
+            'group_class_id' => $class->id,
+            'organization_id' => $class->organization_id,
+            'session_date' => $date->toDateString(),
+            'start_time' => $class->start_time,
+            'end_time' => $class->end_time,
+            'status' => ClassSession::STATUS_SCHEDULED,
+            'makeup_of_id' => $cancelled->id,
+        ]);
+        Audit::record('class_session.makeup', $makeup, "Rattrapage : {$class->name}, {$makeup->label()}", [], $user);
+
+        if ($user->organization->usesWhatsAppApi()) {
+            $this->groupFor($makeup, 'Rattrapage '.$class->name.' '.$makeup->session_date);
+        }
+
+        return $makeup;
+    }
+
+    /** Groupe des personnes à prévenir (les responsables pour les personnes suivies), pour une campagne. */
+    private function groupFor(ClassSession $session, string $name): Group
+    {
+        $recipients = $this->participants($session)->map(fn (Customer $c) => $c->recipient()->id)->unique();
+        $group = Group::firstOrCreate(['organization_id' => $session->organization_id, 'name' => $name]);
+        $group->contacts()->syncWithoutDetaching(Contact::whereIn('customer_id', $recipients)->where('store_id', $session->groupClass->store_id)->pluck('id')->all());
+
+        return $group;
     }
 
     /** Personnes inscrites à la date de la séance. @return Collection<int, Customer> */

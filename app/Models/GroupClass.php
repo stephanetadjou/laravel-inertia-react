@@ -38,6 +38,11 @@ class GroupClass extends Model
         ];
     }
 
+    public function organization(): BelongsTo
+    {
+        return $this->belongsTo(Organization::class);
+    }
+
     public function store(): BelongsTo
     {
         return $this->belongsTo(Store::class);

@@ -89,6 +89,10 @@ class ClassController extends Controller
                 ];
             }),
             'sessions' => $sessions->map(fn (ClassSession $s) => self::presentSession($s->setRelation('groupClass', $class))),
+            // Rattrapage proposé après N séances annulées pour intempérie (Paramètres › Modules).
+            'makeup' => ($uncovered = $service->uncoveredCancellations($class)) >= (int) $user->organization->moduleSettings('seances_groupe')['makeup_after']
+                ? ['cancelled' => $uncovered, 'date' => $service->nextMakeupDate($class)->toDateString()]
+                : null,
             ...$this->formOptions($user),
         ]);
     }
@@ -168,6 +172,33 @@ class ClassController extends Controller
         $count = $service->mark($session, $data['marks'], $request->user());
 
         return back()->with('success', "Appel enregistré ({$count} personne(s)).");
+    }
+
+    public function cancel(Request $request, ClassSession $session, GroupClasses $service): RedirectResponse
+    {
+        $this->authorizeClass($request->user(), $session->groupClass);
+        $data = $request->validate([
+            'reason' => ['required', Rule::in(array_keys(ClassSession::CANCEL_REASONS))],
+            'note' => ['nullable', 'string', 'max:255'],
+        ]);
+
+        $group = $service->cancel($session, $data['reason'], $data['note'] ?? null, $request->user());
+        $message = 'Séance annulée. Prévenez les inscrits depuis « À faire » › Cours annulés'.($group ? ", ou par campagne avec le groupe « {$group->name} »." : '.');
+
+        if ($data['reason'] === 'weather' && $service->uncoveredCancellations($session->groupClass) >= (int) $request->user()->organization->moduleSettings('seances_groupe')['makeup_after']) {
+            $message .= ' Un rattrapage est proposé sur la page du cours.';
+        }
+
+        return back()->with('success', $message);
+    }
+
+    public function makeup(Request $request, GroupClass $class, GroupClasses $service): RedirectResponse
+    {
+        $this->authorizeClass($request->user(), $class);
+        $data = $request->validate(['date' => ['nullable', 'date', 'after:today']]);
+        $makeup = $service->scheduleMakeup($class, isset($data['date']) ? Carbon::parse($data['date']) : null, $request->user());
+
+        return back()->with('success', "Rattrapage programmé {$makeup->label()} : annoncez-le depuis « À faire » › Rattrapages à annoncer.");
     }
 
     /** @return array<string, mixed> */

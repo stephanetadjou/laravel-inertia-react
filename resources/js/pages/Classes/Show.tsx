@@ -25,12 +25,14 @@ interface PageProps extends ClassFormOptions {
     groupClass: ClassRow;
     enrollments: EnrollmentRow[];
     sessions: SessionRow[];
+    makeup: { cancelled: number; date: string } | null;
     [key: string]: unknown;
 }
 
 function ClassShow() {
     const props = usePage<PageProps>().props;
-    const { groupClass: c, enrollments, sessions } = props;
+    const { groupClass: c, enrollments, sessions, makeup } = props;
+    const [makeupDate, setMakeupDate] = useState(makeup?.date ?? '');
     const [editing, setEditing] = useState(false);
     const [adding, setAdding] = useState(false);
     const [picked, setPicked] = useState<PickedCustomer | null>(null);
@@ -53,6 +55,18 @@ function ClassShow() {
                 </>
             }
         >
+            {makeup && (
+                <div className="mdash-flash ok flex flex-wrap items-center gap-2">
+                    <span>
+                        {makeup.cancelled} séances annulées pour intempérie : proposez un rattrapage, annoncé ensuite aux mêmes personnes.
+                    </span>
+                    <input type="date" className="rounded-md border border-gray-300 px-2 py-1 text-sm dark:border-gray-700 dark:bg-gray-900" value={makeupDate} onChange={(e) => setMakeupDate(e.target.value)} />
+                    <button type="button" className="mdash-btn brand sm" onClick={() => router.post(`/classes/${c.id}/makeup`, { date: makeupDate }, { preserveScroll: true })}>
+                        Programmer le rattrapage
+                    </button>
+                </div>
+            )}
+
             <div className="mdash-grid">
                 <Panel
                     title={`Inscrits (${enrollments.length} / ${c.capacity})`}

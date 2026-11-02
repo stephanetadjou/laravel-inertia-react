@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Models\Appointment;
 use App\Models\Brand;
+use App\Models\ClassSession;
 use App\Models\Contact;
 use App\Models\Customer;
 use App\Models\CustomerFollowUp;
@@ -76,6 +77,18 @@ class ActionLists
             'cooldown_days' => 60,
             'multibrand' => true,
         ],
+        'class_cancelled' => [
+            'label' => 'Cours annulés à annoncer',
+            'description' => 'Séances annulées ces 7 derniers jours (pluie, coach absent…) : prévenez chaque inscrit, ou son parent.',
+            'cooldown_days' => null,
+            'modules' => ['seances_groupe'],
+        ],
+        'class_makeup' => [
+            'label' => 'Rattrapages à annoncer',
+            'description' => 'Séances de rattrapage programmées : annoncez la date aux mêmes personnes.',
+            'cooldown_days' => null,
+            'modules' => ['seances_groupe'],
+        ],
         'installment_due' => [
             'label' => 'Échéances à rappeler',
             'description' => 'Tranches à payer bientôt ou en retard, aux dates de relance choisies dans Paramètres › Modules (ex. 2 jours avant, le jour même, 7 jours après).',
@@ -98,6 +111,8 @@ class ActionLists
         'birthday' => 'Joyeux anniversaire {prenom} ! Toute l\'équipe de {boutique} vous souhaite une excellente journée.',
         'group' => 'Bonjour {prenom}, toute l\'équipe de {boutique} a pensé à vous : passez nous voir cette semaine, une attention vous attend.',
         'cross_sell' => 'Bonjour {prenom}, merci pour votre fidélité chez {boutique}. Saviez-vous que {autre_marque} fait aussi partie de notre groupe ? Passez découvrir la boutique, vous y serez accueilli comme un client fidèle.',
+        'class_cancelled' => 'Bonjour {prenom}, le cours de {cours} du {date_cours} à {heure_cours} est annulé ({motif}). Nous vous tiendrons au courant du rattrapage. Merci de votre compréhension !',
+        'class_makeup' => 'Bonjour {prenom}, bonne nouvelle : le cours de {cours} annulé est rattrapé le {date_cours} à {heure_cours}. À bientôt !',
         'installment_due' => 'Bonjour {prenom}, petit rappel de {boutique} : l\'échéance de {montant} ({objet}) est à régler le {echeance}. Merci de votre confiance !',
     ];
 
@@ -169,6 +184,7 @@ class ActionLists
             'cross_sell' => $this->crossSell(),
             'group' => $this->groupList(),
             'installment_due' => $this->installmentsDue(),
+            'class_cancelled', 'class_makeup' => $this->sessionNotices($key),
             default => $this->customerList($key),
         };
     }
@@ -318,6 +334,51 @@ class ActionLists
             ->take(self::LIMIT)
             ->values()
             ->all();
+    }
+
+    /**
+     * Inscrits à prévenir d'une séance annulée ou d'un rattrapage : une ligne
+     * par personne inscrite (le message part à son responsable s'il y en a
+     * un), proposée une seule fois.
+     *
+     * @return list<array<string, mixed>>
+     */
+    private function sessionNotices(string $key): array
+    {
+        $sessions = ClassSession::whereHas('groupClass', fn ($q) => $q->whereIn('store_id', $this->storeIds))
+            ->with('groupClass')
+            ->when($key === 'class_cancelled', fn ($q) => $q->where('status', ClassSession::STATUS_CANCELLED)
+                ->where('cancelled_at', '>=', now()->subDays(7))
+                ->where('session_date', '>=', today()->subDay()->toDateString()))
+            ->when($key === 'class_makeup', fn ($q) => $q->whereNotNull('makeup_of_id')
+                ->where('status', ClassSession::STATUS_SCHEDULED)
+                ->where('session_date', '>=', today()->toDateString()))
+            ->orderBy('session_date')
+            ->get();
+
+        $done = CustomerFollowUp::where('action', $key)->where('reference', 'like', 'session:%')->pluck('reference')->flip();
+        $service = app(GroupClasses::class);
+        $rows = [];
+
+        foreach ($sessions as $session) {
+            $this->vars = [
+                '{cours}' => $session->groupClass->name,
+                '{date_cours}' => self::date($session->date()),
+                '{heure_cours}' => str_replace(':', 'h', $session->start_time),
+                '{motif}' => mb_strtolower(ClassSession::CANCEL_REASONS[$session->cancel_reason] ?? 'imprévu'),
+            ];
+            $reason = ($key === 'class_cancelled' ? 'Annulé' : 'Rattrapage').' · '.$session->groupClass->name.', '.$session->label();
+
+            foreach ($service->participants($session) as $customer) {
+                $reference = "session:{$session->id}:{$customer->id}";
+                if (! isset($done[$reference]) && count($rows) < self::LIMIT) {
+                    $rows[] = $this->row($key, $customer, $reason, null, [$session->groupClass->store_id], $reference);
+                }
+            }
+        }
+        $this->vars = [];
+
+        return array_values(array_filter($rows));
     }
 
     /** Variables propres à une ligne ({montant}, {echeance}…), le temps de construire son message. @var array<string, string> */

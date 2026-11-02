@@ -91,6 +91,8 @@ Route::middleware('auth')->group(function () {
         Route::delete('/classes/{class}/enrollments/{enrollment}', [ClassController::class, 'unenroll'])->name('classes.unenroll');
         Route::get('/class-sessions/{session}', [ClassController::class, 'session'])->name('class-sessions.show');
         Route::post('/class-sessions/{session}/attendance', [ClassController::class, 'attendance'])->name('class-sessions.attendance');
+        Route::post('/class-sessions/{session}/cancel', [ClassController::class, 'cancel'])->name('class-sessions.cancel');
+        Route::post('/classes/{class}/makeup', [ClassController::class, 'makeup'])->name('classes.makeup');
     });
 
     Route::middleware('module:rdv')->group(function () {
