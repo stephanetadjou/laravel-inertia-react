@@ -10,6 +10,7 @@ import { VIP_PILL, stageInfo } from '../../components/dashboard/stages';
 import './dashboard.css';
 import { customerUrl } from '../../components/common/customerUrl';
 import { NotificationPanel } from '../../components/notifications/Notifications';
+import OnboardingChecklist, { OnboardingData } from '../../components/common/OnboardingChecklist';
 
 /** Couleur de chaque étape du parcours, selon sa pastille (cf. stages.ts). */
 const STAGE_COLORS: Record<string, string> = {
@@ -96,6 +97,7 @@ interface CampaignRow {
 }
 
 interface PageProps {
+    onboarding?: OnboardingData | null;
     filters: Filters;
     kpis: Kpis;
     messagesSeries: (Bucket & { sent: number; failed: number })[];
@@ -179,6 +181,7 @@ function DashboardIndex() {
         welcomeTemplates,
         flash,
         auth,
+        onboarding,
     } = usePage<PageProps>().props;
     // Sans l'API WhatsApp : pas de messages, campagnes ni bienvenue à suivre ici.
     const apiEnabled = auth?.organization?.whatsapp_api_enabled ?? true;
@@ -350,6 +353,8 @@ function DashboardIndex() {
 
             {flash?.success && <div className="mdash-flash ok">{flash.success}</div>}
             {flash?.error && <div className="mdash-flash bad">{flash.error}</div>}
+
+            {onboarding && <OnboardingChecklist data={onboarding} />}
 
             <NotificationPanel />
 

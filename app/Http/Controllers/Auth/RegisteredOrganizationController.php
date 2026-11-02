@@ -69,7 +69,7 @@ class RegisteredOrganizationController extends Controller
         // écriture et attend le verrou SQLite au lieu d'échouer (cf. uniqueSlug).
         $slug = Organization::uniqueSlug($validated['organization_name']);
 
-        $user = DB::transaction(function () use ($validated, $slug, $modules) {
+        $user = DB::transaction(function () use ($validated, $slug, $modules, $answers) {
             $organization = Organization::create([
                 'name' => $validated['organization_name'],
                 'slug' => $slug,
@@ -81,7 +81,7 @@ class RegisteredOrganizationController extends Controller
                 'status' => Organization::STATUS_TRIAL,
                 'trial_ends_at' => now()->addDays(Organization::TRIAL_DAYS),
             ]);
-            $organization->setModules($modules, $validated['settings'] ?? []);
+            $organization->setModules($modules, $validated['settings'] ?? [], reviewed: $answers !== []);
             $organization->save();
 
             Role::seedDefaultsFor($organization);

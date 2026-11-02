@@ -40,6 +40,7 @@ class Organization extends Model
         'suspended_at',
         'suspension_reason',
         'modules',
+        'onboarding_dismissed_at',
     ];
 
     /**
@@ -142,6 +143,7 @@ class Organization extends Model
             'loyalty_settings' => 'array',
             'rfm_settings' => 'array',
             'modules' => 'array',
+            'onboarding_dismissed_at' => 'datetime',
             'trial_ends_at' => 'datetime',
             'suspended_at' => 'datetime',
         ];
@@ -425,7 +427,7 @@ class Organization extends Model
      * @param  list<string>  $enabled
      * @param  array<string, array<string, mixed>>  $settings
      */
-    public function setModules(array $enabled, array $settings = []): void
+    public function setModules(array $enabled, array $settings = [], bool $reviewed = false): void
     {
         $current = $this->modules['settings'] ?? [];
 
@@ -449,6 +451,8 @@ class Organization extends Model
         $this->modules = [
             'enabled' => array_values(array_intersect(array_keys(self::MODULES), array_diff($enabled, ['campagnes']))),
             'settings' => $current,
+            // Modules choisis par l'entreprise (inscription ou Paramètres › Modules) : étape « Pour bien démarrer » faite.
+            'reviewed' => $reviewed || ! empty($this->modules['reviewed']),
         ];
     }
 

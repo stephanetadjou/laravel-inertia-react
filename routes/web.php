@@ -23,6 +23,7 @@ use App\Http\Controllers\CustomerIdentityController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\GroupController;
 use App\Http\Controllers\ImportController;
+use App\Http\Controllers\ImportTemplateController;
 use App\Http\Controllers\InstallmentController;
 use App\Http\Controllers\LoyaltyController;
 use App\Http\Controllers\ManualSaleController;
@@ -37,6 +38,7 @@ use App\Http\Controllers\ReportController;
 use App\Http\Controllers\RoleController;
 use App\Http\Controllers\SalesImportController;
 use App\Http\Controllers\ScheduleSettingsController;
+use App\Http\Controllers\SelfServiceController;
 use App\Http\Controllers\StoreController;
 use App\Http\Controllers\UserController;
 use App\Http\Controllers\WhatsAppSettingsController;
@@ -286,6 +288,11 @@ Route::middleware('auth')->group(function () {
     Route::post('/sales-imports/{batch}/confirm', [SalesImportController::class, 'confirm'])->name('sales-imports.confirm');
     Route::post('/sales-imports/{batch}/cancel', [SalesImportController::class, 'cancel'])->name('sales-imports.cancel');
     Route::get('/sales-imports/{batch}/errors', [SalesImportController::class, 'errors'])->name('sales-imports.errors');
+
+    // Libre-service : modèles Excel des imports, liste « Pour bien démarrer », import des personnes suivies.
+    Route::get('/modeles/{kind}', [ImportTemplateController::class, 'show'])->name('import-templates.show');
+    Route::post('/onboarding/dismiss', [SelfServiceController::class, 'dismissOnboarding'])->name('onboarding.dismiss');
+    Route::post('/imports/beneficiaries', [SelfServiceController::class, 'importBeneficiaries'])->middleware(['module:beneficiaires', 'throttle:20,1'])->name('imports.beneficiaries');
 
     Route::get('/imports', [ImportController::class, 'index'])->name('imports.index');
     Route::post('/imports/preview', [ImportController::class, 'preview'])->name('imports.preview');

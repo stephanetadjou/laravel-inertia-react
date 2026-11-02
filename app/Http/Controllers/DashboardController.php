@@ -15,6 +15,7 @@ use App\Models\MessageTemplate;
 use App\Models\Purchase;
 use App\Models\PurchaseItem;
 use App\Models\Store;
+use App\Services\Onboarding;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
@@ -94,6 +95,8 @@ class DashboardController extends Controller
             ->count();
 
         return Inertia::render('Dashboard/Index', [
+            // « Pour bien démarrer » : étapes selon les modules, cochées toutes seules.
+            'onboarding' => $request->user()->canManageOrganization() ? (new Onboarding($request->user()->organization))->forDashboard() : null,
             'filters' => [
                 'from' => $from->format('Y-m-d'),
                 'to' => $to->format('Y-m-d'),

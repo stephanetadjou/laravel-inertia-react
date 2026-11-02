@@ -39,6 +39,7 @@ interface PageProps {
     stores: StoreOption[];
     preview: ImportPreview | null;
     fields: FieldOption[];
+    auth?: { organization?: { modules?: string[]; beneficiaries_label?: string } | null };
     [key: string]: unknown;
 }
 
@@ -51,8 +52,51 @@ const COLUMNS: [string, string][] = [
     ['categorie, montant, date_achat', 'facultatifs : enregistrent un achat'],
 ];
 
+/** Import des personnes suivies (module « beneficiaires ») : responsable + enfant / élève, et cours. */
+function BeneficiaryImportPanel({ stores, label }: { stores: { id: number; name: string }[]; label: string }) {
+    const { data, setData, post, processing, errors } = useForm<{ store_id: string; file: File | null }>({ store_id: stores[0] ? String(stores[0].id) : '', file: null });
+
+    return (
+        <Panel title={`Importer des ${label.toLowerCase()} avec leur responsable`} sub="Une ligne par personne suivie : le parent (ou tuteur) reçoit les messages" className="c12">
+            <form
+                onSubmit={(e) => {
+                    e.preventDefault();
+                    post('/imports/beneficiaries', { forceFormData: true, preserveScroll: true });
+                }}
+                className="flex flex-wrap items-end gap-3 text-sm"
+            >
+                {stores.length > 1 && (
+                    <label>
+                        <span className="mb-1 block font-medium">Établissement</span>
+                        <select className="rounded-lg border border-gray-300 px-3 py-2 dark:border-gray-700 dark:bg-gray-900" value={data.store_id} onChange={(e) => setData('store_id', e.target.value)}>
+                            {stores.map((s) => (
+                                <option key={s.id} value={s.id}>
+                                    {s.name}
+                                </option>
+                            ))}
+                        </select>
+                    </label>
+                )}
+                <label>
+                    <span className="mb-1 block font-medium">Fichier Excel ou CSV</span>
+                    <input type="file" accept=".csv,.txt,.xlsx,.xls" onChange={(e) => setData('file', e.target.files?.[0] ?? null)} />
+                    {errors.file && <span className="block text-xs text-error-500">{errors.file}</span>}
+                </label>
+                <a href="/modeles/adherents" className="mdash-btn ghost">
+                    Télécharger le modèle
+                </a>
+                <button type="submit" className="mdash-btn brand" disabled={processing || !data.file}>
+                    {processing ? 'Import…' : 'Importer'}
+                </button>
+            </form>
+            <p className="mdash-scope">Colonnes : Responsable, Téléphone du responsable, Personne suivie, Date de naissance, Lien, Cours (nom d’un cours déjà créé : inscription directe).</p>
+        </Panel>
+    );
+}
+
 function ImportsIndex() {
-    const { stores, preview, fields } = usePage<PageProps>().props;
+    const { stores, preview, fields, auth } = usePage<PageProps>().props;
+    const modules = auth?.organization?.modules ?? [];
 
     const { data, setData, post, processing, errors, reset } = useForm<{
         store_id: string;
@@ -102,6 +146,9 @@ function ImportsIndex() {
             subtitle="Fichier CSV ou Excel par boutique : aperçu sans risque, puis confirmation"
             actions={
                 <>
+                    <a href="/modeles/clients" className="mdash-btn ghost" title="Modèle Excel avec les bonnes colonnes et une aide">
+                        Télécharger le modèle Excel
+                    </a>
                     <Link href="/customers" className="mdash-btn ghost">
                         Fiches clients
                     </Link>
@@ -159,6 +206,7 @@ function ImportsIndex() {
                             nouveaux contacts restent au consentement inconnu et ne reçoivent aucune campagne marketing.
                         </p>
                     </Panel>
+                    {modules.includes('beneficiaires') && <BeneficiaryImportPanel stores={stores} label={auth?.organization?.beneficiaries_label ?? 'Adhérents'} />}
                 </div>
             ) : (
                 <>

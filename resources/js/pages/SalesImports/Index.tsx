@@ -46,7 +46,15 @@ function SalesImportsIndex() {
     };
 
     return (
-        <Page title="Imports de ventes" subtitle="Déposez l’export de votre caisse ou de votre ERP : Menentia range chaque vente sur la bonne fiche client">
+        <Page
+            title="Imports de ventes"
+            subtitle="Déposez l’export de votre caisse ou de votre ERP : Menentia range chaque vente sur la bonne fiche client"
+            actions={
+                <a href="/modeles/ventes" className="mdash-btn ghost" title="Modèle Excel avec les bonnes colonnes et une aide">
+                    Télécharger le modèle Excel
+                </a>
+            }
+        >
             <div className="mdash-grid">
                 <Panel title="Nouvel import" sub="CSV ou Excel, une ligne par article vendu (ou par ticket)" className="c5">
                     <form onSubmit={submit} className="mpage-form">

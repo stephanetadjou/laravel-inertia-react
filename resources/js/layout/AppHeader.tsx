@@ -12,6 +12,7 @@ interface SharedAuthProps {
         user: { name: string; email: string; role_name: string | null; can_manage_organization: boolean; can_import?: boolean } | null;
         organization: { name: string; whatsapp_api_enabled?: boolean; sells_products?: boolean; modules?: string[] } | null;
     };
+    support?: string | null;
     [key: string]: unknown;
 }
 
@@ -103,6 +104,16 @@ const AppHeader: React.FC = () => {
                                     >
                                         {theme === 'dark' ? 'Thème clair' : 'Thème sombre'}
                                     </button>
+                                    {props.support && (
+                                        <a
+                                            href={props.support}
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            className="block w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-50 dark:text-gray-300 dark:hover:bg-white/5"
+                                        >
+                                            Besoin d’aide ?
+                                        </a>
+                                    )}
                                     <button
                                         onClick={() => router.post('/logout')}
                                         className="block w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-50 dark:text-gray-300 dark:hover:bg-white/5"

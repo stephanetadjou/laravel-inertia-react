@@ -71,6 +71,10 @@ class HandleInertiaRequests extends Middleware
                     'beneficiaries_label' => $user->organization->beneficiaryLabel(true),
                 ] : null,
             ],
+            // « Besoin d'aide ? » : support WhatsApp de Menentia, sinon email.
+            'support' => fn () => $user ? (filled(config('services.menentia.support_whatsapp'))
+                ? 'https://wa.me/'.preg_replace('/\D+/', '', (string) config('services.menentia.support_whatsapp')).'?text='.rawurlencode("Bonjour Menentia, j'ai une question sur mon compte {$user->organization?->name} : ")
+                : 'mailto:'.config('services.menentia.support_email')) : null,
             // Tarifs indicatifs par message, pour le coût estimé avant envoi d'une campagne.
             'whatsappPricing' => fn () => $user ? config('services.meta_whatsapp.pricing') : null,
             // Cloche « À traiter » (cf. NotificationService), calculée seulement si la page la demande.

@@ -41,6 +41,8 @@ return [
         'leads_email' => env('MENENTIA_LEADS_EMAIL'),
         // Affiché aux entreprises suspendues.
         'support_email' => env('MENENTIA_SUPPORT_EMAIL', 'contact@menentia.com'),
+        // Lien « Besoin d'aide ? » (numéro WhatsApp du support, format international sans +) ; à défaut, l'email.
+        'support_whatsapp' => env('MENENTIA_SUPPORT_WHATSAPP'),
     ],
 
     'meta_whatsapp' => [

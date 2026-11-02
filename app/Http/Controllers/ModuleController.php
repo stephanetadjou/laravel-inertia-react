@@ -44,7 +44,7 @@ class ModuleController extends Controller
         ]);
 
         $organization = $request->user()->organization;
-        $organization->setModules($data['enabled'], $data['settings'] ?? []);
+        $organization->setModules($data['enabled'], $data['settings'] ?? [], reviewed: true);
         $organization->whatsapp_api_enabled = in_array('campagnes', $data['enabled'], true);
         $organization->save();
 
