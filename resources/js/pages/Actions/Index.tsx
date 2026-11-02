@@ -18,6 +18,8 @@ interface Row {
     key: string;
     customer_id: number;
     appointment_id: number | null;
+    /** Événement précis relancé (tranche, séance…), pour ne le proposer qu'une fois. */
+    reference?: string | null;
     store_id: number;
     name: string;
     /** Personne suivie : responsable à qui le message est envoyé. */
@@ -115,7 +117,7 @@ function ActionsIndex() {
         setDone((prev) => new Set(prev).add(row.key));
         router.post(
             '/actions/done',
-            { action: active, customer_id: row.customer_id, appointment_id: row.appointment_id, store_id: row.store_id, channel, message: message ?? null },
+            { action: active, customer_id: row.customer_id, appointment_id: row.appointment_id, reference: row.reference ?? null, store_id: row.store_id, channel, message: message ?? null },
             { preserveScroll: true, preserveState: true, only: ['flash', 'lists'] },
         );
     }

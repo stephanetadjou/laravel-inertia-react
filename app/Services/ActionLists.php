@@ -8,6 +8,7 @@ use App\Models\Contact;
 use App\Models\Customer;
 use App\Models\CustomerFollowUp;
 use App\Models\Group;
+use App\Models\Installment;
 use App\Models\Store;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Builder;
@@ -75,6 +76,12 @@ class ActionLists
             'cooldown_days' => 60,
             'multibrand' => true,
         ],
+        'installment_due' => [
+            'label' => 'Échéances à rappeler',
+            'description' => 'Tranches à payer bientôt ou en retard, aux dates de relance choisies dans Paramètres › Modules (ex. 2 jours avant, le jour même, 7 jours après).',
+            'cooldown_days' => null,
+            'modules' => ['tranches', 'abonnements'],
+        ],
     ];
 
     /**
@@ -91,6 +98,7 @@ class ActionLists
         'birthday' => 'Joyeux anniversaire {prenom} ! Toute l\'équipe de {boutique} vous souhaite une excellente journée.',
         'group' => 'Bonjour {prenom}, toute l\'équipe de {boutique} a pensé à vous : passez nous voir cette semaine, une attention vous attend.',
         'cross_sell' => 'Bonjour {prenom}, merci pour votre fidélité chez {boutique}. Saviez-vous que {autre_marque} fait aussi partie de notre groupe ? Passez découvrir la boutique, vous y serez accueilli comme un client fidèle.',
+        'installment_due' => 'Bonjour {prenom}, petit rappel de {boutique} : l\'échéance de {montant} ({objet}) est à régler le {echeance}. Merci de votre confiance !',
     ];
 
     /** Segments considérés comme « fidèles » pour la vente croisée. */
@@ -160,6 +168,7 @@ class ActionLists
             'birthday' => $this->birthdays(),
             'cross_sell' => $this->crossSell(),
             'group' => $this->groupList(),
+            'installment_due' => $this->installmentsDue(),
             default => $this->customerList($key),
         };
     }
@@ -249,6 +258,70 @@ class ActionLists
             return $row;
         })->filter()->values()->all();
     }
+
+    /**
+     * Tranches non payées arrivées à une date de relance (jours par rapport à
+     * l'échéance, ex. -2, 0, 7) : chaque relance n'est proposée qu'une fois
+     * (customer_follow_ups.reference). Le message part au payeur.
+     *
+     * @return list<array<string, mixed>>
+     */
+    private function installmentsDue(): array
+    {
+        $offsets = collect($this->user->organization->moduleSettings('tranches')['reminders'])->map(fn ($o) => (int) $o)->sort()->values();
+
+        if ($offsets->isEmpty()) {
+            return [];
+        }
+
+        $today = today();
+        $installments = Installment::unpaid()
+            ->whereHas('schedule', fn ($s) => $s->whereIn('store_id', $this->storeIds))
+            // Dates enregistrées avec l'heure (00:00:00) : borne haute exclue au lendemain.
+            ->where('due_on', '>=', $today->copy()->subDays(max(60, $offsets->last()))->toDateString())
+            ->where('due_on', '<', $today->copy()->subDays($offsets->first() - 1)->toDateString())
+            ->with(['schedule.customer', 'schedule.beneficiary', 'schedule.store:id,name'])
+            ->orderBy('due_on')
+            ->get();
+
+        $done = CustomerFollowUp::where('action', 'installment_due')
+            ->whereIn('reference', $installments->flatMap(fn ($i) => $offsets->map(fn ($o) => "installment:{$i->id}:{$o}")))
+            ->pluck('reference')->flip();
+
+        return $installments
+            ->map(function (Installment $i) use ($offsets, $today, $done) {
+                $late = (int) $i->due_on->diffInDays($today, false);
+                $offset = $offsets->filter(fn ($o) => $o <= $late)->last();
+                $reference = "installment:{$i->id}:{$offset}";
+
+                if ($offset === null || isset($done[$reference]) || $i->schedule->customer === null) {
+                    return null;
+                }
+
+                $this->vars = [
+                    '{montant}' => number_format((int) $i->amount, 0, ',', ' ').' FCFA',
+                    '{echeance}' => self::date($i->due_on),
+                    '{objet}' => $i->label ?? $i->schedule->label,
+                ];
+                $for = $i->schedule->beneficiary ? " pour {$i->schedule->beneficiary->name}" : '';
+                $reason = match (true) {
+                    $late < 0 => 'Échéance dans '.abs($late).' jour(s)',
+                    $late === 0 => "Échéance aujourd'hui",
+                    default => "En retard de {$late} jour(s)",
+                }.' · '.number_format((int) $i->amount, 0, ',', ' ').' FCFA · '.($i->label ?? $i->schedule->label).$for;
+                $row = $this->row('installment_due', $i->schedule->customer, $reason, null, [$i->schedule->store_id], $reference);
+                $this->vars = [];
+
+                return $row;
+            })
+            ->filter()
+            ->take(self::LIMIT)
+            ->values()
+            ->all();
+    }
+
+    /** Variables propres à une ligne ({montant}, {echeance}…), le temps de construire son message. @var array<string, string> */
+    private array $vars = [];
 
     /** Clients d'un groupe de l'organisation (liste « Groupe de clients »). @return list<array<string, mixed>> */
     private function groupList(): array
@@ -388,7 +461,7 @@ class ActionLists
     /**
      * @param  array<int, int>|null  $storeIds  points de vente où chercher le contact (vente croisée : ceux de la marque fidèle)
      */
-    private function row(string $key, ?Customer $customer, string $reason, ?Appointment $appointment = null, ?array $storeIds = null): ?array
+    private function row(string $key, ?Customer $customer, string $reason, ?Appointment $appointment = null, ?array $storeIds = null, ?string $reference = null): ?array
     {
         if ($customer === null) {
             return null;
@@ -407,9 +480,10 @@ class ActionLists
         $message = $this->message($key, $recipient, $storeName, $appointment, $recipient->isNot($customer) ? $customer : null);
 
         return [
-            'key' => $key.'-'.$customer->id.($appointment ? '-'.$appointment->id : ''),
+            'key' => $key.'-'.$customer->id.($appointment ? '-'.$appointment->id : '').($reference ? '-'.$reference : ''),
             'customer_id' => $customer->id,
             'appointment_id' => $appointment?->id,
+            'reference' => $reference,
             'store_id' => $appointment?->store_id ?? $contact->store_id,
             'name' => $customer->name,
             'recipient_name' => $recipient->isNot($customer) ? $recipient->name : null,
@@ -455,6 +529,7 @@ class ActionLists
             '{heure_rdv}' => $appointment ? $appointment->starts_at->format('H\hi') : '',
             '{prestation}' => $appointment?->service ?? '',
             '{autre_marque}' => $this->otherBrand,
+            ...$this->vars,
         ]);
 
         // « Bonjour , » quand le prénom est inconnu.

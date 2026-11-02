@@ -14,6 +14,7 @@ use App\Models\Group;
 use App\Models\LoyaltyReward;
 use App\Models\LoyaltyTransaction;
 use App\Models\MessageTemplate;
+use App\Models\PaymentSchedule;
 use App\Models\Purchase;
 use App\Models\StaffMember;
 use App\Models\Store;
@@ -279,6 +280,7 @@ class CustomerController extends Controller
             // Personne suivie : on écrit à son responsable.
             'whatsappUrl' => ($phone = $customer->recipient()->phone_e164) ? ActionLists::whatsappUrl($phone, '') : null,
             ...$this->beneficiaryProps($customer, $user, $storeIds),
+            ...$this->scheduleProps($customer, $user, $storeIds),
             'apiEnabled' => $user->organization->usesWhatsAppApi(),
             'appointments' => $customer->appointments()->whereIn('store_id', $storeIds)
                 ->with(AppointmentController::RELATIONS)
@@ -397,6 +399,43 @@ class CustomerController extends Controller
                 'last_purchase_at' => $b->last_purchase_at?->toDateString(),
             ]),
             'healthNote' => ['visible' => $visibleHealth, 'text' => $visibleHealth ? $customer->health_note : null, 'has_note' => filled($customer->health_note)],
+        ];
+    }
+
+    /**
+     * Échéanciers où la fiche paie ou est concernée (modules « tranches » et « abonnements »).
+     *
+     * @param  array<int, int>  $storeIds
+     * @return array<string, mixed>
+     */
+    private function scheduleProps(Customer $customer, User $user, array $storeIds): array
+    {
+        $organization = $user->organization;
+
+        if (! $organization->hasModule('tranches') && ! $organization->hasModule('abonnements')) {
+            return ['schedules' => null];
+        }
+
+        return [
+            'schedules' => PaymentSchedule::whereIn('store_id', $storeIds)
+                ->where(fn ($q) => $q->where('customer_id', $customer->id)->orWhere('beneficiary_id', $customer->id))
+                ->with(['installments', 'customer:id,name,phone_e164', 'beneficiary:id,name', 'store:id,name'])
+                ->latest('id')
+                ->get()
+                ->map(fn (PaymentSchedule $s) => [
+                    'id' => $s->id,
+                    'label' => $s->label,
+                    'status' => $s->status,
+                    'total' => (int) $s->total_amount,
+                    'paid' => (int) $s->installments->whereNotNull('paid_at')->sum('amount'),
+                    'payer' => $s->customer?->name,
+                    'beneficiary' => $s->beneficiary?->name,
+                    'installments' => $s->installments->map(function ($i) use ($s) {
+                        $i->setRelation('schedule', $s);
+
+                        return InstallmentController::present($i);
+                    }),
+                ]),
         ];
     }
 

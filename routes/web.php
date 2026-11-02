@@ -22,6 +22,7 @@ use App\Http\Controllers\CustomerIdentityController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\GroupController;
 use App\Http\Controllers\ImportController;
+use App\Http\Controllers\InstallmentController;
 use App\Http\Controllers\LoyaltyController;
 use App\Http\Controllers\ManualSaleController;
 use App\Http\Controllers\MessageTemplateController;
@@ -241,6 +242,15 @@ Route::middleware('auth')->group(function () {
     Route::get('/purchases/{purchase}', [PurchaseController::class, 'show'])->whereNumber('purchase')->name('purchases.show');
     Route::post('/purchases/{purchase}/cancel', [PurchaseController::class, 'cancel'])->whereNumber('purchase')->name('purchases.cancel');
     Route::post('/purchases/{purchase}/restore', [PurchaseController::class, 'restore'])->whereNumber('purchase')->name('purchases.restore');
+
+    // Échéanciers (modules « tranches » et « abonnements ») : tranches, encaissement, reçu.
+    Route::middleware('module:tranches,abonnements')->group(function () {
+        Route::get('/installments', [InstallmentController::class, 'index'])->name('installments.index');
+        Route::post('/payment-schedules', [InstallmentController::class, 'store'])->name('payment-schedules.store');
+        Route::post('/payment-schedules/{schedule}/cancel', [InstallmentController::class, 'cancel'])->name('payment-schedules.cancel');
+        Route::post('/installments/{installment}/pay', [InstallmentController::class, 'pay'])->name('installments.pay');
+        Route::get('/installments/{installment}/receipt', [InstallmentController::class, 'receipt'])->name('installments.receipt');
+    });
 
     // Import des ventes v2 (Menentia Retail) : dépôt, mapping, vérification, traitement en file, annulation.
     Route::get('/sales-imports', [SalesImportController::class, 'index'])->name('sales-imports.index');

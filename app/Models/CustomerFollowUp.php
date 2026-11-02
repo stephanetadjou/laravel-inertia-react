@@ -16,6 +16,7 @@ class CustomerFollowUp extends Model
         'store_id',
         'user_id',
         'appointment_id',
+        'reference',
         'action',
         'channel',
         'message',

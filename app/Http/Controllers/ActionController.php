@@ -44,7 +44,9 @@ class ActionController extends Controller
         // Commerce sans agenda : pas de listes de rendez-vous ; vente croisée : au moins deux marques.
         $available = collect(ActionLists::LISTS)
             ->reject(fn ($list) => ! empty($list['multibrand']) && ! $multibrand)
-            ->reject(fn ($list, $key) => in_array($key, ['appointment_reminder', 'no_show'], true) && ! $user->organization->hasAgenda());
+            ->reject(fn ($list, $key) => in_array($key, ['appointment_reminder', 'no_show'], true) && ! $user->organization->hasAgenda())
+            // Listes d'un module (échéances, cours…) : seulement si l'un de ses modules est actif.
+            ->reject(fn ($list) => isset($list['modules']) && ! collect($list['modules'])->contains(fn ($m) => $user->organization->hasModule($m)));
         $counts = collect($available->keys())->mapWithKeys(fn ($key) => [$key => count($lists->rows($key))])->all();
 
         $active = $available->has((string) $request->query('list'))
@@ -157,6 +159,7 @@ class ActionController extends Controller
             'action' => ['required', Rule::in(array_keys(ActionLists::LISTS))],
             'customer_id' => ['required', 'integer'],
             'appointment_id' => ['nullable', 'integer'],
+            'reference' => ['nullable', 'string', 'max:64'],
             'store_id' => ['nullable', 'integer'],
             'channel' => ['nullable', Rule::in(['whatsapp_manual', 'call', 'other'])],
             'message' => ['nullable', 'string', 'max:2000'],
@@ -177,6 +180,7 @@ class ActionController extends Controller
             'store_id' => in_array($data['store_id'] ?? null, $storeIds, true) ? $data['store_id'] : null,
             'user_id' => $user->id,
             'appointment_id' => $appointmentId,
+            'reference' => $data['reference'] ?? null,
             'action' => $data['action'],
             'channel' => $data['channel'] ?? 'whatsapp_manual',
             'message' => $data['message'] ?? null,

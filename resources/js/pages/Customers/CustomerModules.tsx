@@ -3,6 +3,20 @@ import { FormEventHandler, ReactNode, useState } from 'react';
 
 import { formatNumber } from '../../components/dashboard/Charts';
 import { stageInfo } from '../../components/dashboard/stages';
+import { formatDay } from '../../components/page/Page';
+import WhatsAppIcon from '../../components/common/WhatsAppIcon';
+import { InstallmentRow, PayButton, STATUS_PILL } from '../Installments/Index';
+
+export interface ScheduleRow {
+    id: number;
+    label: string;
+    status: 'active' | 'cancelled';
+    total: number;
+    paid: number;
+    payer: string | null;
+    beneficiary: string | null;
+    installments: InstallmentRow[];
+}
 
 /*
  * Onglets des modules sur la fiche client (à la manière d'Odoo) : la vue
@@ -34,6 +48,8 @@ export interface ModuleProps {
     responsible?: { id: number; name: string; phone_e164: string | null; relation: string | null } | null;
     beneficiaries?: BeneficiaryRow[];
     healthNote?: { visible: boolean; text: string | null; has_note: boolean };
+    schedules?: ScheduleRow[] | null;
+    paymentMethods: Record<string, string>;
     canEdit: boolean;
     [key: string]: unknown;
 }
@@ -59,7 +75,79 @@ export function useModuleTabs(): ModuleTab[] {
         });
     }
 
+    if (props.schedules) {
+        const late = props.schedules.flatMap((s) => s.installments).filter((i) => i.status === 'overdue').length;
+        tabs.push({ key: 'schedules', label: `Échéances${late ? ` · ${late} en retard` : ''}`, render: () => <SchedulesTab /> });
+    }
+
     return tabs;
+}
+
+function SchedulesTab() {
+    const { schedules = [], paymentMethods } = usePage<ModuleProps>().props;
+
+    if (!schedules || schedules.length === 0) {
+        return (
+            <section className="mdash-panel">
+                <p className="text-sm text-gray-500">
+                    Aucun échéancier. Pour un paiement en plusieurs fois, ouvrez{' '}
+                    <Link href="/installments" className="text-brand-text hover:underline">
+                        Ventes › Échéances
+                    </Link>{' '}
+                    puis « Payer en plusieurs fois ».
+                </p>
+            </section>
+        );
+    }
+
+    return (
+        <div className="mdash-grid">
+            {schedules.map((s) => (
+                <section key={s.id} className="mdash-panel c12">
+                    <div className="mdash-ph">
+                        <div>
+                            <h2>{s.label}</h2>
+                            <span className="mdash-sub">
+                                {formatNumber(s.paid)} F payés sur {formatNumber(s.total)} F{s.beneficiary ? ` · pour ${s.beneficiary}` : ''}
+                                {s.payer && s.beneficiary ? ` · payeur ${s.payer}` : ''}
+                                {s.status === 'cancelled' ? ' · annulé' : ''}
+                            </span>
+                        </div>
+                    </div>
+                    <div className="mdash-tbl">
+                        <table>
+                            <tbody>
+                                {s.installments.map((i) => (
+                                    <tr key={i.id}>
+                                        <td>Tranche {i.number}</td>
+                                        <td>{i.label !== s.label ? i.label : ''}</td>
+                                        <td>{formatDay(i.due_on)}</td>
+                                        <td className="num">{formatNumber(i.amount)} F</td>
+                                        <td>
+                                            <span className={`mdash-pill ${STATUS_PILL[i.status]}`}>{i.status_label}</span>
+                                        </td>
+                                        <td>
+                                            {s.status === 'active' && (
+                                                <span className="mpage-rowlinks">
+                                                    {i.whatsapp_url && (
+                                                        <a href={i.whatsapp_url} target="_blank" rel="noopener noreferrer">
+                                                            <WhatsAppIcon />
+                                                            Rappeler
+                                                        </a>
+                                                    )}
+                                                    <PayButton row={i} paymentMethods={paymentMethods} />
+                                                </span>
+                                            )}
+                                        </td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    </div>
+                </section>
+            ))}
+        </div>
+    );
 }
 
 /** Barre d'onglets de la fiche : « Vue d'ensemble » puis un onglet par module actif. */
