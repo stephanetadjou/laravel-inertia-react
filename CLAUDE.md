@@ -53,6 +53,7 @@ php artisan demo:pilot                    # recrée l'entreprise pilote fictive 
 php artisan demo:retail                   # groupe de mode fictif Menentia Retail (Adidas Glass, Grand Store Glass, Mango Centre-ville, Carré Centre-ville), via le moteur d'import
 php artisan demo:retail --type=restaurant # (ou --type=distribution) ; --fresh ne supprime que cette entreprise de démo ; --tickets=N
 php artisan demo:sport                    # club sportif fictif « Club Étoile Libreville » (cours, abonnements, échéances, enfants suivis)
+php artisan demo:menentia                 # entreprise fictive « Menentia Solutions digitales » (prospects, commerciaux, objectifs)
 ```
 
 **Développer sans compte Meta** : `WHATSAPP_DRIVER=log` dans `.env` active la simulation de `WhatsAppClient` (aucun appel externe, envois écrits dans les logs, numéros finissant par `000` = échec simulé). Ignoré en production ; les tests forcent `cloud` (`phpunit.xml`).
