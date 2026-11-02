@@ -423,6 +423,8 @@ class CustomerController extends Controller
                 'relations' => Customer::RELATIONS,
                 'stores' => Store::whereIn('id', $storeIds)->orderBy('name')->get(['id', 'name']),
                 'minor_needs_responsible' => (bool) $organization->moduleSettings('beneficiaires')['minor_needs_responsible'],
+                // Payé pour les personnes suivies (hors total dépensé du responsable).
+                'followed_spent' => (int) $customer->followed_spent,
             ],
             'responsible' => $customer->responsible ? [
                 'id' => $customer->responsible->id,

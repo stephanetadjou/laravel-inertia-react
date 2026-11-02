@@ -243,6 +243,9 @@ class CustomerLifecycle
             return;
         }
 
+        // Une vente d'une personne suivie compte aussi pour son responsable (payeur).
+        $customerIds = array_values(array_unique([...$customerIds, ...Customer::whereKey($customerIds)->whereNotNull('responsible_id')->pluck('responsible_id')->all()]));
+
         foreach (array_chunk($customerIds, 500) as $chunk) {
             $customers = Customer::with('organization')->whereKey($chunk)->get();
 
@@ -288,6 +291,18 @@ class CustomerLifecycle
             ->get()
             ->keyBy('customer_id');
 
+        // Ventes des personnes suivies, regroupées par responsable : elles comptent
+        // pour son étape (dates, visites), pas dans son total dépensé.
+        $followed = DB::table('purchases')
+            ->join('contacts', 'contacts.id', '=', 'purchases.contact_id')
+            ->join('customers as followed', 'followed.id', '=', 'contacts.customer_id')
+            ->whereIn('followed.responsible_id', $ids)
+            ->where('purchases.status', Purchase::STATUS_VALID)
+            ->groupBy('followed.responsible_id')
+            ->selectRaw('followed.responsible_id as customer_id, '.Purchase::SQL_FIRST_SALE.' as first_at, '.Purchase::SQL_LAST_SALE.' as last_at, '.Purchase::SQL_SALES_COUNT.' as purchases, sum(purchases.amount) as spent')
+            ->get()
+            ->keyBy('customer_id');
+
         $optedIn = DB::table('contacts')
             ->whereIn('customer_id', $ids)
             ->where('consent_status', 'opt_in')
@@ -301,12 +316,16 @@ class CustomerLifecycle
 
         foreach ($customers as $customer) {
             $row = $stats->get($customer->id);
+            $family = $followed->get($customer->id);
+            $firsts = array_filter([$row?->first_at, $family?->first_at]);
+            $lasts = array_filter([$row?->last_at, $family?->last_at]);
 
             $customer->fill([
-                'first_purchase_at' => $row?->first_at ? Carbon::parse($row->first_at)->toDateString() : null,
-                'last_purchase_at' => $row?->last_at ? Carbon::parse($row->last_at)->toDateString() : null,
-                'purchases_count' => (int) ($row->purchases ?? 0),
+                'first_purchase_at' => $firsts ? Carbon::parse(min($firsts))->toDateString() : null,
+                'last_purchase_at' => $lasts ? Carbon::parse(max($lasts))->toDateString() : null,
+                'purchases_count' => (int) ($row->purchases ?? 0) + (int) ($family->purchases ?? 0),
                 'total_spent' => (int) ($row->spent ?? 0),
+                'followed_spent' => (int) ($family->spent ?? 0),
             ]);
 
             $stage = $this->stageFor($customer, $optedIn->has($customer->id), $settings, $today);

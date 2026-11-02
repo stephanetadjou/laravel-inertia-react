@@ -10,6 +10,7 @@ use App\Models\Purchase;
 use App\Models\Store;
 use App\Models\User;
 use App\Services\ActionLists;
+use App\Services\CustomerScoring;
 use Inertia\Testing\AssertableInertia as Assert;
 
 beforeEach(function () {
@@ -116,4 +117,31 @@ it('shows the schedules on both fiches', function () {
 
     $this->actingAs($this->admin)->get("/customers/{$this->parent->id}")->assertInertia(fn (Assert $page) => $page->has('schedules', 1)->where('schedules.0.beneficiary', 'Léo Mba'));
     $this->actingAs($this->admin)->get("/customers/{$this->leo->id}")->assertInertia(fn (Assert $page) => $page->has('schedules.0.installments', 3));
+});
+
+it('counts what a parent pays for a child on the parent fiche, without counting the sale twice', function () {
+    $this->actingAs($this->admin)->post('/payment-schedules', [
+        'customer_id' => $this->leo->id, 'store_id' => $this->store->id, 'label' => 'Judo',
+        'total' => 30000, 'count' => 2, 'first_due_on' => '2026-11-02', 'pay_first_now' => true, 'payment_method' => 'cash',
+    ]);
+    CustomerScoring::class;
+    app(CustomerScoring::class)->refreshOrganization($this->organization);
+
+    $parent = $this->parent->fresh();
+    $leo = $this->leo->fresh();
+
+    // Le parent devient client (étape, segment, score) ; la vente reste celle de l'enfant.
+    expect($parent->purchases_count)->toBe(1)
+        ->and($parent->lifecycle_stage)->toBe('new')
+        ->and($parent->total_spent)->toBe(0)
+        ->and($parent->followed_spent)->toBe(15000)
+        ->and($parent->rfm_segment)->not->toBe('none')
+        ->and($parent->score)->not->toBeNull()
+        ->and($leo->total_spent)->toBe(15000)
+        ->and(Purchase::sum('amount'))->toBe(15000);
+
+    $this->actingAs($this->admin)->get("/customers/{$parent->id}")->assertInertia(fn (Assert $page) => $page
+        ->where('beneficiaryModule.followed_spent', 15000)
+        ->where('rfm.frequency', 1)
+        ->where('rfm.segment.key', fn ($key) => $key !== 'none'));
 });

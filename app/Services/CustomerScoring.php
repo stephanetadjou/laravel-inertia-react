@@ -40,16 +40,20 @@ class CustomerScoring
         $today = now()->startOfDay();
         $rules = $organization->rfmSettings();
 
+        // Chaque fiche lit ses ventes et, pour un responsable, celles des personnes
+        // qu'il suit (le parent qui paie les cours de ses enfants est un client).
+        $links = DB::table('customers')->where('organization_id', $organization->id)->selectRaw('id as customer_id, id as member_id')
+            ->unionAll(DB::table('customers')->where('organization_id', $organization->id)->whereNotNull('responsible_id')->selectRaw('responsible_id as customer_id, id as member_id'));
+
         $buyers = DB::table('purchases')
             ->join('contacts', 'contacts.id', '=', 'purchases.contact_id')
-            ->join('customers', 'customers.id', '=', 'contacts.customer_id')
-            ->where('customers.organization_id', $organization->id)
+            ->joinSub($links, 'links', 'links.member_id', '=', 'contacts.customer_id')
             ->where('purchases.status', Purchase::STATUS_VALID)
             // Période d'analyse RFM réglée par l'entreprise (0 = tout l'historique).
             ->when($rules['period_months'] > 0, fn ($q) => $q->where('purchases.purchased_at', '>=', $today->copy()->subMonths($rules['period_months'])->toDateString()))
-            ->groupBy('contacts.customer_id')
+            ->groupBy('links.customer_id')
             ->havingRaw(Purchase::SQL_SALES_COUNT.' > 0')
-            ->selectRaw('contacts.customer_id as id, DATE('.Purchase::SQL_FIRST_SALE.') as first_at, DATE('.Purchase::SQL_LAST_SALE.') as last_at, '.Purchase::SQL_SALES_COUNT.' as cnt, COALESCE(SUM(purchases.amount), 0) as total')
+            ->selectRaw('links.customer_id as id, DATE('.Purchase::SQL_FIRST_SALE.') as first_at, DATE('.Purchase::SQL_LAST_SALE.') as last_at, '.Purchase::SQL_SALES_COUNT.' as cnt, COALESCE(SUM(purchases.amount), 0) as total')
             ->get();
 
         $total = $buyers->count();

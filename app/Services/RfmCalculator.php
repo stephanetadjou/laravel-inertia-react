@@ -43,9 +43,10 @@ class RfmCalculator
      */
     public function forCustomer(Customer $customer, array $storeIds): array
     {
+        // Un responsable compte aussi les ventes des personnes qu'il suit.
         $own = DB::table('purchases')
             ->join('contacts', 'contacts.id', '=', 'purchases.contact_id')
-            ->where('contacts.customer_id', $customer->id)
+            ->whereIn('contacts.customer_id', [$customer->id, ...Customer::where('responsible_id', $customer->id)->pluck('id')->all()])
             ->whereIn('purchases.store_id', $storeIds)
             ->where('purchases.status', Purchase::STATUS_VALID)
             ->selectRaw('DATE('.Purchase::SQL_LAST_SALE.') as last_at, '.Purchase::SQL_SALES_COUNT.' as cnt, COALESCE(SUM(purchases.amount), 0) as total')

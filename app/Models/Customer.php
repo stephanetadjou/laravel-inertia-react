@@ -79,6 +79,7 @@ class Customer extends Model
         'responsible_id',
         'responsible_relation',
         'health_note',
+        'followed_spent',
     ];
 
     /** Lien avec le responsable d'une personne suivie (module « beneficiaires »). */

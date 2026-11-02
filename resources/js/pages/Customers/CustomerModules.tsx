@@ -46,6 +46,7 @@ export interface ModuleProps {
         relations: Record<string, string>;
         stores: { id: number; name: string }[];
         minor_needs_responsible: boolean;
+        followed_spent: number;
     } | null;
     responsible?: { id: number; name: string; phone_e164: string | null; relation: string | null } | null;
     beneficiaries?: BeneficiaryRow[];
@@ -289,6 +290,7 @@ function BeneficiariesTab() {
                             <h2>Personnes suivies</h2>
                             <span className="mdash-sub">
                                 {beneficiaryModule.labels} suivis pour {customer.name} : chacun a sa fiche, les messages partent à {customer.name}.
+                                {beneficiaryModule.followed_spent > 0 && ` Payé pour les personnes suivies : ${formatNumber(beneficiaryModule.followed_spent)} F.`}
                             </span>
                         </div>
                         {canEdit && (
