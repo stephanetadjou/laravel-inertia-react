@@ -24,6 +24,7 @@ use App\Http\Controllers\ImportController;
 use App\Http\Controllers\LoyaltyController;
 use App\Http\Controllers\ManualSaleController;
 use App\Http\Controllers\MessageTemplateController;
+use App\Http\Controllers\ModuleController;
 use App\Http\Controllers\MultibrandController;
 use App\Http\Controllers\OrganizationController;
 use App\Http\Controllers\PrivacyPolicyController;
@@ -74,7 +75,7 @@ Route::middleware('auth')->group(function () {
     Route::get('/actions', [ActionController::class, 'index'])->name('actions.index');
     Route::post('/actions/done', [ActionController::class, 'done'])->name('actions.done');
 
-    Route::middleware('agenda')->group(function () {
+    Route::middleware('module:rdv')->group(function () {
         Route::get('/appointments', [AppointmentController::class, 'index'])->name('appointments.index');
         Route::post('/appointments', [AppointmentController::class, 'store'])->name('appointments.store');
         Route::put('/appointments/{appointment}', [AppointmentController::class, 'update'])->name('appointments.update');
@@ -104,8 +105,8 @@ Route::middleware('auth')->group(function () {
     Route::post('/customers/{customer}/merge', [CustomerIdentityController::class, 'merge'])->name('customers.merge');
     Route::post('/customers/{customer}/split', [CustomerIdentityController::class, 'split'])->name('customers.split');
     Route::put('/customers/{customer}', [CustomerController::class, 'update'])->name('customers.update');
-    Route::post('/customers/{customer}/loyalty/redeem', [LoyaltyController::class, 'redeem'])->name('customers.loyalty.redeem');
-    Route::post('/customers/{customer}/loyalty/adjust', [LoyaltyController::class, 'adjust'])->name('customers.loyalty.adjust');
+    Route::post('/customers/{customer}/loyalty/redeem', [LoyaltyController::class, 'redeem'])->middleware('module:fidelite')->name('customers.loyalty.redeem');
+    Route::post('/customers/{customer}/loyalty/adjust', [LoyaltyController::class, 'adjust'])->middleware('module:fidelite')->name('customers.loyalty.adjust');
 
     Route::get('/chat', [ChatController::class, 'index'])->middleware('whatsapp-api')->name('chat.index');
     Route::get('/chat/{contact}', [ChatController::class, 'show'])->middleware('whatsapp-api')->name('chat.show');
@@ -117,7 +118,7 @@ Route::middleware('auth')->group(function () {
     Route::post('/groups/{group}/customers', [GroupController::class, 'addCustomers'])->name('groups.customers.add');
     Route::delete('/groups/{group}/customers', [GroupController::class, 'removeCustomers'])->name('groups.customers.remove');
 
-    Route::get('/multibrand', [MultibrandController::class, 'index'])->name('multibrand.index');
+    Route::get('/multibrand', [MultibrandController::class, 'index'])->middleware('module:lieux')->name('multibrand.index');
     // Clients d'une analyse : export pour relance, groupe ouvert dans Actions du jour.
     Route::get('/audiences/export', [AudienceController::class, 'export'])->name('audiences.export');
     Route::post('/audiences/group', [AudienceController::class, 'group'])->name('audiences.group');
@@ -128,13 +129,16 @@ Route::middleware('auth')->group(function () {
     Route::get('/analytics/{tab}/export/{table}', [AnalyticsController::class, 'export'])->name('analytics.export');
     Route::get('/analytics/{tab?}', [AnalyticsController::class, 'index'])->name('analytics.index');
 
-    Route::get('/categories', [CategoryController::class, 'index'])->name('categories.index');
-    Route::get('/categories/a-classer', [CategoryController::class, 'unclassified'])->name('categories.unclassified');
-    Route::post('/categories/a-classer', [CategoryController::class, 'assign'])->name('categories.assign');
-    Route::get('/categories/{category}', [CategoryController::class, 'show'])->name('categories.show');
-    Route::post('/categories', [CategoryController::class, 'store'])->name('categories.store');
-    Route::put('/categories/{category}', [CategoryController::class, 'update'])->name('categories.update');
-    Route::delete('/categories/{category}', [CategoryController::class, 'destroy'])->name('categories.destroy');
+    // Catégories du catalogue, ou familles de produits du commerce.
+    Route::middleware('module:catalogue,familles')->group(function () {
+        Route::get('/categories', [CategoryController::class, 'index'])->name('categories.index');
+        Route::get('/categories/a-classer', [CategoryController::class, 'unclassified'])->name('categories.unclassified');
+        Route::post('/categories/a-classer', [CategoryController::class, 'assign'])->name('categories.assign');
+        Route::get('/categories/{category}', [CategoryController::class, 'show'])->name('categories.show');
+        Route::post('/categories', [CategoryController::class, 'store'])->name('categories.store');
+        Route::put('/categories/{category}', [CategoryController::class, 'update'])->name('categories.update');
+        Route::delete('/categories/{category}', [CategoryController::class, 'destroy'])->name('categories.destroy');
+    });
 
     Route::get('/stores', [StoreController::class, 'index'])->name('stores.index');
     Route::get('/stores/{store}/qr', [StoreController::class, 'qr'])->name('stores.qr');
@@ -147,22 +151,31 @@ Route::middleware('auth')->group(function () {
         Route::put('/organisation/whatsapp-api', [OrganizationController::class, 'updateWhatsAppApi'])->name('organisation.whatsapp-api');
         Route::put('/actions/messages', [ActionController::class, 'updateMessages'])->name('actions.messages');
 
-        Route::get('/settings/loyalty', [LoyaltyController::class, 'settings'])->name('settings.loyalty');
-        Route::put('/settings/loyalty', [LoyaltyController::class, 'update'])->name('settings.loyalty.update');
-        Route::post('/settings/loyalty/rewards', [LoyaltyController::class, 'storeReward'])->name('settings.loyalty.rewards.store');
-        Route::put('/settings/loyalty/rewards/{reward}', [LoyaltyController::class, 'updateReward'])->name('settings.loyalty.rewards.update');
-        Route::post('/settings/loyalty/rewards/{reward}/toggle', [LoyaltyController::class, 'toggleReward'])->name('settings.loyalty.rewards.toggle');
+        Route::get('/settings/modules', [ModuleController::class, 'index'])->name('settings.modules');
+        Route::put('/settings/modules', [ModuleController::class, 'update'])->name('settings.modules.update');
+
+        Route::middleware('module:fidelite')->group(function () {
+            Route::get('/settings/loyalty', [LoyaltyController::class, 'settings'])->name('settings.loyalty');
+            Route::put('/settings/loyalty', [LoyaltyController::class, 'update'])->name('settings.loyalty.update');
+            Route::post('/settings/loyalty/rewards', [LoyaltyController::class, 'storeReward'])->name('settings.loyalty.rewards.store');
+            Route::put('/settings/loyalty/rewards/{reward}', [LoyaltyController::class, 'updateReward'])->name('settings.loyalty.rewards.update');
+            Route::post('/settings/loyalty/rewards/{reward}/toggle', [LoyaltyController::class, 'toggleReward'])->name('settings.loyalty.rewards.toggle');
+        });
 
         Route::get('/reports/daily', [ReportController::class, 'daily'])->name('reports.daily');
         Route::get('/settings/reports', [ReportController::class, 'settings'])->name('settings.reports');
         Route::put('/settings/reports', [ReportController::class, 'update'])->name('settings.reports.update');
         Route::post('/settings/reports/test', [ReportController::class, 'test'])->middleware('throttle:5,1')->name('settings.reports.test');
 
-        Route::middleware('agenda')->group(function () {
+        // Intervenants : praticiens des rendez-vous ou coachs des cours.
+        Route::middleware('module:rdv,seances_groupe')->group(function () {
             Route::get('/settings/staff', [ScheduleSettingsController::class, 'staff'])->name('settings.staff');
             Route::post('/settings/staff', [ScheduleSettingsController::class, 'storeStaff'])->name('settings.staff.store');
             Route::put('/settings/staff/{staff}', [ScheduleSettingsController::class, 'updateStaff'])->name('settings.staff.update');
             Route::post('/settings/staff/{staff}/toggle', [ScheduleSettingsController::class, 'toggleStaff'])->name('settings.staff.toggle');
+        });
+
+        Route::middleware('module:rdv')->group(function () {
             Route::get('/settings/closures', [ScheduleSettingsController::class, 'closures'])->name('settings.closures');
             Route::post('/settings/closures', [ScheduleSettingsController::class, 'storeClosure'])->name('settings.closures.store');
             Route::post('/settings/closures/holidays', [ScheduleSettingsController::class, 'holidays'])->name('settings.closures.holidays');
@@ -173,10 +186,12 @@ Route::middleware('auth')->group(function () {
             Route::put('/settings/booking/stores/{store}', [BookingSettingsController::class, 'updateStore'])->name('settings.booking.store');
         });
 
-        Route::get('/catalog', [CatalogController::class, 'index'])->name('catalog.index');
-        Route::post('/catalog', [CatalogController::class, 'store'])->name('catalog.store');
-        Route::put('/catalog/{item}', [CatalogController::class, 'update'])->name('catalog.update');
-        Route::post('/catalog/{item}/toggle', [CatalogController::class, 'toggle'])->name('catalog.toggle');
+        Route::middleware('module:catalogue')->group(function () {
+            Route::get('/catalog', [CatalogController::class, 'index'])->name('catalog.index');
+            Route::post('/catalog', [CatalogController::class, 'store'])->name('catalog.store');
+            Route::put('/catalog/{item}', [CatalogController::class, 'update'])->name('catalog.update');
+            Route::post('/catalog/{item}/toggle', [CatalogController::class, 'toggle'])->name('catalog.toggle');
+        });
 
         Route::post('/brands', [BrandController::class, 'store'])->name('brands.store');
         Route::put('/brands/{brand}', [BrandController::class, 'update'])->name('brands.update');

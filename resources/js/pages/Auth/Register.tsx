@@ -3,6 +3,7 @@ import { FormEventHandler } from 'react';
 
 import Button from '../../components/ui/button/Button';
 import MenentiaLogo from '../../components/common/MenentiaLogo';
+import { ModuleSettingsFields, ModuleSettingsValues } from '../Settings/ModuleSettingsFields';
 
 type Field = 'organization_name' | 'sector' | 'store_name' | 'name' | 'email' | 'password' | 'password_confirmation';
 
@@ -10,14 +11,35 @@ interface Sector {
     key: string;
     label: string;
     description: string;
+    modules: string[];
+}
+
+interface RegisterProps {
+    sectors: Sector[];
+    questions: { module: string; question: string }[];
+    moduleDefaults: ModuleSettingsValues;
+    beneficiaryLabels: { value: string; label: string }[];
+    [key: string]: unknown;
+}
+
+interface RegisterForm {
+    organization_name: string;
+    sector: string;
+    store_name: string;
+    name: string;
+    email: string;
+    password: string;
+    password_confirmation: string;
+    answers: Record<string, boolean>;
+    settings: ModuleSettingsValues;
 }
 
 const inputClass =
     'w-full rounded-lg border border-gray-300 px-3 py-2.5 text-sm text-gray-800 focus:border-brand-300 focus:outline-hidden dark:border-gray-700 dark:bg-white/[0.03] dark:text-white/90';
 
 export default function Register() {
-    const { sectors } = usePage<{ sectors: Sector[] }>().props;
-    const { data, setData, post, processing, errors } = useForm<Record<Field, string>>({
+    const { sectors, questions, moduleDefaults, beneficiaryLabels } = usePage<RegisterProps>().props;
+    const { data, setData, post, processing, errors } = useForm<RegisterForm>({
         organization_name: '',
         sector: '',
         store_name: '',
@@ -25,7 +47,15 @@ export default function Register() {
         email: '',
         password: '',
         password_confirmation: '',
+        answers: {},
+        settings: moduleDefaults,
     });
+
+    // Le secteur pré-coche les réponses ; chacune reste modifiable.
+    const chooseSector = (sector: Sector) =>
+        setData((d) => ({ ...d, sector: sector.key, answers: Object.fromEntries(questions.map((q) => [q.module, sector.modules.includes(q.module)])) }));
+    const sector = sectors.find((s) => s.key === data.sector);
+    const enabledModules = sector ? [...sector.modules.filter((m) => !(m in data.answers)), ...Object.keys(data.answers).filter((m) => data.answers[m])] : [];
 
     const submit: FormEventHandler = (e) => {
         e.preventDefault();
@@ -55,7 +85,7 @@ export default function Register() {
                         </div>
                         <h1 className="text-xl font-bold text-ink-strong dark:text-white">Créer un compte entreprise</h1>
                         <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
-                            Votre entreprise, votre premier établissement et votre accès administrateur.
+                            Connaissez vos clients. Parlez-leur au bon moment. Faites grandir votre activité.
                         </p>
                     </div>
 
@@ -82,7 +112,7 @@ export default function Register() {
                                                     name="sector"
                                                     value={sector.key}
                                                     checked={checked}
-                                                    onChange={() => setData('sector', sector.key)}
+                                                    onChange={() => chooseSector(sector)}
                                                     className="mt-1 accent-brand-500"
                                                 />
                                                 <span>
@@ -97,6 +127,44 @@ export default function Register() {
                             </div>
                             {field('store_name', 'Premier établissement', 'text', 'Vous pourrez en ajouter d’autres plus tard.')}
                         </fieldset>
+
+                        {sector && (
+                            <fieldset className="space-y-3">
+                                <legend className="mb-2 text-xs font-semibold tracking-wide text-gray-500 uppercase">Comment travaillez-vous ?</legend>
+                                {questions.map((q) => (
+                                    <div key={q.module} className="flex items-center justify-between gap-3 text-sm">
+                                        <span className="text-gray-700 dark:text-gray-300">{q.question}</span>
+                                        <span className="flex shrink-0 overflow-hidden rounded-lg border border-gray-300 dark:border-gray-700" role="radiogroup" aria-label={q.question}>
+                                            {[true, false].map((value) => (
+                                                <button
+                                                    key={String(value)}
+                                                    type="button"
+                                                    role="radio"
+                                                    aria-checked={data.answers[q.module] === value}
+                                                    onClick={() => setData('answers', { ...data.answers, [q.module]: value })}
+                                                    className={`px-3 py-1 text-xs font-medium ${data.answers[q.module] === value ? 'bg-brand-500 text-white' : 'text-gray-600 dark:text-gray-300'}`}
+                                                >
+                                                    {value ? 'Oui' : 'Non'}
+                                                </button>
+                                            ))}
+                                        </span>
+                                    </div>
+                                ))}
+                                <details className="rounded-lg border border-gray-200 px-3 py-2 text-sm dark:border-gray-700">
+                                    <summary className="cursor-pointer font-medium text-gray-700 dark:text-gray-300">Réglages de base (modifiables plus tard)</summary>
+                                    <div className="mt-3">
+                                        <ModuleSettingsFields
+                                            enabled={enabledModules}
+                                            values={data.settings}
+                                            onChange={(v) => setData('settings', v)}
+                                            beneficiaryLabels={beneficiaryLabels}
+                                            errors={errors as Record<string, string>}
+                                            className="space-y-5"
+                                        />
+                                    </div>
+                                </details>
+                            </fieldset>
+                        )}
 
                         <fieldset className="space-y-4">
                             <legend className="mb-2 text-xs font-semibold tracking-wide text-gray-500 uppercase">Votre compte</legend>

@@ -374,7 +374,8 @@ class CustomerController extends Controller
         $organization = $user->organization;
         $settings = $organization->loyaltySettings();
 
-        if (! $settings['enabled'] && ! $customer->loyaltyTransactions()->exists()) {
+        // Module Fidélité décoché : rien sur la fiche.
+        if (! $organization->hasModule('fidelite') || (! $settings['enabled'] && ! $customer->loyaltyTransactions()->exists())) {
             return null;
         }
 

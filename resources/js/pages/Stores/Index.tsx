@@ -13,6 +13,7 @@ interface PageProps {
     stores: StoreRow[];
     brands: { id: number; name: string }[];
     canManage: boolean;
+    canAddStores: boolean;
     sharedAccountConfigured: boolean;
     flash?: { success: string | null; error: string | null };
     [key: string]: unknown;
@@ -37,7 +38,7 @@ function maskId(id: string): string {
 }
 
 function StoresIndex() {
-    const { stores, brands, canManage, sharedAccountConfigured, flash } = usePage<PageProps>().props;
+    const { stores, brands, canManage, canAddStores, sharedAccountConfigured, flash } = usePage<PageProps>().props;
     const [search, setSearch] = useState('');
     const [filter, setFilter] = useState<Connection | 'all'>('all');
     const [modal, setModal] = useState<{ open: boolean; store: StoreRow | null }>({ open: false, store: null });
@@ -91,7 +92,7 @@ function StoresIndex() {
                             value={search}
                             onChange={(e) => setSearch(e.target.value)}
                         />
-                        {canManage && (
+                        {canAddStores && (
                             <>
                                 <Link href="/organisation" className="mdash-btn ghost">
                                     Gérer les marques

@@ -145,7 +145,11 @@ class SalesImportController extends Controller
         if (! isset($mapping['line_total']) && ! isset($mapping['unit_price'])) {
             $missing[] = 'le montant (ou le prix unitaire)';
         }
-        if (! isset($mapping['family']) && ! isset($mapping['category']) && empty($data['default_category_id'])) {
+        // Famille facultative sans le module Familles, ou avec le catalogue quand l'article est associé.
+        $organization = $user->organization;
+        $familyOptional = ! $organization->hasModule('familles')
+            || ($organization->hasModule('catalogue') && (isset($mapping['article']) || isset($mapping['article_code'])));
+        if (! $familyOptional && ! isset($mapping['family']) && ! isset($mapping['category']) && empty($data['default_category_id'])) {
             $missing[] = 'la famille ou la catégorie (ou une famille par défaut)';
         }
 

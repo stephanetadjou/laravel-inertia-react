@@ -5,12 +5,12 @@ import { useSidebar } from '../context/SidebarContext';
 import { useTheme } from '../context/ThemeContext';
 import { NotificationBell } from '../components/notifications/Notifications';
 import MenentiaLogo from '../components/common/MenentiaLogo';
-import { buildSections, currentSection, tabIsActive } from './navigation';
+import { buildSections, currentSection, navContext, tabIsActive } from './navigation';
 
 interface SharedAuthProps {
     auth?: {
         user: { name: string; email: string; role_name: string | null; can_manage_organization: boolean; can_import?: boolean } | null;
-        organization: { name: string; whatsapp_api_enabled?: boolean; has_agenda?: boolean; sells_products?: boolean } | null;
+        organization: { name: string; whatsapp_api_enabled?: boolean; sells_products?: boolean; modules?: string[] } | null;
     };
     [key: string]: unknown;
 }
@@ -27,13 +27,7 @@ const AppHeader: React.FC = () => {
     const [userMenuOpen, setUserMenuOpen] = useState(false);
     const menuRef = useRef<HTMLDivElement>(null);
 
-    const sections = buildSections({
-        canManageOrganization: auth?.user?.can_manage_organization ?? false,
-        whatsappApiEnabled: auth?.organization?.whatsapp_api_enabled ?? true,
-        hasAgenda: auth?.organization?.has_agenda ?? true,
-        sellsProducts: auth?.organization?.sells_products ?? false,
-        canImport: auth?.user?.can_import ?? false,
-    });
+    const sections = buildSections(navContext(auth));
     const section = currentSection(sections, url);
     const tabs = section?.tabs ?? [];
 

@@ -13,6 +13,12 @@ class BrandController extends Controller
 {
     public function store(Request $request): RedirectResponse
     {
+        $organization = $request->user()->organization;
+
+        if (! $organization->hasModule('lieux') && Brand::where('organization_id', $organization->id)->exists()) {
+            return back()->with('error', 'Activez le module « Plusieurs lieux » (Paramètres › Modules) pour ajouter une marque.');
+        }
+
         $data = $request->validate([
             'name' => [
                 'required', 'string', 'max:255',

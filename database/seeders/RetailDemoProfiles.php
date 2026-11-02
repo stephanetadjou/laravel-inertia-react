@@ -24,10 +24,6 @@ class RetailDemoProfiles
         };
     }
 
-
-
-
-
     private static function mode(): array
     {
         return [

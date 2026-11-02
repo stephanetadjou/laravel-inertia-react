@@ -53,6 +53,8 @@ class StoreController extends Controller
                 ? Brand::where('organization_id', $user->organization_id)->orderBy('name')->get(['id', 'name'])
                 : [],
             'canManage' => $canManage,
+            // Module « Plusieurs lieux » décoché : un seul établissement, pas d'ajout.
+            'canAddStores' => $canManage && ($user->organization->hasModule('lieux') || ! Store::where('organization_id', $user->organization_id)->exists()),
             // Compte Meta partagé (.env) : organisations historiques uniquement.
             'sharedAccountConfigured' => (bool) $user->organization?->uses_shared_whatsapp_account
                 && filled(config('services.meta_whatsapp.token')) && filled(config('services.meta_whatsapp.phone_number_id')),
@@ -65,6 +67,12 @@ class StoreController extends Controller
      */
     public function store(Request $request): RedirectResponse
     {
+        $organization = $request->user()->organization;
+
+        if (! $organization->hasModule('lieux') && Store::where('organization_id', $organization->id)->exists()) {
+            return back()->with('error', 'Activez le module « Plusieurs lieux » (Paramètres › Modules) pour ajouter un établissement.');
+        }
+
         $data = $request->validate([
             'brand_id' => ['required', 'integer'],
             'name' => ['required', 'string', 'max:255'],

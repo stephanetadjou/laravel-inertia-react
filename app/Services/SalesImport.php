@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Jobs\ProcessSalesImportJob;
 use App\Jobs\RefreshBrandMetricsJob;
 use App\Models\Article;
+use App\Models\CatalogItem;
 use App\Models\Category;
 use App\Models\Contact;
 use App\Models\Customer;
@@ -498,12 +499,18 @@ class SalesImport
         $identity = $rows->first(fn (ImportRow $row) => $row->data['phone'] !== null || $row->data['customer_code'] !== null)?->data ?? $first;
         [$contact, $review] = $this->resolveContact($identity, $batch);
 
-        $lines = $rows->map(fn (ImportRow $row) => [
-            'row' => $row,
-            'data' => $row->data,
-            'category_id' => $this->categoryFor($row->data, $context),
-            'label' => $row->data['family'] ?? $row->data['category'],
-        ]);
+        $lines = $rows->map(function (ImportRow $row) use (&$context) {
+            // Module Catalogue : la ligne est rattachée au produit (nom ou code) et à sa catégorie.
+            $item = $this->catalogItemFor($row->data, $context);
+
+            return [
+                'row' => $row,
+                'data' => $row->data,
+                'catalog_item' => $item,
+                'category_id' => $item?->category_id ?? $this->categoryFor($row->data, $context),
+                'label' => $row->data['family'] ?? $row->data['category'] ?? $item?->category?->name,
+            ];
+        });
 
         $amount = (int) $lines->sum(fn ($line) => $line['data']['amount']);
         $main = $lines->sortByDesc(fn ($line) => abs($line['data']['amount']))->first();
@@ -547,7 +554,9 @@ class SalesImport
 
             PurchaseItem::create([
                 'purchase_id' => $purchase->id,
-                'name' => mb_substr($data['article'] ?? $line['label'] ?? 'Vente', 0, 255),
+                'catalog_item_id' => $line['catalog_item']?->id,
+                'type' => $line['catalog_item']?->type,
+                'name' => mb_substr($data['article'] ?? $line['catalog_item']?->name ?? $line['label'] ?? 'Vente', 0, 255),
                 'quantity' => $data['quantity'],
                 'unit_price' => $data['unit_price'] ?? ($data['quantity'] !== 0 ? intdiv($data['amount'] + $data['discount'], $data['quantity']) : $data['amount']),
                 'amount' => $data['amount'],
@@ -567,6 +576,27 @@ class SalesImport
         $rows->each(fn (ImportRow $row) => $row->update(['status' => ImportRow::STATUS_IMPORTED]));
         $stats['tickets']++;
         $stats['anonymous'] += $contact === null && $review === null ? 1 : 0;
+    }
+
+    /**
+     * Produit du catalogue d'une ligne (module Catalogue) : par code
+     * (référence), sinon par libellé de l'article, sans tenir compte des
+     * accents ni des majuscules.
+     *
+     * @param  array<string, mixed>  $data
+     * @param  array<string, mixed>  $context
+     */
+    private function catalogItemFor(array $data, array $context): ?CatalogItem
+    {
+        if ($context['catalog'] === null) {
+            return null;
+        }
+
+        if ($data['article_code'] !== null && isset($context['catalog']['by_code'][mb_strtoupper(trim($data['article_code']))])) {
+            return $context['catalog']['by_code'][mb_strtoupper(trim($data['article_code']))];
+        }
+
+        return $data['article'] !== null ? ($context['catalog']['by_name'][FamilyMatcher::normalize($data['article'])] ?? null) : null;
     }
 
     /**
@@ -786,7 +816,9 @@ class SalesImport
 
         $family = $value('family');
         $category = $value('category');
-        if ($family === null && $category === null && $context['default_category_id'] === null) {
+        // Famille facultative sans le module Familles, ou quand l'article vient du catalogue.
+        $familyOptional = ! $context['family_required'] || ($context['catalog'] !== null && ($value('article') !== null || $value('article_code') !== null));
+        if ($family === null && $category === null && $context['default_category_id'] === null && ! $familyOptional) {
             return [null, 'family_missing'];
         }
 
@@ -847,6 +879,15 @@ class SalesImport
             ->when($batch->brand_id !== null, fn ($q) => $q->where('brand_id', $batch->brand_id))
             ->get(['id', 'name', 'code']);
 
+        $catalog = null;
+        if ($batch->organization?->hasModule('catalogue')) {
+            $items = CatalogItem::where('organization_id', $batch->organization_id)->with('category:id,name')->get();
+            $catalog = [
+                'by_code' => $items->filter(fn ($i) => filled($i->reference))->keyBy(fn ($i) => mb_strtoupper(trim($i->reference)))->all(),
+                'by_name' => $items->keyBy(fn ($i) => FamilyMatcher::normalize($i->name))->all(),
+            ];
+        }
+
         $mapped = array_flip(array_values($batch->mapping ?? []));
         $propertyColumns = collect($batch->headers ?? [])
             ->reject(fn ($header, $index) => $header === '' || isset($mapped[$index]))
@@ -866,6 +907,8 @@ class SalesImport
                 ? Category::where('organization_id', $batch->organization_id)->whereKey($batch->default_category_id)->value('id')
                 : null,
             'matcher' => FamilyMatcher::for($batch->organization_id),
+            'catalog' => $catalog,
+            'family_required' => $batch->organization?->hasModule('familles') ?? true,
             'currency' => $batch->organization?->currency ?? 'XAF',
             'articles' => [],
             'parents' => [],

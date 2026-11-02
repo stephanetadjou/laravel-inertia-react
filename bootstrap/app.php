@@ -1,7 +1,7 @@
 <?php
 
-use App\Http\Middleware\EnsureAgendaEnabled;
 use App\Http\Middleware\EnsureCanManageOrganization;
+use App\Http\Middleware\EnsureModuleEnabled;
 use App\Http\Middleware\EnsureOrganizationActive;
 use App\Http\Middleware\EnsurePlatformAdmin;
 use App\Http\Middleware\EnsureWhatsAppApiEnabled;
@@ -30,7 +30,7 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->alias([
             'can-manage-organization' => EnsureCanManageOrganization::class,
             'whatsapp-api' => EnsureWhatsAppApiEnabled::class,
-            'agenda' => EnsureAgendaEnabled::class,
+            'module' => EnsureModuleEnabled::class,
             'platform-admin' => EnsurePlatformAdmin::class,
         ]);
     })

@@ -26,7 +26,7 @@ export default function Login() {
                         <h1 className="flex justify-center">
                             <MenentiaLogo symbolClassName="h-10 w-10" wordmarkClassName="text-[28px]" />
                         </h1>
-                        <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">Connecter · Fidéliser · Développer</p>
+                        <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">Connaissez vos clients. Parlez-leur au bon moment. Faites grandir votre activité.</p>
                     </div>
 
                     <form onSubmit={submit} className="space-y-5">

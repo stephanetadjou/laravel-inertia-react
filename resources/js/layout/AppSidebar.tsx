@@ -2,12 +2,12 @@ import { Link, usePage } from '@inertiajs/react';
 
 import { useSidebar } from '../context/SidebarContext';
 import { MenentiaSymbol, MenentiaWordmark } from '../components/common/MenentiaLogo';
-import { buildSections, currentSection } from './navigation';
+import { buildSections, currentSection, navContext } from './navigation';
 
 interface SidebarProps {
     auth?: {
         user: { can_manage_organization?: boolean; can_import?: boolean; is_platform_admin?: boolean } | null;
-        organization?: { whatsapp_api_enabled?: boolean; has_agenda?: boolean; sells_products?: boolean } | null;
+        organization?: { whatsapp_api_enabled?: boolean; sells_products?: boolean; modules?: string[] } | null;
     };
     [key: string]: unknown;
 }
@@ -17,14 +17,7 @@ const AppSidebar: React.FC = () => {
     const { isExpanded, isMobileOpen, isHovered, setIsHovered } = useSidebar();
     const { url, props } = usePage<SidebarProps>();
 
-    const sections = buildSections({
-        canManageOrganization: props.auth?.user?.can_manage_organization ?? false,
-        whatsappApiEnabled: props.auth?.organization?.whatsapp_api_enabled ?? true,
-        hasAgenda: props.auth?.organization?.has_agenda ?? true,
-        sellsProducts: props.auth?.organization?.sells_products ?? false,
-        canImport: props.auth?.user?.can_import ?? false,
-        isPlatformAdmin: props.auth?.user?.is_platform_admin ?? false,
-    });
+    const sections = buildSections(navContext(props.auth));
     const active = currentSection(sections, url);
     const showLabels = isExpanded || isHovered || isMobileOpen;
 

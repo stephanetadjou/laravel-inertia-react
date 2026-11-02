@@ -26,9 +26,9 @@ export interface NavSection {
 export interface NavContext {
     canManageOrganization: boolean;
     whatsappApiEnabled: boolean;
-    /** Secteur sur rendez-vous : agenda, réservation, intervenants, fermetures. */
-    hasAgenda?: boolean;
-    /** Commerce : ni prestations ni catalogue, l'analyse se fait par familles de produits. */
+    /** Modules à la carte actifs (cf. Organization::MODULES). */
+    modules?: string[];
+    /** Commerce : vocabulaire « familles », imports des ventes et analyses Retail. */
     sellsProducts?: boolean;
     /** Droit d'importer des ventes (rubrique Imports de Menentia Retail). */
     canImport?: boolean;
@@ -36,24 +36,44 @@ export interface NavContext {
     isPlatformAdmin?: boolean;
 }
 
-export function buildSections({ canManageOrganization, whatsappApiEnabled, hasAgenda = true, sellsProducts = false, canImport = false, isPlatformAdmin = false }: NavContext): NavSection[] {
+/** Données partagées par HandleInertiaRequests utiles au menu. */
+export interface NavAuth {
+    user: { can_manage_organization?: boolean; can_import?: boolean; is_platform_admin?: boolean } | null;
+    organization?: { whatsapp_api_enabled?: boolean; sells_products?: boolean; modules?: string[] } | null;
+}
+
+export function navContext(auth: NavAuth | undefined): NavContext {
+    return {
+        canManageOrganization: auth?.user?.can_manage_organization ?? false,
+        whatsappApiEnabled: auth?.organization?.whatsapp_api_enabled ?? true,
+        modules: auth?.organization?.modules,
+        sellsProducts: auth?.organization?.sells_products ?? false,
+        canImport: auth?.user?.can_import ?? false,
+        isPlatformAdmin: auth?.user?.is_platform_admin ?? false,
+    };
+}
+
+/** Modules d'une organisation historique quand la liste n'est pas fournie. */
+const LEGACY_MODULES = ['rdv', 'catalogue', 'lieux', 'fidelite'];
+
+export function buildSections({ canManageOrganization, whatsappApiEnabled, modules = LEGACY_MODULES, sellsProducts = false, canImport = false, isPlatformAdmin = false }: NavContext): NavSection[] {
+    const has = (module: string) => modules.includes(module);
+    const agenda = has('rdv') || has('seances_groupe');
+
     const settingsTabs: NavTab[] = [
         ...(canManageOrganization
             ? [
                   { name: 'Entreprise', path: '/organisation' },
-                  ...(hasAgenda
-                      ? [
-                            { name: 'Réservation en ligne', path: '/settings/booking' },
-                            { name: 'Intervenants', path: '/settings/staff' },
-                            { name: 'Fermetures', path: '/settings/closures' },
-                        ]
-                      : []),
-                  { name: 'Fidélité', path: '/settings/loyalty' },
+                  { name: 'Modules', path: '/settings/modules' },
+                  ...(has('rdv') ? [{ name: 'Réservation en ligne', path: '/settings/booking' }] : []),
+                  ...(agenda ? [{ name: 'Intervenants', path: '/settings/staff' }] : []),
+                  ...(has('rdv') ? [{ name: 'Fermetures', path: '/settings/closures' }] : []),
+                  ...(has('fidelite') ? [{ name: 'Fidélité', path: '/settings/loyalty' }] : []),
                   { name: 'Segments RFM', path: '/settings/rfm' },
                   { name: 'Rapports', path: '/settings/reports' },
               ]
             : []),
-        { name: 'Marques & boutiques', path: '/stores' },
+        { name: has('lieux') ? 'Marques & boutiques' : 'Établissement', path: '/stores' },
         ...(canManageOrganization ? [{ name: 'Utilisateurs & rôles', path: '/users', alsoActiveOn: ['/roles'] }] : []),
         ...(canManageOrganization && whatsappApiEnabled ? [{ name: 'WhatsApp', path: '/settings/whatsapp' }] : []),
         ...(canManageOrganization ? [{ name: 'Journal', path: '/settings/audit' }] : []),
@@ -62,7 +82,17 @@ export function buildSections({ canManageOrganization, whatsappApiEnabled, hasAg
     const sections: NavSection[] = [
         { key: 'home', name: 'Accueil', icon: <PieChartIcon />, path: '/dashboard', tabs: [] },
         { key: 'actions', name: 'À faire', icon: <TaskIcon />, path: '/actions', tabs: [] },
-        ...(hasAgenda ? [{ key: 'agenda', name: 'Agenda', icon: <CalenderIcon />, path: '/appointments', tabs: [] }] : []),
+        ...(agenda
+            ? [
+                  {
+                      key: 'agenda',
+                      name: 'Agenda',
+                      icon: <CalenderIcon />,
+                      path: '/appointments',
+                      tabs: has('seances_groupe') ? [{ name: 'Agenda', path: '/appointments' }, { name: 'Cours', path: '/classes', alsoActiveOn: ['/class-sessions'] }] : [],
+                  },
+              ]
+            : []),
         {
             key: 'customers',
             name: 'Clients',
@@ -83,9 +113,11 @@ export function buildSections({ canManageOrganization, whatsappApiEnabled, hasAg
             path: '/purchases',
             tabs: [
                 { name: 'Ventes', path: '/purchases' },
-                ...(canManageOrganization && !sellsProducts ? [{ name: 'Catalogue', path: '/catalog' }] : []),
+                ...(has('tranches') || has('abonnements') ? [{ name: 'Échéances', path: '/installments', alsoActiveOn: ['/payment-schedules'] }] : []),
+                ...(has('abonnements') ? [{ name: 'Formules', path: '/plans', alsoActiveOn: ['/subscriptions'] }] : []),
+                ...(canManageOrganization && has('catalogue') ? [{ name: 'Catalogue', path: '/catalog' }] : []),
                 // Retail : les familles sont dans la rubrique Analyses.
-                ...(sellsProducts ? [] : [{ name: 'Catégories', path: '/categories' }]),
+                ...(!sellsProducts && has('catalogue') ? [{ name: 'Catégories', path: '/categories' }] : []),
             ],
         },
     ];
@@ -99,18 +131,20 @@ export function buildSections({ canManageOrganization, whatsappApiEnabled, hasAg
             path: canImport ? '/sales-imports' : '/imports',
             tabs: [...(canImport ? [{ name: 'Ventes', path: '/sales-imports' }] : []), { name: 'Clients', path: '/imports' }],
         });
-        sections.push({
-            key: 'analytics',
-            name: 'Analyses',
-            icon: <PieChartIcon />,
-            path: '/analytics',
-            tabs: [
-                { name: 'Tableaux de bord', path: '/analytics' },
-                { name: 'Familles', path: '/categories' },
-                { name: 'Multimarque', path: '/multibrand' },
-            ],
-        });
     }
+
+    // Analyses : socle commun ; familles (commerce) et multimarque selon les modules.
+    sections.push({
+        key: 'analytics',
+        name: 'Analyses',
+        icon: <PieChartIcon />,
+        path: '/analytics',
+        tabs: [
+            { name: 'Tableaux de bord', path: '/analytics' },
+            ...(sellsProducts && (has('familles') || has('catalogue')) ? [{ name: 'Familles', path: '/categories' }] : []),
+            ...(has('lieux') ? [{ name: 'Multimarque', path: '/multibrand' }] : []),
+        ],
+    });
 
     if (whatsappApiEnabled) {
         sections.push({

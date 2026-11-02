@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Controller;
+use App\Http\Controllers\ModuleController;
 use App\Models\Brand;
 use App\Models\Organization;
 use App\Models\Role;
@@ -21,7 +22,8 @@ use Inertia\Response;
  * Inscription d'une entreprise cliente : crée en une fois l'organisation,
  * ses rôles par défaut, son premier établissement (marque + boutique du même
  * nom) et le compte de la personne qui s'inscrit, Super administrateur.
- * Le secteur choisi adapte le menu (cf. Organization::SECTORS).
+ * Le secteur choisi pré-coche les modules, ajustés par les réponses à
+ * « Comment travaillez-vous ? » (cf. Organization::SECTORS et WORK_QUESTIONS).
  * La connexion WhatsApp de l'établissement se fait ensuite dans Paramètres.
  */
 class RegisteredOrganizationController extends Controller
@@ -33,7 +35,12 @@ class RegisteredOrganizationController extends Controller
                 'key' => $key,
                 'label' => $sector['label'],
                 'description' => $sector['description'],
+                'modules' => $sector['modules'],
             ])->values(),
+            // « Comment travaillez-vous ? » : une réponse oui coche le module.
+            'questions' => collect(Organization::WORK_QUESTIONS)->map(fn ($question, $module) => ['module' => $module, 'question' => $question])->values(),
+            'moduleDefaults' => Organization::MODULE_DEFAULTS,
+            'beneficiaryLabels' => collect(Organization::BENEFICIARY_LABELS)->map(fn ($labels, $key) => ['value' => $key, 'label' => $labels[0]])->values(),
         ]);
     }
 
@@ -46,13 +53,23 @@ class RegisteredOrganizationController extends Controller
             'name' => ['required', 'string', 'max:255'],
             'email' => ['required', 'string', 'lowercase', 'email', 'max:255', 'unique:users,email'],
             'password' => ['required', 'confirmed', Password::defaults()],
+            'answers' => ['nullable', 'array'],
+            'answers.*' => ['boolean'],
+            ...ModuleController::settingsRules(),
         ]);
+
+        // Modules du secteur, ajustés par les réponses à « Comment travaillez-vous ? ».
+        $answers = array_intersect_key($validated['answers'] ?? [], Organization::WORK_QUESTIONS);
+        $modules = collect(Organization::defaultModulesFor($validated['sector']))
+            ->reject(fn ($module) => array_key_exists($module, $answers))
+            ->merge(array_keys(array_filter($answers)))
+            ->unique()->values()->all();
 
         // Slug choisi hors transaction : la transaction commence ainsi par une
         // écriture et attend le verrou SQLite au lieu d'échouer (cf. uniqueSlug).
         $slug = Organization::uniqueSlug($validated['organization_name']);
 
-        $user = DB::transaction(function () use ($validated, $slug) {
+        $user = DB::transaction(function () use ($validated, $slug, $modules) {
             $organization = Organization::create([
                 'name' => $validated['organization_name'],
                 'slug' => $slug,
@@ -64,6 +81,8 @@ class RegisteredOrganizationController extends Controller
                 'status' => Organization::STATUS_TRIAL,
                 'trial_ends_at' => now()->addDays(Organization::TRIAL_DAYS),
             ]);
+            $organization->setModules($modules, $validated['settings'] ?? []);
+            $organization->save();
 
             Role::seedDefaultsFor($organization);
 

@@ -39,6 +39,7 @@ class Organization extends Model
         'trial_ends_at',
         'suspended_at',
         'suspension_reason',
+        'modules',
     ];
 
     /**
@@ -140,6 +141,7 @@ class Organization extends Model
             'report_settings' => 'array',
             'loyalty_settings' => 'array',
             'rfm_settings' => 'array',
+            'modules' => 'array',
             'trial_ends_at' => 'datetime',
             'suspended_at' => 'datetime',
         ];
@@ -157,47 +159,53 @@ class Organization extends Model
 
     /**
      * Secteurs proposés à l'inscription (mêmes familles que le site vitrine).
-     * `agenda` : rendez-vous, réservation en ligne, intervenants et fermetures
-     * affichés dans le menu ; le commerce s'en passe et analyse ses ventes par
-     * familles de produits.
+     * `modules` : modules cochés d'office pour le secteur (cf. MODULES),
+     * `suggested` : modules proposés en plus, à cocher si besoin.
      *
-     * @var array<string, array{label: string, description: string, agenda: bool}>
+     * @var array<string, array{label: string, description: string, modules: list<string>, suggested: list<string>}>
      */
     public const SECTORS = [
         'beaute' => [
             'label' => 'Beauté et soins',
             'description' => 'Salons, barbiers, onglerie, esthétique, spas : agenda et réservation en ligne, et un rappel quand une cliente dépasse son délai habituel.',
-            'agenda' => true,
+            'modules' => ['rdv', 'catalogue', 'fidelite'],
+            'suggested' => [],
         ],
         'sante' => [
             'label' => 'Santé',
             'description' => 'Cabinets, cliniques, dentistes, optique, kiné : rendez-vous des patients, rappels de contrôle et suivi de chaque dossier client.',
-            'agenda' => true,
+            'modules' => ['rdv', 'catalogue'],
+            'suggested' => ['beneficiaires'],
         ],
         'sport' => [
             'label' => 'Sport et bien-être',
-            'description' => 'Salles de sport, coachs, yoga, danse : séances réservées, membres qui décrochent repérés à temps, fidélité.',
-            'agenda' => true,
+            'description' => 'Clubs, écoles de sport, salles, danse, yoga : cours collectifs, abonnements et mensualités, présences, et les membres qui décrochent repérés à temps.',
+            'modules' => ['seances_groupe', 'abonnements', 'tranches', 'catalogue', 'fidelite'],
+            'suggested' => ['rdv', 'beneficiaires', 'lieux'],
         ],
         'technique' => [
             'label' => 'Services techniques',
             'description' => 'Garages, entretien, réparation, installation : rendez-vous atelier et rappel à l’échéance du prochain entretien.',
-            'agenda' => true,
+            'modules' => ['rdv', 'catalogue'],
+            'suggested' => [],
         ],
         'pro' => [
             'label' => 'Services professionnels',
             'description' => 'Conseil, formation, agences, cabinets : rendez-vous clients, suivi de la relation et relances.',
-            'agenda' => true,
+            'modules' => ['rdv', 'catalogue'],
+            'suggested' => ['tranches'],
         ],
         'commerce' => [
             'label' => 'Commerce et distribution',
             'description' => 'Boutiques, supermarchés, quincailleries, grossistes : import des ventes, analyse des achats par famille de produits et campagnes ciblées. Sans agenda.',
-            'agenda' => false,
+            'modules' => ['familles', 'lieux', 'fidelite'],
+            'suggested' => ['catalogue', 'tranches'],
         ],
         'autre' => [
             'label' => 'Autre activité',
-            'description' => 'Toutes les fonctions sont affichées. Vous pourrez changer de secteur plus tard dans Paramètres › Entreprise.',
-            'agenda' => true,
+            'description' => 'Choisissez vous-même vos modules. Vous pourrez changer de secteur plus tard dans Paramètres › Entreprise.',
+            'modules' => ['rdv', 'catalogue', 'lieux', 'fidelite'],
+            'suggested' => [],
         ],
     ];
 
@@ -269,10 +277,193 @@ class Organization extends Model
         return in_array($this->currency ?? 'XAF', ['XAF', 'XOF'], true) ? 'FCFA' : (string) $this->currency;
     }
 
-    /** Agenda et réservation affichés (organisation historique sans secteur : oui). */
+    /**
+     * Modules à la carte (Paramètres › Modules). Le socle (clients, ventes,
+     * analyses, actions du jour, rapport du soir) est toujours actif ; un
+     * module non coché disparaît du menu, des fiches et des réglages.
+     * « campagnes » suit l'activation de l'API WhatsApp (whatsapp_api_enabled).
+     *
+     * @var array<string, array{label: string, description: string}>
+     */
+    public const MODULES = [
+        'rdv' => [
+            'label' => 'Rendez-vous individuels',
+            'description' => 'Agenda, intervenants, fermetures et réservation en ligne.',
+        ],
+        'seances_groupe' => [
+            'label' => 'Cours et séances de groupe',
+            'description' => 'Cours réguliers (jour, heure, lieu, coach, places), inscrits, appel des présences, annulations et rattrapages.',
+        ],
+        'abonnements' => [
+            'label' => 'Formules et abonnements',
+            'description' => 'Mensualités, saisons, cartes de séances, frais d’inscription et options ; chaque abonnement prépare son échéancier.',
+        ],
+        'tranches' => [
+            'label' => 'Paiement en plusieurs fois',
+            'description' => 'Échéanciers, tranches à payer ou en retard, encaissement et reçu.',
+        ],
+        'beneficiaires' => [
+            'label' => 'Personnes suivies',
+            'description' => 'Enfants, élèves ou patients suivis pour un responsable (parent, tuteur, employeur) : les messages partent au responsable.',
+        ],
+        'lieux' => [
+            'label' => 'Plusieurs lieux',
+            'description' => 'Plusieurs établissements, points de vente ou terrains, et plusieurs marques.',
+        ],
+        'catalogue' => [
+            'label' => 'Catalogue',
+            'description' => 'Prestations et produits classés par catégories. Ni stock ni variantes.',
+        ],
+        'familles' => [
+            'label' => 'Familles de produits',
+            'description' => 'Analyse des ventes importées par article, famille ou catégorie, et ventes « à classer ».',
+        ],
+        'fidelite' => [
+            'label' => 'Fidélité',
+            'description' => 'Points à chaque achat, paliers et récompenses.',
+        ],
+        'campagnes' => [
+            'label' => 'Campagnes WhatsApp (API)',
+            'description' => 'Envoi automatique par l’API WhatsApp Cloud : campagnes, modèles de messages, historique.',
+        ],
+    ];
+
+    /**
+     * Questions « Comment travaillez-vous ? » de l'inscription : une réponse
+     * « oui » coche le module.
+     */
+    public const WORK_QUESTIONS = [
+        'rdv' => 'Recevez-vous vos clients sur rendez-vous individuel ?',
+        'seances_groupe' => 'Donnez-vous des cours ou des séances en groupe ?',
+        'abonnements' => 'Vendez-vous des abonnements, forfaits ou cartes de séances ?',
+        'tranches' => 'Vos clients paient-ils en plusieurs fois ?',
+        'beneficiaires' => 'Suivez-vous des personnes pour le compte d’un responsable (enfants, élèves, salariés) ?',
+        'lieux' => 'Travaillez-vous dans plusieurs lieux ?',
+    ];
+
+    /** Modules d'une organisation historique (sans secteur) : tout ce qui existait avant les modules. */
+    public const LEGACY_MODULES = ['rdv', 'catalogue', 'lieux', 'fidelite'];
+
+    /** Libellés du bénéficiaire selon l'activité (singulier, pluriel). */
+    public const BENEFICIARY_LABELS = [
+        'adherent' => ['Adhérent', 'Adhérents'],
+        'eleve' => ['Élève', 'Élèves'],
+        'patient' => ['Patient', 'Patients'],
+        'beneficiaire' => ['Bénéficiaire', 'Bénéficiaires'],
+    ];
+
+    /** Réglages de base des modules, complétés par ceux de l'entreprise. */
+    public const MODULE_DEFAULTS = [
+        'seances_groupe' => [
+            'capacity' => 20,
+            // Rattrapage proposé après N séances annulées, le jour choisi (1 = lundi … 7 = dimanche).
+            'makeup_after' => 2,
+            'makeup_weekday' => 6,
+        ],
+        'abonnements' => [
+            'period' => 'month',
+            'season_start' => null,
+            'season_end' => null,
+        ],
+        'tranches' => [
+            'due_day' => 5,
+            // Relances : jours avant (négatif) ou après l'échéance.
+            'reminders' => [-2, 0, 7],
+        ],
+        'beneficiaires' => [
+            'label' => 'adherent',
+            'minor_needs_responsible' => true,
+        ],
+        'fidelite' => [
+            // Points gagnés à chaque présence à un cours (0 = aucun).
+            'points_per_attendance' => 0,
+        ],
+    ];
+
+    /** Modules cochés d'office pour un secteur. @return list<string> */
+    public static function defaultModulesFor(?string $sector): array
+    {
+        return self::SECTORS[$sector]['modules'] ?? self::LEGACY_MODULES;
+    }
+
+    /** Modules actifs, campagnes comprises si l'API WhatsApp est activée. @return list<string> */
+    public function enabledModules(): array
+    {
+        $enabled = $this->modules['enabled'] ?? self::defaultModulesFor($this->sector);
+
+        return array_values(array_intersect(array_keys(self::MODULES), [...$enabled, ...($this->usesWhatsAppApi() ? ['campagnes'] : [])]));
+    }
+
+    public function hasModule(string $module): bool
+    {
+        if ($module === 'campagnes') {
+            return $this->usesWhatsAppApi();
+        }
+
+        return in_array($module, $this->enabledModules(), true);
+    }
+
+    /** @return array<string, mixed> */
+    public function moduleSettings(string $module): array
+    {
+        $defaults = self::MODULE_DEFAULTS[$module] ?? [];
+        $settings = [...$defaults, ...array_intersect_key($this->modules['settings'][$module] ?? [], $defaults)];
+
+        if ($module === 'abonnements') {
+            // Saison par défaut : de septembre à juin de l'année scolaire en cours.
+            $start = today()->month >= 8 ? today()->year : today()->year - 1;
+            $settings['season_start'] = $settings['season_start'] ?: "{$start}-09-01";
+            $settings['season_end'] = $settings['season_end'] ?: ($start + 1).'-06-30';
+        }
+
+        return $settings;
+    }
+
+    /**
+     * Enregistre les modules actifs et leurs réglages (sans sauvegarder).
+     *
+     * @param  list<string>  $enabled
+     * @param  array<string, array<string, mixed>>  $settings
+     */
+    public function setModules(array $enabled, array $settings = []): void
+    {
+        $current = $this->modules['settings'] ?? [];
+
+        foreach ($settings as $module => $values) {
+            if (! isset(self::MODULE_DEFAULTS[$module]) || ! is_array($values)) {
+                continue;
+            }
+
+            foreach (array_intersect_key($values, self::MODULE_DEFAULTS[$module]) as $name => $value) {
+                $default = self::MODULE_DEFAULTS[$module][$name];
+                $current[$module][$name] = match (true) {
+                    $value === null || $value === '' => $default,
+                    is_int($default) => (int) $value,
+                    is_bool($default) => (bool) $value,
+                    is_array($default) => array_values(array_map('intval', (array) $value)),
+                    default => (string) $value,
+                };
+            }
+        }
+
+        $this->modules = [
+            'enabled' => array_values(array_intersect(array_keys(self::MODULES), array_diff($enabled, ['campagnes']))),
+            'settings' => $current,
+        ];
+    }
+
+    /** Libellé du bénéficiaire (« Adhérent », « Élève »…). */
+    public function beneficiaryLabel(bool $plural = false): string
+    {
+        $labels = self::BENEFICIARY_LABELS[$this->moduleSettings('beneficiaires')['label']] ?? self::BENEFICIARY_LABELS['adherent'];
+
+        return $labels[$plural ? 1 : 0];
+    }
+
+    /** Agenda des rendez-vous individuels, intervenants, fermetures, réservation en ligne. */
     public function hasAgenda(): bool
     {
-        return self::SECTORS[$this->sector]['agenda'] ?? true;
+        return $this->hasModule('rdv');
     }
 
     /** Le commerce parle de « familles » de produits, les autres de « catégories ». */
@@ -384,7 +575,8 @@ class Organization extends Model
         $settings = [...self::LOYALTY_DEFAULTS, ...array_intersect_key($this->loyalty_settings ?? [], self::LOYALTY_DEFAULTS)];
 
         return [
-            'enabled' => (bool) $settings['enabled'],
+            // Module Fidélité décoché : le programme est arrêté, les points acquis restent.
+            'enabled' => (bool) $settings['enabled'] && $this->hasModule('fidelite'),
             'fcfa_per_point' => max(1, (int) $settings['fcfa_per_point']),
             'starts_on' => $settings['starts_on'] ?: null,
             'tiers' => collect((array) $settings['tiers'])
