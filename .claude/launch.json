@@ -1,0 +1,53 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "mercure_crm",
+      "runtimeExecutable": "php",
+      "runtimeArgs": [
+        "artisan",
+        "serve"
+      ],
+      "port": 8000
+    },
+    {
+      "name": "mercure_crm_php83",
+      "runtimeExecutable": "C:/wamp64/bin/php/php8.3.6/php.exe",
+      "runtimeArgs": [
+        "artisan",
+        "serve"
+      ],
+      "port": 8000
+    },
+    {
+      "name": "vite",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": [
+        "run",
+        "dev"
+      ],
+      "port": 5173
+    },
+    {
+      "name": "mercure_crm_retail",
+      "runtimeExecutable": "C:/wamp64/bin/php/php8.3.6/php.exe",
+      "runtimeArgs": [
+        "artisan",
+        "serve",
+        "--port=8010"
+      ],
+      "port": 8010
+    },
+    {
+      "name": "menentia-site",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": [
+        "--prefix",
+        "docs/Menentia doc/menentia-site/menentia-site",
+        "run",
+        "dev"
+      ],
+      "port": 3000
+    }
+  ]
+}
