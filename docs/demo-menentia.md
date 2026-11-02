@@ -32,3 +32,10 @@ Mot de passe : `DEMO_PASSWORD`, sinon `Demo-Menentia-2026`.
 3. **Clients › Objectifs** : progression par indicateur, objectif à date, classement ; « Primes du mois ».
 4. **Paramètres › Prospects** : renommer les étapes, délais de relance, primes, codes commerciaux.
 5. Agenda : une démo marquée « Honoré » fait passer le prospect à « Démo faite » ; la première vente le fait passer « Client ».
+
+## Prévu en V2 (cahier des charges)
+
+- Avis et enquêtes de satisfaction clients.
+- Marketplace : fiche publique par établissement (bouton WhatsApp, réservation, recherche par activité et quartier).
+- Captures d'écran du suivi des prospects.
+- Déjà livrés en avance (à valider en V2) : primes et export paie, taux de passage, code de parrainage, rapport du soir et rappel du matin des commerciaux, position GPS des visites.
