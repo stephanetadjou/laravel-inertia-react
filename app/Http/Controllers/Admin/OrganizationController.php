@@ -224,7 +224,7 @@ class OrganizationController extends Controller
             'statuses' => $list(self::STATUS_FILTERS),
             'sectors' => $list(Organization::SECTORS),
             'plans' => collect(Organization::PLANS)->map(fn ($p, $key) => ['value' => $key, 'label' => $p['label'].' · '.number_format($p['price'], 0, ',', ' ').' FCFA / mois'])->values()->all(),
-            'offers' => [['value' => 'menentia', 'label' => 'Menentia'], ['value' => 'retail', 'label' => 'Menentia Retail']],
+            'offers' => [['value' => 'menentia', 'label' => 'Menentia'], ['value' => 'retail', 'label' => 'Analyse commerciale']],
         ];
     }
 }

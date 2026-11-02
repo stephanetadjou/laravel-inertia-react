@@ -31,7 +31,8 @@ class RegisteredOrganizationController extends Controller
     public function create(): Response
     {
         return Inertia::render('Auth/Register', [
-            'sectors' => collect(Organization::SECTORS)->map(fn ($sector, $key) => [
+            // Inscription publique : secteurs de prestations de services (le commerce n'est plus proposé).
+            'sectors' => collect(Organization::SECTORS)->only(Organization::PUBLIC_SECTORS)->map(fn ($sector, $key) => [
                 'key' => $key,
                 'label' => $sector['label'],
                 'description' => $sector['description'],

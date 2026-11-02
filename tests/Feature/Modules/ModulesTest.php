@@ -59,7 +59,7 @@ it('gives historical organizations every module that existed before', function (
     $legacy = Organization::factory()->create(['sector' => null]);
     $retail = Organization::factory()->create(['sector' => 'commerce']);
 
-    expect($legacy->enabledModules())->toBe(['rdv', 'lieux', 'catalogue', 'fidelite', 'campagnes'])
+    expect($legacy->enabledModules())->toBe(['rdv', 'lieux', 'catalogue', 'produits', 'fidelite', 'campagnes'])
         ->and($retail->hasModule('familles'))->toBeTrue()
         ->and($retail->hasAgenda())->toBeFalse()
         ->and($retail->hasModule('catalogue'))->toBeFalse();
@@ -137,3 +137,21 @@ it('links imported lines to the catalogue product and its category when retail u
         ->and($items->pluck('catalog_item_id')->all())->toBe([$coca->id, $coca->id])
         ->and($items->pluck('category_id')->all())->toBe([$sodas->id, $sodas->id]);
 });
+
+it('adds products to the catalogue only when the company sells some', function (bool $sellsProducts) {
+    $this->post('/register', [
+        'organization_name' => 'Garage Akanda', 'sector' => 'technique', 'store_name' => 'Garage', 'name' => 'Chef',
+        'email' => 'garage@example.com', 'password' => 'Secret-123456', 'password_confirmation' => 'Secret-123456',
+        'answers' => ['produits' => $sellsProducts],
+    ])->assertRedirect('/dashboard');
+
+    $organization = Organization::where('name', 'Garage Akanda')->firstOrFail();
+    expect($organization->hasModule('produits'))->toBe($sellsProducts)
+        ->and($organization->hasModule('rdv'))->toBeTrue();
+
+    $this->get('/catalog')->assertInertia(fn (Assert $page) => $page->where('productsEnabled', $sellsProducts));
+
+    $response = $this->post('/catalog', ['type' => 'product', 'name' => 'Huile moteur 5L', 'price' => 25000]);
+    $sellsProducts ? $response->assertSessionHasNoErrors() : $response->assertSessionHasErrors('type');
+    expect(CatalogItem::where('type', 'product')->exists())->toBe($sellsProducts);
+})->with([true, false]);

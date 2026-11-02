@@ -31,6 +31,7 @@ export interface CatalogItem {
 }
 
 interface PageProps {
+    productsEnabled: boolean;
     items: CatalogItem[];
     categories: { id: number; name: string }[];
     stores: { id: number; name: string }[];
@@ -86,6 +87,7 @@ function ItemModal({
         setData('properties', data.properties.map((p, i) => (i === index ? { ...p, [field]: value } : p)));
     }
     const isService = data.type === 'service';
+    const productsEnabled = usePage<PageProps>().props.productsEnabled;
 
     const submit: FormEventHandler = (e) => {
         e.preventDefault();
@@ -103,7 +105,7 @@ function ItemModal({
             <h3 className="mb-5 text-lg font-semibold text-gray-800 dark:text-white/90">{item ? `Modifier « ${item.name} »` : isService ? 'Nouvelle prestation' : 'Nouveau produit'}</h3>
             <form onSubmit={submit} className="space-y-4">
                 <div className="flex gap-2" role="group" aria-label="Type">
-                    {(['service', 'product'] as const).map((t) => (
+                    {(productsEnabled ? (['service', 'product'] as const) : (['service'] as const)).map((t) => (
                         <button
                             key={t}
                             type="button"
@@ -230,7 +232,7 @@ function ItemModal({
 }
 
 function CatalogIndex() {
-    const { items, categories, stores, propertyNames } = usePage<PageProps>().props;
+    const { items, categories, stores, propertyNames, productsEnabled } = usePage<PageProps>().props;
     const [tab, setTab] = useState<Tab>('service');
     const [search, setSearch] = useState('');
     const [modal, setModal] = useState<CatalogItem | null | undefined>(undefined);
@@ -259,7 +261,8 @@ function CatalogIndex() {
                         value={tab}
                         options={[
                             { key: 'service', label: `Prestations · ${count('service')}` },
-                            { key: 'product', label: `Produits · ${count('product')}` },
+                            // Produits : complément des prestations, avec le module « Vente de produits ».
+                            ...(productsEnabled ? [{ key: 'product' as Tab, label: `Produits · ${count('product')}` }] : []),
                             { key: 'archived', label: `Archivés · ${count('archived')}` },
                         ]}
                         onChange={setTab}

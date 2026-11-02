@@ -103,11 +103,17 @@ class Organization extends Model
         return $this->status === self::STATUS_SUSPENDED;
     }
 
-    /** Menentia (PME sur rendez-vous) ou Menentia Retail (commerce). */
+    /**
+     * Une seule offre Menentia (CRM des PME de prestations de services) ; le
+     * commerce existant y garde le module « Analyse commerciale ».
+     */
     public function offerLabel(): string
     {
-        return $this->sector === 'commerce' ? 'Menentia Retail' : 'Menentia';
+        return $this->sector === 'commerce' ? 'Menentia · Analyse commerciale' : 'Menentia';
     }
+
+    /** Secteurs proposés à l'inscription publique : le commerce n'y est plus (organisations existantes inchangées). */
+    public const PUBLIC_SECTORS = ['beaute', 'sante', 'sport', 'technique', 'pro', 'autre'];
 
     public function privacyPolicyUrl(): string
     {
@@ -171,7 +177,7 @@ class Organization extends Model
             'label' => 'Beauté et soins',
             'description' => 'Salons, barbiers, onglerie, esthétique, spas : agenda et réservation en ligne, et un rappel quand une cliente dépasse son délai habituel.',
             'modules' => ['rdv', 'catalogue', 'fidelite'],
-            'suggested' => [],
+            'suggested' => ['produits'],
         ],
         'sante' => [
             'label' => 'Santé',
@@ -316,8 +322,12 @@ class Organization extends Model
             'label' => 'Catalogue',
             'description' => 'Prestations et produits classés par catégories. Ni stock ni variantes.',
         ],
+        'produits' => [
+            'label' => 'Vente de produits',
+            'description' => 'Produits vendus en complément de vos prestations (soins, accessoires, tenues…), classés par catégories. Ni stock ni variantes.',
+        ],
         'familles' => [
-            'label' => 'Familles de produits',
+            'label' => 'Analyse commerciale',
             'description' => 'Analyse des ventes importées par article, famille ou catégorie, et ventes « à classer ».',
         ],
         'fidelite' => [
@@ -341,10 +351,11 @@ class Organization extends Model
         'tranches' => 'Vos clients paient-ils en plusieurs fois ?',
         'beneficiaires' => 'Suivez-vous des personnes pour le compte d’un responsable (enfants, élèves, salariés) ?',
         'lieux' => 'Travaillez-vous dans plusieurs lieux ?',
+        'produits' => 'Vendez-vous aussi des produits (en complément de vos prestations) ?',
     ];
 
     /** Modules d'une organisation historique (sans secteur) : tout ce qui existait avant les modules. */
-    public const LEGACY_MODULES = ['rdv', 'catalogue', 'lieux', 'fidelite'];
+    public const LEGACY_MODULES = ['rdv', 'catalogue', 'produits', 'lieux', 'fidelite'];
 
     /** Libellés du bénéficiaire selon l'activité (singulier, pluriel). */
     public const BENEFICIARY_LABELS = [
@@ -462,6 +473,15 @@ class Organization extends Model
         $labels = self::BENEFICIARY_LABELS[$this->moduleSettings('beneficiaires')['label']] ?? self::BENEFICIARY_LABELS['adherent'];
 
         return $labels[$plural ? 1 : 0];
+    }
+
+    /**
+     * Produits au catalogue : le commerce (cœur de son activité) ou un
+     * prestataire qui vend aussi des produits en complément (module « produits »).
+     */
+    public function sellsCatalogProducts(): bool
+    {
+        return $this->sellsProducts() || $this->hasModule('produits');
     }
 
     /** Agenda des rendez-vous individuels, intervenants, fermetures, réservation en ligne. */

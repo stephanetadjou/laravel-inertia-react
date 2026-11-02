@@ -36,6 +36,8 @@ it('runs the beauty salon journey from sign-up to the evening report', function 
         'email' => 'clarisse@elegance.test',
         'password' => 'Secret-123456',
         'password_confirmation' => 'Secret-123456',
+        // Le salon vend aussi des produits en complément de ses prestations.
+        'answers' => ['produits' => true],
     ])->assertRedirect(route('dashboard.index'));
 
     $admin = User::where('email', 'clarisse@elegance.test')->sole();

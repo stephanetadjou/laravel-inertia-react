@@ -48,6 +48,8 @@ class CatalogController extends Controller
             'categories' => Category::where('organization_id', $organizationId)->orderBy('name')->get(['id', 'name']),
             'stores' => Store::where('organization_id', $organizationId)->orderBy('name')->get(['id', 'name']),
             'types' => CatalogItem::TYPES,
+            // Produits proposés seulement au commerce ou avec le module « Vente de produits ».
+            'productsEnabled' => $request->user()->organization->sellsCatalogProducts(),
             // Attributs déjà utilisés (ventes importées et catalogue), proposés à la saisie.
             'propertyNames' => collect(array_keys((new FamilyAnalytics(Store::where('organization_id', $organizationId)->pluck('id')->all()))->propertyValues()))
                 ->merge($items->flatMap(fn (CatalogItem $item) => array_keys($item->properties ?? [])))
@@ -96,7 +98,7 @@ class CatalogController extends Controller
         $organizationId = $request->user()->organization_id;
 
         return $request->validate([
-            'type' => ['required', Rule::in(array_keys(CatalogItem::TYPES))],
+            'type' => ['required', Rule::in($request->user()->organization->sellsCatalogProducts() ? array_keys(CatalogItem::TYPES) : [CatalogItem::TYPE_SERVICE])],
             'name' => ['required', 'string', 'max:255'],
             'category_id' => ['nullable', 'integer', Rule::exists('categories', 'id')->where('organization_id', $organizationId)],
             'price' => ['required', 'integer', 'min:0', 'max:100000000'],

@@ -71,7 +71,7 @@
 <body @if ($autoPrint) onload="window.print()" @endif>
 <div class="sheet">
     <div class="top">
-        <div class="brand"><i>M</i>Menentia Retail</div>
+        <div class="brand"><i>M</i>Menentia · Analyse commerciale</div>
         <h1>Rapport de direction</h1>
         <div class="sub">{{ $organization->name }} · {{ $scopeLabel }} · du {{ \Illuminate\Support\Carbon::parse($filters['from'])->format('d/m/Y') }} au {{ \Illuminate\Support\Carbon::parse($filters['to'])->format('d/m/Y') }}</div>
     </div>

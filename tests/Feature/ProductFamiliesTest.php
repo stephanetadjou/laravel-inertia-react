@@ -155,7 +155,9 @@ it('targets customers by family, lapsed family, never bought family and property
 });
 
 it('hides the agenda for retail and shows the sector at registration', function () {
-    $this->get('/register')->assertInertia(fn ($page) => $page->has('sectors', count(Organization::SECTORS)));
+    // Inscription publique : le commerce n'est plus proposé (organisations existantes inchangées).
+    $this->get('/register')->assertInertia(fn ($page) => $page->has('sectors', count(Organization::PUBLIC_SECTORS))
+        ->where('sectors', fn ($sectors) => ! collect($sectors)->contains('key', 'commerce')));
 
     [$organization, $user] = familiesSetup();
 

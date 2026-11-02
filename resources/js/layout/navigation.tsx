@@ -54,7 +54,7 @@ export function navContext(auth: NavAuth | undefined): NavContext {
 }
 
 /** Modules d'une organisation historique quand la liste n'est pas fournie. */
-const LEGACY_MODULES = ['rdv', 'catalogue', 'lieux', 'fidelite'];
+const LEGACY_MODULES = ['rdv', 'catalogue', 'produits', 'lieux', 'fidelite'];
 
 export function buildSections({ canManageOrganization, whatsappApiEnabled, modules = LEGACY_MODULES, sellsProducts = false, canImport = false, isPlatformAdmin = false }: NavContext): NavSection[] {
     const has = (module: string) => modules.includes(module);

@@ -76,7 +76,7 @@ it('lists companies with search and filters', function () {
         ->assertInertia(fn ($page) => $page->component('Admin/Organizations/Index')->where('organizations.total', 3));
 
     $this->actingAs($this->admin)->get('/admin/organizations?offer=retail')
-        ->assertInertia(fn ($page) => $page->has('organizations.data', 1)->where('organizations.data.0.name', 'Retail Group')->where('organizations.data.0.offer', 'Menentia Retail'));
+        ->assertInertia(fn ($page) => $page->has('organizations.data', 1)->where('organizations.data.0.name', 'Retail Group')->where('organizations.data.0.offer', 'Menentia · Analyse commerciale'));
     $this->actingAs($this->admin)->get('/admin/organizations?status=trial&sector=beaute&q=awa')
         ->assertInertia(fn ($page) => $page->has('organizations.data', 1)
             ->where('organizations.data.0.name', 'Salon Awa')
