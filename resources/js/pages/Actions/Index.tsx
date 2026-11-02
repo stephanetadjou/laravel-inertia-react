@@ -20,6 +20,8 @@ interface Row {
     appointment_id: number | null;
     store_id: number;
     name: string;
+    /** Personne suivie : responsable à qui le message est envoyé. */
+    recipient_name?: string | null;
     phone_e164: string;
     store_name: string;
     stage: string;
@@ -202,6 +204,7 @@ function ActionsIndex() {
                                             <b>{row.name}</b>
                                         </Link>
                                         <span className="mono">{row.phone_e164}</span>
+                                        {row.recipient_name && <span className="mact-meta">écrire à {row.recipient_name}</span>}
                                         <span className="mact-tags">
                                             {row.churn_risk && <span className={`mdash-pill ${row.churn_risk === 'high' ? 'bad' : 'warn'}`}>{row.churn_risk === 'high' ? 'Risque élevé' : 'Risque moyen'}</span>}
                                             <span className="mact-meta">

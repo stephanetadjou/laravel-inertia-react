@@ -696,3 +696,27 @@
 .mloy-points.neg {
     color: var(--bad);
 }
+
+/* Onglets des modules sur la fiche client (vue d'ensemble, personnes suivies, échéances…). */
+.mcust-tabs {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+    margin: 14px 0 2px;
+    border-bottom: 1px solid var(--line, #e4e9ef);
+}
+.mcust-tabs button {
+    padding: 8px 14px;
+    font-size: 14px;
+    color: var(--muted, #5b6b7b);
+    border-bottom: 2px solid transparent;
+    margin-bottom: -1px;
+}
+.mcust-tabs button:hover {
+    color: var(--ink, #0b2d4a);
+}
+.mcust-tabs button.on {
+    color: var(--ink, #0b2d4a);
+    font-weight: 600;
+    border-bottom-color: var(--brand);
+}

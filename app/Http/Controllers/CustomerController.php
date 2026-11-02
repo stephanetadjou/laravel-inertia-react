@@ -162,6 +162,7 @@ class CustomerController extends Controller
                     'id' => $customer->id,
                     'name' => $customer->name,
                     'phone_e164' => $customer->phone_e164,
+                    'responsible_name' => $customer->responsible_id ? $customer->responsible?->name : null,
                     'gender' => $customer->gender,
                     'birthdate' => $customer->birthdate?->toDateString(),
                     'contacts' => $contacts,
@@ -275,7 +276,9 @@ class CustomerController extends Controller
                 'avg_interval_days' => $customer->avg_purchase_interval_days,
                 'next_expected_at' => $customer->next_purchase_expected_at?->toDateString(),
             ],
-            'whatsappUrl' => ActionLists::whatsappUrl($customer->phone_e164, ''),
+            // Personne suivie : on écrit à son responsable.
+            'whatsappUrl' => ($phone = $customer->recipient()->phone_e164) ? ActionLists::whatsappUrl($phone, '') : null,
+            ...$this->beneficiaryProps($customer, $user, $storeIds),
             'apiEnabled' => $user->organization->usesWhatsAppApi(),
             'appointments' => $customer->appointments()->whereIn('store_id', $storeIds)
                 ->with(AppointmentController::RELATIONS)
@@ -352,6 +355,51 @@ class CustomerController extends Controller
         ]);
     }
 
+    /**
+     * Module « Personnes suivies » : responsable de la fiche, personnes qu'elle
+     * suit, note de santé (accès restreint).
+     *
+     * @param  array<int, int>  $storeIds
+     * @return array<string, mixed>
+     */
+    private function beneficiaryProps(Customer $customer, User $user, array $storeIds): array
+    {
+        $organization = $user->organization;
+
+        if (! $organization->hasModule('beneficiaires')) {
+            return ['beneficiaryModule' => null];
+        }
+
+        $visibleHealth = $customer->healthNoteVisibleTo($user);
+
+        return [
+            'beneficiaryModule' => [
+                'label' => $organization->beneficiaryLabel(),
+                'labels' => $organization->beneficiaryLabel(true),
+                'relations' => Customer::RELATIONS,
+                'stores' => Store::whereIn('id', $storeIds)->orderBy('name')->get(['id', 'name']),
+                'minor_needs_responsible' => (bool) $organization->moduleSettings('beneficiaires')['minor_needs_responsible'],
+            ],
+            'responsible' => $customer->responsible ? [
+                'id' => $customer->responsible->id,
+                'name' => $customer->responsible->name,
+                'phone_e164' => $customer->responsible->phone_e164,
+                'relation' => Customer::RELATIONS[$customer->responsible_relation] ?? null,
+            ] : null,
+            'beneficiaries' => $customer->beneficiaries()->orderBy('name')->get()->map(fn (Customer $b) => [
+                'id' => $b->id,
+                'name' => $b->name,
+                'age' => $b->age(),
+                'relation' => Customer::RELATIONS[$b->responsible_relation] ?? null,
+                'stage' => $b->lifecycle_stage,
+                'churn_risk' => $b->churn_risk,
+                'total_spent' => (int) $b->total_spent,
+                'last_purchase_at' => $b->last_purchase_at?->toDateString(),
+            ]),
+            'healthNote' => ['visible' => $visibleHealth, 'text' => $visibleHealth ? $customer->health_note : null, 'has_note' => filled($customer->health_note)],
+        ];
+    }
+
     /** @param  array<int, int>  $storeIds */
     private function habits(Customer $customer, array $storeIds): array
     {
@@ -424,12 +472,13 @@ class CustomerController extends Controller
             'consents' => ['nullable', 'array'],
             'consents.*' => ['in:opt_in,opt_out,unknown'],
             'name' => ['required', 'string', 'max:255'],
-            'phone_e164' => ['required', 'string', 'max:20'],
+            // Personne suivie sans numéro : le numéro reste facultatif.
+            'phone_e164' => [$customer->phone_e164 === null ? 'nullable' : 'required', 'string', 'max:20'],
             'gender' => ['nullable', 'in:H,F'],
             'birthdate' => ['nullable', 'date'],
         ]);
 
-        $phone = PhoneNormalizer::normalize($data['phone_e164'])
+        $phone = blank($data['phone_e164'] ?? null) ? null : PhoneNormalizer::normalize($data['phone_e164'])
             ?? throw ValidationException::withMessages(['phone_e164' => 'Numéro invalide : attendu '.PhoneNormalizer::EXPECTED_FORMAT.'.']);
 
         // Un contact hors périmètre ou non modifiable par ce rôle : refus explicite.
@@ -440,7 +489,9 @@ class CustomerController extends Controller
         }
 
         DB::transaction(function () use ($customer, $lifecycle, $phone, $data, $editableContacts) {
-            $lifecycle->changePhone($customer, $phone);
+            if ($phone !== null) {
+                $lifecycle->changePhone($customer, $phone);
+            }
 
             $customer->update([
                 'name' => $data['name'],

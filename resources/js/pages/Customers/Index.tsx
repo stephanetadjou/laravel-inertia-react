@@ -45,7 +45,8 @@ interface Filters {
 interface CustomerRow {
     id: number;
     name: string;
-    phone_e164: string;
+    phone_e164: string | null;
+    responsible_name?: string | null;
     gender: 'H' | 'F' | null;
     birthdate: string | null;
     contacts: EditableContact[];
@@ -564,7 +565,7 @@ function CustomersIndex() {
                                                 <b>
                                                     <Link href={`/customers/${c.id}`}>{c.name}</Link>
                                                 </b>
-                                                <span className="mono">{c.phone_e164}</span>
+                                                <span className="mono">{c.phone_e164 ?? (c.responsible_name ? `suivi par ${c.responsible_name}` : '—')}</span>
                                             </td>
                                             <td>
                                                 <span className={`mdash-pill ${stage.pill}`}>{stage.label}</span>

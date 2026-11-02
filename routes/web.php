@@ -8,6 +8,7 @@ use App\Http\Controllers\AudienceController;
 use App\Http\Controllers\AuditLogController;
 use App\Http\Controllers\Auth\AuthenticatedSessionController;
 use App\Http\Controllers\Auth\RegisteredOrganizationController;
+use App\Http\Controllers\BeneficiaryController;
 use App\Http\Controllers\BookingController;
 use App\Http\Controllers\BookingSettingsController;
 use App\Http\Controllers\BrandController;
@@ -105,6 +106,12 @@ Route::middleware('auth')->group(function () {
     Route::post('/customers/{customer}/merge', [CustomerIdentityController::class, 'merge'])->name('customers.merge');
     Route::post('/customers/{customer}/split', [CustomerIdentityController::class, 'split'])->name('customers.split');
     Route::put('/customers/{customer}', [CustomerController::class, 'update'])->name('customers.update');
+    // Personnes suivies (module « beneficiaires ») : ajout depuis le responsable, rattachement, note de santé.
+    Route::middleware('module:beneficiaires')->group(function () {
+        Route::post('/customers/{customer}/beneficiaries', [BeneficiaryController::class, 'store'])->name('customers.beneficiaries.store');
+        Route::put('/customers/{customer}/responsible', [BeneficiaryController::class, 'updateResponsible'])->name('customers.responsible');
+        Route::put('/customers/{customer}/health-note', [BeneficiaryController::class, 'updateHealthNote'])->name('customers.health-note');
+    });
     Route::post('/customers/{customer}/loyalty/redeem', [LoyaltyController::class, 'redeem'])->middleware('module:fidelite')->name('customers.loyalty.redeem');
     Route::post('/customers/{customer}/loyalty/adjust', [LoyaltyController::class, 'adjust'])->middleware('module:fidelite')->name('customers.loyalty.adjust');
 

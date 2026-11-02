@@ -78,7 +78,8 @@ class ActionLists
     ];
 
     /**
-     * Variables : {prenom}, {nom}, {boutique}, {date_rdv}, {heure_rdv}, {prestation}.
+     * Variables : {prenom}, {nom}, {boutique}, {date_rdv}, {heure_rdv}, {prestation} ;
+     * {beneficiaire} = prénom de la personne suivie quand on écrit à son responsable.
      */
     public const DEFAULT_MESSAGES = [
         'at_risk' => 'Bonjour {prenom}, cela fait un moment que nous ne vous avons pas vu chez {boutique}. Nous avons de nouvelles choses qui devraient vous plaire : passez nous voir, nous serons ravis de vous accueillir !',
@@ -393,14 +394,17 @@ class ActionLists
             return null;
         }
 
-        $contact = $this->contactFor($customer, $appointment?->store_id, $storeIds);
+        // Personne suivie : le message part à son responsable.
+        $recipient = $customer->recipient();
+        $contact = $this->contactFor($recipient, $appointment?->store_id, $storeIds)
+            ?? ($recipient->isNot($customer) ? $this->contactFor($recipient, null, $this->storeIds) : null);
 
-        if ($contact === null) {
+        if ($contact === null || $contact->phone_e164 === null) {
             return null;
         }
 
         $storeName = $appointment?->store?->name ?? $contact->store->name;
-        $message = $this->message($key, $customer, $storeName, $appointment);
+        $message = $this->message($key, $recipient, $storeName, $appointment, $recipient->isNot($customer) ? $customer : null);
 
         return [
             'key' => $key.'-'.$customer->id.($appointment ? '-'.$appointment->id : ''),
@@ -408,6 +412,7 @@ class ActionLists
             'appointment_id' => $appointment?->id,
             'store_id' => $appointment?->store_id ?? $contact->store_id,
             'name' => $customer->name,
+            'recipient_name' => $recipient->isNot($customer) ? $recipient->name : null,
             'phone_e164' => $contact->phone_e164,
             'store_name' => $storeName,
             'stage' => $customer->lifecycle_stage,
@@ -437,11 +442,12 @@ class ActionLists
         return $contacts->sortByDesc(fn (Contact $c) => [(string) $c->purchases_max_purchased_at, $c->created_at?->timestamp])->first();
     }
 
-    private function message(string $key, Customer $customer, string $storeName, ?Appointment $appointment): string
+    private function message(string $key, Customer $customer, string $storeName, ?Appointment $appointment, ?Customer $beneficiary = null): string
     {
         $firstName = CustomerLifecycle::isPlaceholderName($customer->name) ? '' : (string) strtok(trim($customer->name), ' ');
 
-        $text = strtr($this->messages[$key], [
+        $text = strtr($this->messages[$key] ?? '', [
+            '{beneficiaire}' => $beneficiary ? self::firstNameOf($beneficiary->name) : '',
             '{prenom}' => $firstName,
             '{nom}' => CustomerLifecycle::isPlaceholderName($customer->name) ? '' : $customer->name,
             '{boutique}' => $storeName,
@@ -453,6 +459,12 @@ class ActionLists
 
         // « Bonjour , » quand le prénom est inconnu.
         return trim(preg_replace(['/ +,/u', '/ {2,}/u'], [',', ' '], $text));
+    }
+
+    /** Prénom d'un nom complet (« Léo Mba » → « Léo »). */
+    public static function firstNameOf(string $name): string
+    {
+        return (string) strtok(trim($name), ' ');
     }
 
     public static function whatsappUrl(string $phoneE164, string $message): string

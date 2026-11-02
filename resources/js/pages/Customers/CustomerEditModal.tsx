@@ -7,7 +7,7 @@ import Button from '../../components/ui/button/Button';
 export interface EditableCustomer {
     id: number;
     name: string;
-    phone_e164: string;
+    phone_e164: string | null;
     gender: 'H' | 'F' | null;
     birthdate: string | null;
 }
@@ -59,7 +59,7 @@ export default function CustomerEditModal({ customer, contacts, isOpen, onClose 
         clearErrors();
         setData({
             name: customer.name,
-            phone_e164: customer.phone_e164,
+            phone_e164: customer.phone_e164 ?? '',
             gender: customer.gender ?? '',
             birthdate: customer.birthdate ?? '',
             consents: Object.fromEntries(contacts.map((c) => [c.id, c.consent_status])),

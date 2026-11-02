@@ -10,13 +10,14 @@ import WhatsAppIcon from '../../components/common/WhatsAppIcon';
 import CustomerEditModal from './CustomerEditModal';
 import LoyaltyPanel, { LoyaltyData } from './LoyaltyPanel';
 import IdentityPanel, { BrandMetric, IdentityData } from './IdentityPanel';
+import { CustomerTabs, ModuleProps, useModuleTabs } from './CustomerModules';
 import '../Dashboard/dashboard.css';
 import './customers.css';
 
 interface CustomerData {
     id: number;
     name: string;
-    phone_e164: string;
+    phone_e164: string | null;
     previous_phones: string[];
     gender: 'H' | 'F' | null;
     birthdate: string | null;
@@ -108,7 +109,7 @@ interface PageProps {
         avg_interval_days: number | null;
         next_expected_at: string | null;
     };
-    whatsappUrl: string;
+    whatsappUrl: string | null;
     apiEnabled: boolean;
     appointments: AppointmentRow[];
     appointmentStores: { id: number; name: string }[];
@@ -241,6 +242,9 @@ function CustomerShow() {
     const [checkout, setCheckout] = useState<AppointmentRow | null>(null);
     const [welcomeTemplate, setWelcomeTemplate] = useState(welcomeTemplates[0] ?? '');
     const [busy, setBusy] = useState<number | null>(null);
+    const moduleTabs = useModuleTabs();
+    const [tab, setTab] = useState('overview');
+    const responsible = usePage<ModuleProps>().props.responsible;
     const stage = stageInfo(customer.stage);
     const consent = overallConsent(contacts);
     const { scores } = rfm;
@@ -263,11 +267,11 @@ function CustomerShow() {
 
     // « Tout voir » : historiques filtrés sur le numéro du client, sur toute la période.
     const purchasesUrl = `/purchases?${new URLSearchParams({
-        q: customer.phone_e164,
+        q: customer.phone_e164 ?? customer.name,
         from: firstPurchaseAt ?? new Date().toISOString().slice(0, 10),
         to: new Date().toISOString().slice(0, 10),
     })}`;
-    const messagesUrl = `${contacts[0] ? `/chat/${contacts[0].id}` : '/chat'}?${new URLSearchParams({ q: customer.phone_e164, period: 'all' })}`;
+    const messagesUrl = `${contacts[0] ? `/chat/${contacts[0].id}` : '/chat'}?${new URLSearchParams({ q: customer.phone_e164 ?? customer.name, period: 'all' })}`;
 
     function post(contact: ContactRow, url: string, data: Record<string, string> = {}) {
         setBusy(contact.id);
@@ -298,7 +302,16 @@ function CustomerShow() {
                     <div className="grow">
                         <h1>{customer.name}</h1>
                         <div className="meta">
-                            <span className="mono">{customer.phone_e164}</span>
+                            <span className="mono">{customer.phone_e164 ?? 'Sans numéro'}</span>
+                            {responsible && (
+                                <span>
+                                    Suivi par{' '}
+                                    <Link href={`/customers/${responsible.id}`} className="text-brand-text hover:underline">
+                                        {responsible.name}
+                                    </Link>
+                                    {responsible.relation ? ` (${responsible.relation.toLowerCase()})` : ''}
+                                </span>
+                            )}
                             <span>{contacts.map((c) => (c.brand_name && c.brand_name !== c.store_name ? `${c.brand_name} · ${c.store_name}` : c.store_name)).join(', ')}</span>
                         </div>
                         <div className="meta">
@@ -319,10 +332,18 @@ function CustomerShow() {
                         </div>
                     </div>
                     <div className="mcust-actions">
-                        <a href={whatsappUrl} target="_blank" rel="noopener noreferrer" className="mdash-btn ghost" title="Ouvrir une discussion WhatsApp depuis le téléphone de l'établissement">
-                            <WhatsAppIcon />
-                            WhatsApp
-                        </a>
+                        {whatsappUrl && (
+                            <a
+                                href={whatsappUrl}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="mdash-btn ghost"
+                                title={responsible ? `Écrire à ${responsible.name}, responsable` : "Ouvrir une discussion WhatsApp depuis le téléphone de l'établissement"}
+                            >
+                                <WhatsAppIcon />
+                                {responsible ? 'Écrire au responsable' : 'WhatsApp'}
+                            </a>
+                        )}
                         {appointmentStores.length > 0 && (
                             <button type="button" className="mdash-btn ghost" onClick={() => setAppointmentModal(null)}>
                                 Rendez-vous
@@ -346,6 +367,10 @@ function CustomerShow() {
                 {scoped && <div className="mcust-note">Chiffres, achats et messages limités aux boutiques de votre périmètre. L'étape est celle du Groupe.</div>}
             </section>
 
+            <CustomerTabs tabs={moduleTabs} current={tab} onChange={setTab} />
+            {moduleTabs.find((t) => t.key === tab)?.render()}
+
+            {tab === 'overview' && (
             <div className="mdash-grid">
                 <section className="mdash-panel c12" aria-labelledby="rfm-title">
                     <div className="mdash-ph">
@@ -705,6 +730,7 @@ function CustomerShow() {
                 </article>
                 )}
             </div>
+            )}
 
             {appointmentModal !== undefined && (
                 <AppointmentFormModal

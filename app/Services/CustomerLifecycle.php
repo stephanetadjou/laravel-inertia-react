@@ -90,6 +90,16 @@ class CustomerLifecycle
     {
         $organizationId = Store::whereKey($contact->store_id)->value('organization_id');
 
+        // Sans numéro (personne suivie) : jamais rapprochée d'une autre fiche.
+        if ($contact->phone_e164 === null) {
+            $contact->customer_id = Customer::create([
+                'organization_id' => $organizationId, 'phone_e164' => null,
+                'name' => $contact->name, 'gender' => $contact->gender, 'birthdate' => $contact->birthdate,
+            ])->id;
+
+            return;
+        }
+
         $customer = Customer::firstOrCreate(
             ['organization_id' => $organizationId, 'phone_e164' => $contact->phone_e164],
             ['name' => $contact->name, 'gender' => $contact->gender, 'birthdate' => $contact->birthdate],
@@ -136,6 +146,13 @@ class CustomerLifecycle
         $customer = $contact->customer;
         $newPhone = $contact->phone_e164;
         $oldPhone = (string) $contact->getOriginal('phone_e164');
+
+        // Un numéro ne s'efface pas : la fiche garde le sien.
+        if ($newPhone === null) {
+            $contact->phone_e164 = $contact->getOriginal('phone_e164');
+
+            return;
+        }
 
         $owner = Customer::where('organization_id', $customer->organization_id)
             ->where('phone_e164', $newPhone)
@@ -200,7 +217,7 @@ class CustomerLifecycle
         DB::transaction(function () use ($customer, $newPhone) {
             $previous = collect($customer->previous_phones ?? [])
                 ->push($customer->phone_e164)
-                ->reject(fn ($phone) => $phone === $newPhone)
+                ->reject(fn ($phone) => $phone === $newPhone || $phone === null)
                 ->unique()
                 ->values()
                 ->all();

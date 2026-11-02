@@ -8,6 +8,8 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasManyThrough;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
 
 /**
@@ -74,6 +76,17 @@ class Customer extends Model
         'company_name',
         'contact_name',
         'external_code',
+        'responsible_id',
+        'responsible_relation',
+        'health_note',
+    ];
+
+    /** Lien avec le responsable d'une personne suivie (module « beneficiaires »). */
+    public const RELATIONS = [
+        'parent' => 'Parent',
+        'tuteur' => 'Tuteur',
+        'employeur' => 'Employeur',
+        'autre' => 'Autre',
     ];
 
     public const TYPE_PERSON = 'person';
@@ -97,6 +110,7 @@ class Customer extends Model
             'lifecycle_changed_at' => 'datetime',
             'next_purchase_expected_at' => 'date',
             'scored_at' => 'datetime',
+            'health_note' => 'encrypted',
         ];
     }
 
@@ -115,11 +129,16 @@ class Customer extends Model
         });
 
         static::created(function (Customer $customer) {
+            // Personne suivie sans numéro (enfant) : rien à enregistrer.
+            if ($customer->phone_e164 === null) {
+                return;
+            }
+
             CustomerPhone::create(['customer_id' => $customer->id, 'phone_e164' => $customer->phone_e164, 'is_primary' => true, 'valid_from' => today()]);
         });
 
         static::updated(function (Customer $customer) {
-            if (! $customer->wasChanged('phone_e164')) {
+            if (! $customer->wasChanged('phone_e164') || $customer->phone_e164 === null) {
                 return;
             }
 
@@ -194,6 +213,54 @@ class Customer extends Model
     public function stageChanges(): HasMany
     {
         return $this->hasMany(CustomerStageChange::class);
+    }
+
+    /** Responsable d'une personne suivie : c'est lui qui reçoit les messages. */
+    public function responsible(): BelongsTo
+    {
+        return $this->belongsTo(Customer::class, 'responsible_id');
+    }
+
+    /** Personnes suivies pour ce responsable (enfants, élèves, salariés). */
+    public function beneficiaries(): HasMany
+    {
+        return $this->hasMany(Customer::class, 'responsible_id');
+    }
+
+    /** Fiche à qui écrire : le responsable d'une personne suivie, sinon la fiche elle-même. */
+    public function recipient(): Customer
+    {
+        return $this->responsible_id !== null && $this->responsible !== null ? $this->responsible : $this;
+    }
+
+    /** Âge en années (null sans date de naissance). */
+    public function age(): ?int
+    {
+        return $this->birthdate ? (int) $this->birthdate->diffInYears(today()) : null;
+    }
+
+    public function isMinor(): bool
+    {
+        return $this->age() !== null && $this->age() < 18;
+    }
+
+    /**
+     * Note de santé visible par les responsables de l'entreprise et par le
+     * coach d'un cours où la personne est inscrite.
+     */
+    public function healthNoteVisibleTo(User $user): bool
+    {
+        if ($user->canManageOrganization()) {
+            return true;
+        }
+
+        return Schema::hasTable('class_enrollments') && DB::table('class_enrollments')
+            ->join('group_classes', 'group_classes.id', '=', 'class_enrollments.group_class_id')
+            ->join('staff_members', 'staff_members.id', '=', 'group_classes.staff_member_id')
+            ->where('class_enrollments.customer_id', $this->id)
+            ->whereNull('class_enrollments.ended_on')
+            ->where('staff_members.user_id', $user->id)
+            ->exists();
     }
 
     public function isBusiness(): bool
