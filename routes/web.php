@@ -16,6 +16,7 @@ use App\Http\Controllers\CampaignController;
 use App\Http\Controllers\CatalogController;
 use App\Http\Controllers\CategoryController;
 use App\Http\Controllers\ChatController;
+use App\Http\Controllers\ClassController;
 use App\Http\Controllers\ContactController;
 use App\Http\Controllers\CustomerController;
 use App\Http\Controllers\CustomerIdentityController;
@@ -78,8 +79,21 @@ Route::middleware('auth')->group(function () {
     Route::get('/actions', [ActionController::class, 'index'])->name('actions.index');
     Route::post('/actions/done', [ActionController::class, 'done'])->name('actions.done');
 
+    // Agenda : rendez-vous (module « rdv ») et cours de groupe (module « seances_groupe »).
+    Route::get('/appointments', [AppointmentController::class, 'index'])->middleware('module:rdv,seances_groupe')->name('appointments.index');
+
+    Route::middleware('module:seances_groupe')->group(function () {
+        Route::get('/classes', [ClassController::class, 'index'])->name('classes.index');
+        Route::post('/classes', [ClassController::class, 'store'])->name('classes.store');
+        Route::get('/classes/{class}', [ClassController::class, 'show'])->name('classes.show');
+        Route::put('/classes/{class}', [ClassController::class, 'update'])->name('classes.update');
+        Route::post('/classes/{class}/enrollments', [ClassController::class, 'enroll'])->name('classes.enroll');
+        Route::delete('/classes/{class}/enrollments/{enrollment}', [ClassController::class, 'unenroll'])->name('classes.unenroll');
+        Route::get('/class-sessions/{session}', [ClassController::class, 'session'])->name('class-sessions.show');
+        Route::post('/class-sessions/{session}/attendance', [ClassController::class, 'attendance'])->name('class-sessions.attendance');
+    });
+
     Route::middleware('module:rdv')->group(function () {
-        Route::get('/appointments', [AppointmentController::class, 'index'])->name('appointments.index');
         Route::post('/appointments', [AppointmentController::class, 'store'])->name('appointments.store');
         Route::put('/appointments/{appointment}', [AppointmentController::class, 'update'])->name('appointments.update');
         Route::patch('/appointments/{appointment}/status', [AppointmentController::class, 'updateStatus'])->name('appointments.status');

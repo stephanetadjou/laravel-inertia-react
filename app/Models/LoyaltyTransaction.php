@@ -17,6 +17,7 @@ class LoyaltyTransaction extends Model
         'redeem' => 'Récompense',
         'adjust' => 'Ajustement',
         'reverse' => 'Achat annulé',
+        'attendance' => 'Présence à un cours',
     ];
 
     protected $fillable = [

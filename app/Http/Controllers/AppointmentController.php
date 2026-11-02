@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Appointment;
 use App\Models\AppointmentItem;
 use App\Models\CatalogItem;
+use App\Models\ClassSession;
 use App\Models\Closure;
 use App\Models\Contact;
 use App\Models\Customer;
@@ -14,6 +15,7 @@ use App\Models\Store;
 use App\Models\User;
 use App\Services\ActionLists;
 use App\Services\CustomerScoring;
+use App\Services\GroupClasses;
 use App\Services\PhoneNormalizer;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -55,7 +57,10 @@ class AppointmentController extends Controller
         $staffMembers = $this->staffMembers($request);
         $staffId = $staffMembers->contains('id', $request->integer('staff')) ? $request->integer('staff') : null;
 
+        // Sans le module Rendez-vous, l'agenda ne montre que les cours de groupe.
+        $rdv = $user->organization->hasModule('rdv');
         $appointments = Appointment::whereIn('store_id', $storeIds)
+            ->when(! $rdv, fn ($q) => $q->whereRaw('1 = 0'))
             ->when($staffId !== null, fn ($q) => $q->where('staff_member_id', $staffId))
             ->where('starts_at', '>=', $from)
             ->where('starts_at', '<', $to)
@@ -64,6 +69,8 @@ class AppointmentController extends Controller
             ->get();
 
         return Inertia::render('Appointments/Index', [
+            'rdvEnabled' => $rdv,
+            'classSessions' => $this->classSessions($user, $storeIds, $staffId, $from, $to),
             'view' => $view,
             'date' => $date->toDateString(),
             'from' => $from->toDateString(),
@@ -106,6 +113,42 @@ class AppointmentController extends Controller
                 'no_show' => $appointments->where('status', 'no_show')->count(),
             ],
         ]);
+    }
+
+    /**
+     * Séances des cours de groupe de la période (module « seances_groupe »).
+     *
+     * @param  array<int, int>  $storeIds
+     * @return list<array<string, mixed>>
+     */
+    private function classSessions(User $user, array $storeIds, ?int $staffId, Carbon $from, Carbon $to): array
+    {
+        if (! $user->organization->hasModule('seances_groupe')) {
+            return [];
+        }
+
+        app(GroupClasses::class)->ensureSessions($user->organization_id, $from, $to);
+
+        return ClassSession::whereHas('groupClass', fn ($q) => $q->whereIn('store_id', $storeIds)->when($staffId !== null, fn ($w) => $w->where('staff_member_id', $staffId)))
+            ->where('session_date', '>=', $from->toDateString())
+            ->where('session_date', '<', $to->toDateString())
+            ->with(['groupClass' => fn ($q) => $q->withCount('activeEnrollments')->with(['coach:id,name', 'store:id,name'])])
+            ->orderBy('session_date')->orderBy('start_time')
+            ->get()
+            ->map(fn (ClassSession $s) => [
+                'id' => $s->id,
+                'date' => $s->session_date,
+                'start_time' => $s->start_time,
+                'end_time' => $s->end_time,
+                'name' => $s->groupClass->name,
+                'coach' => $s->groupClass->coach?->name,
+                'store' => $s->groupClass->store?->name,
+                'enrolled' => (int) $s->groupClass->active_enrollments_count,
+                'capacity' => $s->groupClass->capacity,
+                'status' => $s->status,
+                'is_makeup' => $s->makeup_of_id !== null,
+            ])
+            ->all();
     }
 
     public function store(Request $request): RedirectResponse

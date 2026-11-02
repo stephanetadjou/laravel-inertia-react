@@ -582,3 +582,18 @@
     font-size: 11px;
     pointer-events: none;
 }
+
+/* Séance d'un cours de groupe : couleur verte de la marque, sous les rendez-vous. */
+.mcal-event.mcal-class {
+    --ev: var(--brand-2);
+    --ev-soft: #e3f8f1;
+    z-index: 0;
+    text-decoration: none;
+}
+.dark .mcal-event.mcal-class {
+    --ev-soft: rgba(0, 200, 150, 0.14);
+}
+.mcal-event.mcal-class.st-cancelled {
+    opacity: 0.55;
+    text-decoration: line-through;
+}

@@ -17,7 +17,24 @@ import './calendar.css';
 
 type View = 'day' | 'week' | 'month';
 
+/** Séance d'un cours de groupe (module « seances_groupe »), affichée avec les rendez-vous. */
+interface ClassSessionRow {
+    id: number;
+    date: string;
+    start_time: string;
+    end_time: string;
+    name: string;
+    coach: string | null;
+    store: string | null;
+    enrolled: number;
+    capacity: number;
+    status: 'scheduled' | 'cancelled';
+    is_makeup: boolean;
+}
+
 interface PageProps {
+    rdvEnabled: boolean;
+    classSessions: ClassSessionRow[];
     view: View;
     date: string;
     from: string;
@@ -334,7 +351,9 @@ function TimeGrid({
     wide,
     closedOn,
     breaks,
+    sessions,
 }: {
+    sessions: ClassSessionRow[];
     days: string[];
     byDay: Record<string, AppointmentRow[]>;
     today: string;
@@ -346,8 +365,9 @@ function TimeGrid({
 }) {
     const all = days.flatMap((d) => byDay[d] ?? []);
     // Plage horaire : 8 h – 20 h, élargie aux rendez-vous plus tôt ou plus tard.
-    const first = Math.min(8, ...all.map((a) => Math.floor(minutesOf(a) / 60)));
-    const last = Math.max(20, ...all.map((a) => Math.ceil((minutesOf(a) + a.duration_minutes) / 60)));
+    const toMinutes = (t: string) => Number(t.slice(0, 2)) * 60 + Number(t.slice(3, 5));
+    const first = Math.min(8, ...all.map((a) => Math.floor(minutesOf(a) / 60)), ...sessions.map((s) => Math.floor(toMinutes(s.start_time) / 60)));
+    const last = Math.max(20, ...all.map((a) => Math.ceil((minutesOf(a) + a.duration_minutes) / 60)), ...sessions.map((s) => Math.ceil(toMinutes(s.end_time) / 60)));
     const hours = Array.from({ length: last - first }, (_, i) => first + i);
     const [now, setNow] = useState(() => new Date());
 
@@ -414,6 +434,28 @@ function TimeGrid({
                         {day === today && nowMinutes >= first * 60 && nowMinutes <= last * 60 && (
                             <em className="mcal-now" style={{ top: ((nowMinutes - first * 60) / 60) * HOUR_HEIGHT }} />
                         )}
+                        {sessions
+                            .filter((s) => s.date === day)
+                            .map((s) => {
+                                const top = ((toMinutes(s.start_time) - first * 60) / 60) * HOUR_HEIGHT;
+                                const height = Math.max(24, ((toMinutes(s.end_time) - toMinutes(s.start_time)) / 60) * HOUR_HEIGHT - 2);
+                                return (
+                                    <Link
+                                        key={`class-${s.id}`}
+                                        href={`/class-sessions/${s.id}`}
+                                        className={`mcal-event mcal-class ${s.status === 'cancelled' ? 'st-cancelled' : ''}`}
+                                        style={{ top, height }}
+                                        onClick={(e) => e.stopPropagation()}
+                                        title={`${s.name} · ${s.enrolled}/${s.capacity} inscrits${s.coach ? ` · ${s.coach}` : ''}`}
+                                    >
+                                        <b>
+                                            {s.start_time.replace(':', 'h')} {s.name}
+                                            {s.is_makeup ? ' (rattrapage)' : ''}
+                                        </b>
+                                        {height > 34 && <span>{s.status === 'cancelled' ? 'Annulé' : [`${s.enrolled}/${s.capacity}`, s.coach, wide ? s.store : null].filter(Boolean).join(' · ')}</span>}
+                                    </Link>
+                                );
+                            })}
                         {(byDay[day] ?? []).map((a, _, items) => {
                             const { lane, lanes } = (layouts[day] ??= layoutDay(items)).get(a.id) ?? { lane: 0, lanes: 1 };
                             const top = ((minutesOf(a) - first * 60) / 60) * HOUR_HEIGHT;
@@ -502,7 +544,7 @@ function MiniMonth({ date, view, marked, today, onPick }: { date: string; view: 
 }
 
 function AppointmentsIndex() {
-    const { view, date, from, store, stores, staff, staffFilter, closures, breaks, statuses, appointments, upcoming, catalog, paymentMethods } = usePage<PageProps>().props;
+    const { view, date, from, store, stores, staff, staffFilter, closures, breaks, statuses, appointments, upcoming, catalog, paymentMethods, rdvEnabled, classSessions } = usePage<PageProps>().props;
     // Jour fermé (férié, congés) : libellé, sinon null.
     const closedOn = (day: string) => closures.find((c) => c.starts_on <= day && c.ends_on >= day)?.label ?? null;
     const [checkout, setCheckout] = useState<AppointmentRow | null>(null);
@@ -539,12 +581,18 @@ function AppointmentsIndex() {
     return (
         <Page
             title="Agenda"
-            subtitle={`${active} rendez-vous sur la période`}
+            subtitle={[rdvEnabled ? `${active} rendez-vous` : null, classSessions.length ? `${classSessions.filter((s) => s.status !== 'cancelled').length} séance(s) de cours` : null].filter(Boolean).join(' · ') + ' sur la période'}
             actions={
-                <button type="button" className="mdash-btn brand" onClick={() => setModal({ appointment: null })} disabled={stores.length === 0}>
-                    <PlusIcon />
-                    Nouveau rendez-vous
-                </button>
+                rdvEnabled ? (
+                    <button type="button" className="mdash-btn brand" onClick={() => setModal({ appointment: null })} disabled={stores.length === 0}>
+                        <PlusIcon />
+                        Nouveau rendez-vous
+                    </button>
+                ) : (
+                    <Link href="/classes" className="mdash-btn brand">
+                        Cours et appel
+                    </Link>
+                )
             }
         >
             <div className="mcal">
@@ -607,10 +655,11 @@ function AppointmentsIndex() {
                             byDay={byDay}
                             today={today}
                             onOpen={setOpened}
-                            onNew={(start) => setModal({ appointment: null, start })}
+                            onNew={(start) => rdvEnabled && setModal({ appointment: null, start })}
                             wide={view === 'day'}
                             closedOn={closedOn}
                             breaks={breaks}
+                            sessions={classSessions}
                         />
                     )}
                 </section>

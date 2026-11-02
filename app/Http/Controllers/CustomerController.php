@@ -281,6 +281,8 @@ class CustomerController extends Controller
             'whatsappUrl' => ($phone = $customer->recipient()->phone_e164) ? ActionLists::whatsappUrl($phone, '') : null,
             ...$this->beneficiaryProps($customer, $user, $storeIds),
             ...$this->scheduleProps($customer, $user, $storeIds),
+            // Cours suivis et présences (module « seances_groupe »).
+            'attendanceModule' => $user->organization->hasModule('seances_groupe') ? ClassController::forCustomer($customer) : null,
             // Abonnements de la fiche et formulaire d'abonnement (module « abonnements »).
             'subscriptionModule' => $user->organization->hasModule('abonnements')
                 ? ['subscriptions' => PlanController::forCustomer($customer, $user), ...PlanController::formOptions($user)]

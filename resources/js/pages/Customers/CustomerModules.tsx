@@ -51,6 +51,11 @@ export interface ModuleProps {
     beneficiaries?: BeneficiaryRow[];
     healthNote?: { visible: boolean; text: string | null; has_note: boolean };
     schedules?: ScheduleRow[] | null;
+    attendanceModule?: {
+        classes: { id: number; name: string; schedule: string; store: string | null; active: boolean }[];
+        counts: { present: number; absent: number; excused: number };
+        recent: { session_id: number; class: string | null; date: string | null; status: 'present' | 'absent' | 'excused' }[];
+    } | null;
     subscriptionModule?: (SubscriptionFormOptions & { subscriptions: SubscriptionRow[] }) | null;
     paymentMethods: Record<string, string>;
     canEdit: boolean;
@@ -78,6 +83,10 @@ export function useModuleTabs(): ModuleTab[] {
         });
     }
 
+    if (props.attendanceModule && (props.attendanceModule.classes.length > 0 || props.attendanceModule.recent.length > 0)) {
+        tabs.push({ key: 'attendance', label: 'Cours et présences', render: () => <AttendanceTab /> });
+    }
+
     if (props.subscriptionModule) {
         const current = props.subscriptionModule.subscriptions.filter((s) => s.status === 'active').length;
         tabs.push({ key: 'subscriptions', label: `Abonnements${current ? ` (${current})` : ''}`, render: () => <SubscriptionsTab /> });
@@ -89,6 +98,54 @@ export function useModuleTabs(): ModuleTab[] {
     }
 
     return tabs;
+}
+
+const ATTENDANCE_PILL = { present: ['Présent', 'ok'], absent: ['Absent', 'bad'], excused: ['Excusé', 'warn'] } as const;
+
+function AttendanceTab() {
+    const { attendanceModule: m } = usePage<ModuleProps>().props;
+    if (!m) return null;
+    const total = m.counts.present + m.counts.absent + m.counts.excused;
+
+    return (
+        <div className="mdash-grid">
+            <section className="mdash-panel c6">
+                <div className="mdash-ph">
+                    <h2>Cours suivis</h2>
+                </div>
+                {m.classes.map((c) => (
+                    <p key={c.id} className="text-sm">
+                        <Link href={`/classes/${c.id}`} className="font-medium text-brand-text hover:underline">
+                            {c.name}
+                        </Link>{' '}
+                        <span className="text-gray-500">
+                            · {c.schedule}
+                            {c.store ? ` · ${c.store}` : ''}
+                            {c.active ? '' : ' · arrêté'}
+                        </span>
+                    </p>
+                ))}
+            </section>
+            <section className="mdash-panel c6">
+                <div className="mdash-ph">
+                    <div>
+                        <h2>Assiduité</h2>
+                        <span className="mdash-sub">{total ? `${Math.round((m.counts.present / total) * 100)} % de présence sur ${total} séance(s)` : 'Aucun appel pour l’instant'}</span>
+                    </div>
+                </div>
+                <ul className="space-y-1 text-sm">
+                    {m.recent.map((a) => (
+                        <li key={a.session_id} className="flex justify-between">
+                            <Link href={`/class-sessions/${a.session_id}`} className="hover:underline">
+                                {a.class} · {formatDay(a.date)}
+                            </Link>
+                            <span className={`mdash-pill ${ATTENDANCE_PILL[a.status][1]}`}>{ATTENDANCE_PILL[a.status][0]}</span>
+                        </li>
+                    ))}
+                </ul>
+            </section>
+        </div>
+    );
 }
 
 function SubscriptionsTab() {

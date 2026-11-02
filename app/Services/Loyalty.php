@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Models\ClassSession;
 use App\Models\Customer;
 use App\Models\LoyaltyReward;
 use App\Models\LoyaltyTransaction;
@@ -167,5 +168,22 @@ class Loyalty
                 'note' => $note,
             ]);
         });
+    }
+
+    /** Points gagnés par une présence à un cours (Paramètres › Modules › Fidélité), si le programme est actif. */
+    public function attendance(?Customer $customer, int $points, ClassSession $session, ?User $user = null): ?LoyaltyTransaction
+    {
+        if ($customer === null || $points <= 0 || ! $this->organization->loyaltySettings()['enabled']) {
+            return null;
+        }
+
+        return LoyaltyTransaction::create([
+            'organization_id' => $this->organization->id,
+            'customer_id' => $customer->id,
+            'type' => 'attendance',
+            'points' => $points,
+            'user_id' => $user?->id,
+            'note' => $session->groupClass->name.' · '.$session->session_date,
+        ]);
     }
 }
