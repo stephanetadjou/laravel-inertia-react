@@ -91,7 +91,7 @@ function SessionPage() {
             ) : (
                 <Panel
                     title={`Appel · ${participants.length} inscrit(s)`}
-                    sub={Object.entries(counts).map(([k, n]) => `${n} ${statuses[k].toLowerCase()}`).join(' · ') || 'Personne n’est encore pointé'}
+                    sub={Object.entries(counts).map(([k, n]) => `${n} ${statuses[k].toLowerCase()}${n > 1 ? "s" : ""}`).join(' · ') || 'Personne n’est encore pointé'}
                     actions={
                         <button type="button" className="mdash-btn ghost sm" onClick={() => setMarks(Object.fromEntries(participants.map((p) => [p.id, 'present'])))}>
                             Tous présents

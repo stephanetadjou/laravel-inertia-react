@@ -279,7 +279,8 @@ function BeneficiariesTab() {
                 </section>
             )}
 
-            {healthNote && (healthNote.visible || healthNote.has_note) && <HealthNotePanel customerId={customer.id} note={healthNote} />}
+            {/* Note de santé : sur la fiche d'une personne suivie (ou si une note existe déjà). */}
+            {healthNote && (responsible || healthNote.has_note) && (healthNote.visible || healthNote.has_note) && <HealthNotePanel customerId={customer.id} note={healthNote} />}
 
             {(!responsible || beneficiaries.length > 0) && (
                 <section className="mdash-panel c12">

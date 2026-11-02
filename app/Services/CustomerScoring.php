@@ -147,6 +147,16 @@ class CustomerScoring
                 ->update(['churn_risk' => $level]);
         };
 
+        // Abonnés : leurs paiements suivent l'échéancier, pas un rythme d'achat ;
+        // l'alerte vient de l'assiduité et des impayés ci-dessous.
+        if ($organization->hasModule('abonnements')) {
+            $members = DB::table('subscriptions')->where('organization_id', $organization->id)->where('status', 'active')
+                ->where(fn ($q) => $q->whereNull('ends_on')->orWhere('ends_on', '>=', today()->toDateString()));
+            DB::table('customers')->where('organization_id', $organization->id)
+                ->where(fn ($q) => $q->whereIn('id', (clone $members)->select('customer_id'))->orWhereIn('id', (clone $members)->whereNotNull('beneficiary_id')->select('beneficiary_id')))
+                ->update(['churn_risk' => null]);
+        }
+
         if ($organization->hasModule('seances_groupe')) {
             $raise(CustomerSearch::followQuery($organization->id, 'absent:'.self::ABSENCES_MEDIUM), 'medium');
             $raise(CustomerSearch::followQuery($organization->id, 'absent:'.self::ABSENCES_HIGH), 'high');

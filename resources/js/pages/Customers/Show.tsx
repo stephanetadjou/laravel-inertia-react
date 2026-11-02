@@ -244,7 +244,11 @@ function CustomerShow() {
     const [welcomeTemplate, setWelcomeTemplate] = useState(welcomeTemplates[0] ?? '');
     const [busy, setBusy] = useState<number | null>(null);
     const moduleTabs = useModuleTabs();
-    const [tab, setTab] = useState('overview');
+    // Onglet ouvert par un lien (« ?tab=schedules ») ou la vue d'ensemble.
+    const [tab, setTab] = useState(() => {
+        const wanted = typeof window !== 'undefined' ? new URLSearchParams(window.location.search).get('tab') : null;
+        return wanted && moduleTabs.some((t) => t.key === wanted) ? wanted : 'overview';
+    });
     const responsible = usePage<ModuleProps>().props.responsible;
     const stage = stageInfo(customer.stage);
     const consent = overallConsent(contacts);
