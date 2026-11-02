@@ -328,6 +328,11 @@ class CustomerLifecycle
                 'followed_spent' => (int) ($family->spent ?? 0),
             ]);
 
+            // Suivi des prospects : la première vente fait passer le prospect en client.
+            if ($customer->prospect_stage !== null && $customer->purchases_count > 0 && $organization->hasModule('prospects')) {
+                ProspectPipeline::for($organization)->onFirstSale($customer);
+            }
+
             $stage = $this->stageFor($customer, $optedIn->has($customer->id), $settings, $today);
 
             if ($stage !== $customer->lifecycle_stage || $customer->lifecycle_changed_at === null) {

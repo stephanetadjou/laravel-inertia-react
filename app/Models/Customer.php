@@ -80,6 +80,10 @@ class Customer extends Model
         'responsible_relation',
         'health_note',
         'followed_spent',
+        'prospect_stage',
+        'prospect_stage_at',
+        'lost_reason',
+        'owner_user_id',
     ];
 
     /** Lien avec le responsable d'une personne suivie (module « beneficiaires »). */
@@ -112,6 +116,7 @@ class Customer extends Model
             'next_purchase_expected_at' => 'date',
             'scored_at' => 'datetime',
             'health_note' => 'encrypted',
+            'prospect_stage_at' => 'datetime',
         ];
     }
 
@@ -214,6 +219,12 @@ class Customer extends Model
     public function stageChanges(): HasMany
     {
         return $this->hasMany(CustomerStageChange::class);
+    }
+
+    /** Commercial responsable de la fiche (module « prospects »). */
+    public function owner(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'owner_user_id');
     }
 
     /** Responsable d'une personne suivie : c'est lui qui reçoit les messages. */

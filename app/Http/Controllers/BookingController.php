@@ -8,8 +8,10 @@ use App\Models\Contact;
 use App\Models\Organization;
 use App\Models\StaffMember;
 use App\Models\Store;
+use App\Models\User;
 use App\Services\BookingAvailability;
 use App\Services\PhoneNormalizer;
+use App\Services\ProspectPipeline;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -129,6 +131,8 @@ class BookingController extends Controller
             'consent' => ['nullable', 'boolean'],
             'notes' => ['nullable', 'string', 'max:500'],
             'staff' => ['nullable', 'integer'],
+            // Code de parrainage d'un commercial (lien /rdv/{slug}?ref=CODE).
+            'ref' => ['nullable', 'string', 'max:20'],
             // Piège à robots : champ caché, toujours vide pour un humain.
             'website' => ['nullable', 'max:0'],
         ], [
@@ -178,6 +182,15 @@ class BookingController extends Controller
                     'name' => trim($data['name']),
                     'consent_status' => 'unknown',
                 ]);
+
+            // Lien d'un commercial : il devient responsable de la fiche (si elle n'en a pas).
+            $referrer = filled($data['ref'] ?? null) ? User::where('organization_id', $organization->id)->where('referral_code', strtoupper(trim($data['ref'])))->first() : null;
+            if ($referrer !== null && $contact->customer && $contact->customer->owner_user_id === null) {
+                $contact->customer->forceFill(['owner_user_id' => $referrer->id])->save();
+                if ($organization->hasModule('prospects') && $contact->customer->prospect_stage === null) {
+                    ProspectPipeline::for($organization)->start($contact->customer, $referrer);
+                }
+            }
 
             // Le client coche la case : son accord est daté et sourcé ; jamais retiré ici.
             if (! empty($data['consent']) && $contact->consent_status !== 'opt_in') {

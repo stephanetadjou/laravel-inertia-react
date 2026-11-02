@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Services\ProspectPipeline;
 use Database\Factories\AppointmentFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -50,7 +51,30 @@ class Appointment extends Model
         'source',
         'cancel_token',
         'staff_member_id',
+        'kind',
+        'latitude',
+        'longitude',
     ];
+
+    /** Types de rendez-vous ; visite et démo servent au suivi des prospects et des commerciaux. */
+    public const KINDS = [
+        'rdv' => 'Rendez-vous',
+        'visite' => 'Visite',
+        'demo' => 'Démo',
+    ];
+
+    protected static function booted(): void
+    {
+        // Visite ou démo honorée : le prospect avance d'étape (cf. ProspectPipeline).
+        static::updated(function (Appointment $appointment) {
+            if ($appointment->wasChanged('status') && $appointment->status === 'done' && $appointment->kind !== 'rdv') {
+                $organization = $appointment->store?->organization;
+                if ($organization?->hasModule('prospects')) {
+                    ProspectPipeline::for($organization)->onAppointmentDone($appointment);
+                }
+            }
+        });
+    }
 
     protected function casts(): array
     {

@@ -33,6 +33,7 @@ use App\Http\Controllers\MultibrandController;
 use App\Http\Controllers\OrganizationController;
 use App\Http\Controllers\PlanController;
 use App\Http\Controllers\PrivacyPolicyController;
+use App\Http\Controllers\ProspectController;
 use App\Http\Controllers\PurchaseController;
 use App\Http\Controllers\ReportController;
 use App\Http\Controllers\RoleController;
@@ -126,6 +127,14 @@ Route::middleware('auth')->group(function () {
     Route::post('/customers/{customer}/merge', [CustomerIdentityController::class, 'merge'])->name('customers.merge');
     Route::post('/customers/{customer}/split', [CustomerIdentityController::class, 'split'])->name('customers.split');
     Route::put('/customers/{customer}', [CustomerController::class, 'update'])->name('customers.update');
+    // Suivi des prospects (module « prospects ») : Kanban, étapes, commercial responsable.
+    Route::middleware('module:prospects')->group(function () {
+        Route::get('/prospects', [ProspectController::class, 'index'])->name('prospects.index');
+        Route::post('/prospects', [ProspectController::class, 'store'])->name('prospects.store');
+        Route::post('/prospects/{customer}/stage', [ProspectController::class, 'move'])->name('prospects.move');
+        Route::put('/prospects/{customer}/owner', [ProspectController::class, 'assign'])->name('prospects.assign');
+        Route::post('/customers/{customer}/prospect', [ProspectController::class, 'follow'])->name('customers.prospect');
+    });
     // Personnes suivies (module « beneficiaires ») : ajout depuis le responsable, rattachement, note de santé.
     Route::middleware('module:beneficiaires')->group(function () {
         Route::post('/customers/{customer}/beneficiaries', [BeneficiaryController::class, 'store'])->name('customers.beneficiaries.store');
@@ -179,6 +188,8 @@ Route::middleware('auth')->group(function () {
         Route::put('/actions/messages', [ActionController::class, 'updateMessages'])->name('actions.messages');
 
         Route::get('/settings/modules', [ModuleController::class, 'index'])->name('settings.modules');
+        Route::get('/settings/prospects', [ProspectController::class, 'settings'])->middleware('module:prospects')->name('settings.prospects');
+        Route::put('/settings/prospects', [ProspectController::class, 'updateSettings'])->middleware('module:prospects')->name('settings.prospects.update');
         Route::put('/settings/modules', [ModuleController::class, 'update'])->name('settings.modules.update');
 
         Route::middleware('module:fidelite')->group(function () {

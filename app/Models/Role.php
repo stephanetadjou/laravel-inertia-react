@@ -32,6 +32,7 @@ class Role extends Model
         'can_manage_organization',
         'can_import',
         'can_export',
+        'own_records_only',
     ];
 
     protected function casts(): array
@@ -40,6 +41,7 @@ class Role extends Model
             'can_manage_organization' => 'boolean',
             'can_import' => 'boolean',
             'can_export' => 'boolean',
+            'own_records_only' => 'boolean',
         ];
     }
 

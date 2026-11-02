@@ -201,7 +201,7 @@ class Organization extends Model
             'label' => 'Services professionnels',
             'description' => 'Conseil, formation, agences, cabinets : rendez-vous clients, suivi de la relation et relances.',
             'modules' => ['rdv', 'catalogue'],
-            'suggested' => ['tranches'],
+            'suggested' => ['tranches', 'prospects', 'abonnements'],
         ],
         'commerce' => [
             'label' => 'Commerce et distribution',
@@ -314,6 +314,10 @@ class Organization extends Model
             'label' => 'Personnes suivies',
             'description' => 'Enfants, élèves ou patients suivis pour un responsable (parent, tuteur, employeur) : les messages partent au responsable.',
         ],
+        'prospects' => [
+            'label' => 'Suivi des prospects',
+            'description' => 'Étapes avant le premier achat (à contacter, démo, essai…), relances à date, Kanban ; avec plusieurs utilisateurs : objectifs, résultats et primes des commerciaux.',
+        ],
         'lieux' => [
             'label' => 'Plusieurs lieux',
             'description' => 'Plusieurs établissements, points de vente ou terrains, et plusieurs marques.',
@@ -352,6 +356,44 @@ class Organization extends Model
         'beneficiaires' => 'Suivez-vous des personnes pour le compte d’un responsable (enfants, élèves, salariés) ?',
         'lieux' => 'Travaillez-vous dans plusieurs lieux ?',
         'produits' => 'Vendez-vous aussi des produits (en complément de vos prestations) ?',
+        'prospects' => 'Démarchez-vous des prospects avant qu’ils deviennent clients ?',
+    ];
+
+    /**
+     * Étapes internes fixes du suivi des prospects ; chaque entreprise nomme
+     * ses étapes et range chacune sur l'une d'elles.
+     */
+    public const PROSPECT_KINDS = [
+        'a_contacter' => 'À contacter',
+        'en_discussion' => 'En discussion',
+        'en_essai' => 'En essai',
+        'gagne' => 'Client',
+        'perdu' => 'Perdu',
+    ];
+
+    /**
+     * Modèles d'étapes par secteur (key, libellé, étape interne, délai de
+     * relance en jours ; 0 = pas de relance). Services professionnels : le
+     * parcours de démarchage de Menentia (visite, démo, essai).
+     *
+     * @var array<string, list<array{key: string, label: string, kind: string, delay_days: int}>>
+     */
+    public const PROSPECT_TEMPLATES = [
+        'pro' => [
+            ['key' => 'prospect', 'label' => 'Prospect', 'kind' => 'a_contacter', 'delay_days' => 3],
+            ['key' => 'visite', 'label' => 'Visité', 'kind' => 'en_discussion', 'delay_days' => 5],
+            ['key' => 'demo', 'label' => 'Démo faite', 'kind' => 'en_discussion', 'delay_days' => 3],
+            ['key' => 'essai', 'label' => 'En essai', 'kind' => 'en_essai', 'delay_days' => 7],
+            ['key' => 'client', 'label' => 'Client', 'kind' => 'gagne', 'delay_days' => 0],
+            ['key' => 'perdu', 'label' => 'Perdu', 'kind' => 'perdu', 'delay_days' => 0],
+        ],
+        'default' => [
+            ['key' => 'a_contacter', 'label' => 'À contacter', 'kind' => 'a_contacter', 'delay_days' => 2],
+            ['key' => 'discussion', 'label' => 'En discussion', 'kind' => 'en_discussion', 'delay_days' => 5],
+            ['key' => 'essai', 'label' => 'En essai', 'kind' => 'en_essai', 'delay_days' => 7],
+            ['key' => 'client', 'label' => 'Client', 'kind' => 'gagne', 'delay_days' => 0],
+            ['key' => 'perdu', 'label' => 'Perdu', 'kind' => 'perdu', 'delay_days' => 0],
+        ],
     ];
 
     /** Modules d'une organisation historique (sans secteur) : tout ce qui existait avant les modules. */
@@ -391,6 +433,14 @@ class Organization extends Model
             // Points gagnés à chaque présence à un cours (0 = aucun).
             'points_per_attendance' => 0,
         ],
+        'prospects' => [
+            // Étapes de l'entreprise (vide = modèle de son secteur, cf. PROSPECT_TEMPLATES).
+            'stages' => [],
+            // Prime d'un commercial : % du prix du premier mois de la formule, due au 2e paiement du client apporté.
+            'commission_rate' => 50,
+            // Montants fixes par formule (nom => FCFA), prioritaires sur le pourcentage.
+            'commission_grid' => [],
+        ],
     ];
 
     /** Modules cochés d'office pour un secteur. @return list<string> */
@@ -429,6 +479,10 @@ class Organization extends Model
             $settings['season_end'] = $settings['season_end'] ?: ($start + 1).'-06-30';
         }
 
+        if ($module === 'prospects' && empty($settings['stages'])) {
+            $settings['stages'] = self::PROSPECT_TEMPLATES[$this->sector] ?? self::PROSPECT_TEMPLATES['default'];
+        }
+
         return $settings;
     }
 
@@ -453,7 +507,9 @@ class Organization extends Model
                     $value === null || $value === '' => $default,
                     is_int($default) => (int) $value,
                     is_bool($default) => (bool) $value,
-                    is_array($default) => array_values(array_map('intval', (array) $value)),
+                    // Listes de nombres (relances) ; structures (étapes, grille) gardées telles quelles, validées en amont.
+                    is_array($default) && $module !== 'prospects' => array_values(array_map('intval', (array) $value)),
+                    is_array($default) => (array) $value,
                     default => (string) $value,
                 };
             }

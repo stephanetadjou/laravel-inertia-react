@@ -8,6 +8,7 @@ import WhatsAppIcon from '../../components/common/WhatsAppIcon';
 import { InstallmentRow, PayButton, STATUS_PILL } from '../Installments/Index';
 import { SubscriptionRow, SubscriptionsTable } from '../Plans/Index';
 import SubscriptionModal, { SubscriptionFormOptions } from '../Plans/SubscriptionModal';
+import { ProspectCard, Stage, StageSelect } from '../Prospects/Index';
 
 export interface ScheduleRow {
     id: number;
@@ -52,6 +53,16 @@ export interface ModuleProps {
     beneficiaries?: BeneficiaryRow[];
     healthNote?: { visible: boolean; text: string | null; has_note: boolean };
     schedules?: ScheduleRow[] | null;
+    prospectModule?: {
+        stage: string | null;
+        stage_label: string | null;
+        card: ProspectCard | null;
+        stages: Stage[];
+        owner: string | null;
+        owner_id: number | null;
+        owners: { id: number; name: string }[];
+        history: { to: string; at: string }[];
+    } | null;
     attendanceModule?: {
         classes: { id: number; name: string; schedule: string; store: string | null; active: boolean }[];
         counts: { present: number; absent: number; excused: number };
@@ -88,6 +99,10 @@ export function useModuleTabs(): ModuleTab[] {
         tabs.push({ key: 'attendance', label: 'Cours et présences', render: () => <AttendanceTab /> });
     }
 
+    if (props.prospectModule) {
+        tabs.push({ key: 'prospect', label: props.prospectModule.stage_label ? `Suivi commercial · ${props.prospectModule.stage_label}` : 'Suivi commercial', render: () => <ProspectTab /> });
+    }
+
     if (props.subscriptionModule) {
         const current = props.subscriptionModule.subscriptions.filter((s) => s.status === 'active').length;
         tabs.push({ key: 'subscriptions', label: `Abonnements${current ? ` (${current})` : ''}`, render: () => <SubscriptionsTab /> });
@@ -99,6 +114,74 @@ export function useModuleTabs(): ModuleTab[] {
     }
 
     return tabs;
+}
+
+function ProspectTab() {
+    const { customer, prospectModule: m } = usePage<ModuleProps>().props;
+    if (!m) return null;
+
+    if (!m.card) {
+        return (
+            <section className="mdash-panel">
+                <p className="text-sm text-gray-600">
+                    Cette fiche n’est pas dans le suivi des prospects.{' '}
+                    <button type="button" className="font-medium text-brand-text hover:underline" onClick={() => router.post(`/customers/${customer.id}/prospect`, {}, { preserveScroll: true })}>
+                        La suivre comme prospect
+                    </button>
+                </p>
+            </section>
+        );
+    }
+
+    return (
+        <div className="mdash-grid">
+            <section className="mdash-panel c6">
+                <div className="mdash-ph">
+                    <div>
+                        <h2>Étape</h2>
+                        <span className={`mdash-sub ${m.card.late ? 'text-error-500' : ''}`}>
+                            {m.card.days} j dans l’étape{m.card.late ? ' · relance en retard' : ''}
+                        </span>
+                    </div>
+                </div>
+                <StageSelect prospect={m.card} stages={m.stages} />
+                {m.card.lost_reason && <p className="mt-2 text-sm text-gray-600">Raison de la perte : {m.card.lost_reason}</p>}
+                <p className="mt-3 text-sm">
+                    Commercial :{' '}
+                    {m.owners.length > 0 ? (
+                        <select
+                            aria-label="Commercial responsable"
+                            className="rounded-md border border-gray-200 px-2 py-1 text-sm dark:border-gray-700 dark:bg-gray-900"
+                            value={m.owner_id ?? ''}
+                            onChange={(e) => router.put(`/prospects/${customer.id}/owner`, { owner_user_id: e.target.value || null }, { preserveScroll: true })}
+                        >
+                            <option value="">—</option>
+                            {m.owners.map((o) => (
+                                <option key={o.id} value={o.id}>
+                                    {o.name}
+                                </option>
+                            ))}
+                        </select>
+                    ) : (
+                        <b>{m.owner ?? '—'}</b>
+                    )}
+                </p>
+            </section>
+            <section className="mdash-panel c6">
+                <div className="mdash-ph">
+                    <h2>Historique</h2>
+                </div>
+                <ul className="space-y-1 text-sm">
+                    {m.history.map((h, i) => (
+                        <li key={i} className="flex justify-between">
+                            <span>{h.to}</span>
+                            <span className="text-gray-500">{formatDay(h.at, true)}</span>
+                        </li>
+                    ))}
+                </ul>
+            </section>
+        </div>
+    );
 }
 
 const ATTENDANCE_PILL = { present: ['Présent', 'ok'], absent: ['Absent', 'bad'], excused: ['Excusé', 'warn'] } as const;

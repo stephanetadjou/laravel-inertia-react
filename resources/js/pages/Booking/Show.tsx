@@ -46,6 +46,8 @@ export default function BookingShow({ organization, welcome, stores, services, p
         website: '',
         // 0 = peu importe (le moins chargé des intervenants libres).
         staff: 0,
+        // Lien d'un commercial (?ref=CODE) : la fiche lui est rattachée.
+        ref: typeof window !== 'undefined' ? (new URLSearchParams(window.location.search).get('ref') ?? '') : '',
     });
     const [team, setTeam] = useState<{ id: number; name: string }[]>([]);
     const [days, setDays] = useState<string[]>([]);

@@ -69,6 +69,7 @@ export function buildSections({ canManageOrganization, whatsappApiEnabled, modul
                   ...(agenda ? [{ name: 'Intervenants', path: '/settings/staff' }] : []),
                   ...(has('rdv') ? [{ name: 'Fermetures', path: '/settings/closures' }] : []),
                   ...(has('fidelite') ? [{ name: 'Fidélité', path: '/settings/loyalty' }] : []),
+                  ...(has('prospects') ? [{ name: 'Prospects', path: '/settings/prospects' }] : []),
                   { name: 'Segments RFM', path: '/settings/rfm' },
                   { name: 'Rapports', path: '/settings/reports' },
               ]
@@ -100,6 +101,7 @@ export function buildSections({ canManageOrganization, whatsappApiEnabled, modul
             path: '/customers',
             tabs: [
                 { name: 'Fiches clients', path: '/customers', alsoActiveOn: ['/contacts'] },
+                ...(has('prospects') ? [{ name: 'Prospects', path: '/prospects' }] : []),
                 { name: 'Groupes', path: '/groups' },
                 ...(sellsProducts && canImport ? [{ name: 'À vérifier', path: '/customers/a-verifier' }] : []),
                 // Retail : les imports ont leur propre rubrique.

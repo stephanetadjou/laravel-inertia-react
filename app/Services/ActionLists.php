@@ -90,6 +90,12 @@ class ActionLists
             'cooldown_days' => 20,
             'modules' => ['abonnements'],
         ],
+        'prospect_followup' => [
+            'label' => 'Prospects à relancer',
+            'description' => 'Prospects restés dans leur étape plus longtemps que le délai de relance (Paramètres › Prospects).',
+            'cooldown_days' => null,
+            'modules' => ['prospects'],
+        ],
         'class_cancelled' => [
             'label' => 'Cours annulés à annoncer',
             'description' => 'Séances annulées ces 7 derniers jours (pluie, coach absent…) : prévenez chaque inscrit, ou son parent.',
@@ -126,6 +132,7 @@ class ActionLists
         'cross_sell' => 'Bonjour {prenom}, merci pour votre fidélité chez {boutique}. Saviez-vous que {autre_marque} fait aussi partie de notre groupe ? Passez découvrir la boutique, vous y serez accueilli comme un client fidèle.',
         'absent_members' => 'Bonjour {prenom}, tout va bien ? Nous avons remarqué des absences aux derniers cours{de_beneficiaire}. Dites-nous si nous pouvons aider : nous serons ravis de vous revoir très vite !',
         'subscription_ending' => 'Bonjour {prenom}, l’abonnement « {formule} »{de_beneficiaire} se termine le {fin}. Souhaitez-vous le renouveler ? Nous pouvons le préparer dès maintenant.',
+        'prospect_followup' => 'Bonjour {prenom}, ici {boutique}. Je reviens vers vous suite à notre dernier échange : avez-vous pu y réfléchir ? Je reste disponible pour en parler ou vous montrer comment ça marche.',
         'class_cancelled' => 'Bonjour {prenom}, le cours de {cours} du {date_cours} à {heure_cours} est annulé ({motif}). Nous vous tiendrons au courant du rattrapage. Merci de votre compréhension !',
         'class_makeup' => 'Bonjour {prenom}, bonne nouvelle : le cours de {cours} annulé est rattrapé le {date_cours} à {heure_cours}. À bientôt !',
         'installment_due' => 'Bonjour {prenom}, petit rappel de {boutique} : l\'échéance de {montant} ({objet}) est à régler le {echeance}. Merci de votre confiance !',
@@ -199,6 +206,7 @@ class ActionLists
             'cross_sell' => $this->crossSell(),
             'group' => $this->groupList(),
             'installment_due' => $this->installmentsDue(),
+            'prospect_followup' => $this->prospectFollowUps(),
             'class_cancelled', 'class_makeup' => $this->sessionNotices($key),
             default => $this->customerList($key),
         };
@@ -412,6 +420,31 @@ class ActionLists
         return array_values(array_filter($rows));
     }
 
+    /**
+     * Prospects en retard de relance : restés dans leur étape au-delà de son
+     * délai, sans relance depuis leur entrée dans l'étape.
+     *
+     * @return list<array<string, mixed>>
+     */
+    private function prospectFollowUps(): array
+    {
+        $pipeline = ProspectPipeline::for($this->user->organization);
+        $stages = $pipeline->stages()->filter(fn ($s) => $s['delay_days'] > 0 && ! in_array($s['kind'], ['gagne', 'perdu'], true));
+
+        return $this->customers('prospect_followup')
+            ->whereIn('prospect_stage', $stages->pluck('key'))
+            ->with('owner:id,name')
+            ->orderBy('prospect_stage_at')
+            ->get()
+            ->filter(fn (Customer $c) => $pipeline->lateness($c)['late'])
+            ->reject(fn (Customer $c) => $c->followUps()->where('action', 'prospect_followup')->where('done_at', '>=', $c->prospect_stage_at)->where('done_at', '>=', now()->subDays($pipeline->stage($c->prospect_stage)['delay_days']))->exists())
+            ->take(self::LIMIT)
+            ->map(fn (Customer $c) => $this->row('prospect_followup', $c, '« '.$pipeline->stage($c->prospect_stage)['label'].' » depuis '.$pipeline->lateness($c)['days'].' j (relance prévue après '.$pipeline->stage($c->prospect_stage)['delay_days'].' j)'.($c->owner ? ' · '.$c->owner->name : '')))
+            ->filter()
+            ->values()
+            ->all();
+    }
+
     /** Variables propres à une ligne ({montant}, {echeance}…), le temps de construire son message. @var array<string, string> */
     private array $vars = [];
 
@@ -574,6 +607,11 @@ class ActionLists
     private function row(string $key, ?Customer $customer, string $reason, ?Appointment $appointment = null, ?array $storeIds = null, ?string $reference = null): ?array
     {
         if ($customer === null) {
+            return null;
+        }
+
+        // Commercial : seulement les fiches dont il est responsable.
+        if ($this->user->ownRecordsOnly() && $customer->owner_user_id !== $this->user->id) {
             return null;
         }
 

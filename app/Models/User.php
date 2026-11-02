@@ -10,13 +10,33 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
+use Illuminate\Support\Str;
 
-#[Fillable(['name', 'email', 'password', 'organization_id', 'role_id', 'brand_id', 'store_id'])]
+#[Fillable(['name', 'email', 'password', 'organization_id', 'role_id', 'brand_id', 'store_id', 'referral_code'])]
 #[Hidden(['password', 'remember_token'])]
 class User extends Authenticatable
 {
     /** @use HasFactory<UserFactory> */
     use HasFactory, Notifiable;
+
+    /** Commercial : ne voit que les fiches dont il est responsable, et ses chiffres (module « prospects »). */
+    public function ownRecordsOnly(): bool
+    {
+        return (bool) ($this->role?->own_records_only ?? false) && ! $this->canManageOrganization();
+    }
+
+    /** Code de parrainage du commercial (créé à la première demande). */
+    public function referralCode(): string
+    {
+        if (blank($this->referral_code)) {
+            do {
+                $code = strtoupper(Str::random(6));
+            } while (static::where('referral_code', $code)->exists());
+            $this->forceFill(['referral_code' => $code])->save();
+        }
+
+        return (string) $this->referral_code;
+    }
 
     /** Super-admin Menentia : accès au back-office plateforme (/admin). Jamais attribuable depuis une entreprise. */
     public function isPlatformAdmin(): bool

@@ -16,6 +16,7 @@ use App\Models\LoyaltyReward;
 use App\Models\LoyaltyTransaction;
 use App\Models\MessageTemplate;
 use App\Models\PaymentSchedule;
+use App\Models\ProspectStageChange;
 use App\Models\Purchase;
 use App\Models\StaffMember;
 use App\Models\Store;
@@ -27,6 +28,7 @@ use App\Services\CustomerSearch;
 use App\Services\FamilyAnalytics;
 use App\Services\Loyalty;
 use App\Services\PhoneNormalizer;
+use App\Services\ProspectPipeline;
 use App\Services\RfmCalculator;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
@@ -287,6 +289,8 @@ class CustomerController extends Controller
             'whatsappUrl' => ($phone = $customer->recipient()->phone_e164) ? ActionLists::whatsappUrl($phone, '') : null,
             ...$this->beneficiaryProps($customer, $user, $storeIds),
             ...$this->scheduleProps($customer, $user, $storeIds),
+            // Suivi des prospects : étape, commercial, historique des passages.
+            'prospectModule' => $this->prospectProps($customer, $user),
             // Cours suivis et présences (module « seances_groupe »).
             'attendanceModule' => $user->organization->hasModule('seances_groupe') ? ClassController::forCustomer($customer) : null,
             // Abonnements de la fiche et formulaire d'abonnement (module « abonnements »).
@@ -367,6 +371,30 @@ class CustomerController extends Controller
                 ->orderBy('name')
                 ->pluck('name'),
         ]);
+    }
+
+    /** @return array<string, mixed>|null */
+    private function prospectProps(Customer $customer, User $user): ?array
+    {
+        $organization = $user->organization;
+        if (! $organization->hasModule('prospects')) {
+            return null;
+        }
+
+        $pipeline = ProspectPipeline::for($organization);
+        $stage = $pipeline->stage($customer->prospect_stage);
+
+        return [
+            'stage' => $customer->prospect_stage,
+            'stage_label' => $stage['label'] ?? null,
+            'card' => $customer->prospect_stage ? ProspectController::presentCard($customer->loadMissing('owner:id,name'), $pipeline) : null,
+            'stages' => $pipeline->stages(),
+            'owner' => $customer->owner?->name,
+            'owner_id' => $customer->owner_user_id,
+            'owners' => $user->ownRecordsOnly() ? [] : ProspectController::salesPeople($organization),
+            'history' => ProspectStageChange::where('customer_id', $customer->id)->latest('changed_at')->latest('id')->take(10)->get()
+                ->map(fn (ProspectStageChange $c) => ['to' => $pipeline->stage($c->to_stage)['label'] ?? $c->to_stage, 'at' => $c->changed_at->toIso8601String()]),
+        ];
     }
 
     /**
@@ -719,6 +747,11 @@ class CustomerController extends Controller
 
         if (! $customer->contacts()->whereIn('store_id', $storeIds)->exists()) {
             throw new HttpException(403, "Cette fiche client n'est pas dans votre périmètre.");
+        }
+
+        // Commercial : seulement les fiches dont il est responsable.
+        if ($user->ownRecordsOnly() && $customer->owner_user_id !== $user->id) {
+            throw new HttpException(403, 'Cette fiche est suivie par un autre commercial.');
         }
 
         return $storeIds;

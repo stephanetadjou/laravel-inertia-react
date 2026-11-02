@@ -235,6 +235,8 @@ class CustomerSearch
     {
         return Customer::where('organization_id', $this->user->organization_id)
             ->whereHas('contacts', $this->contactScope($ignore))
+            // Commercial : seulement ses fiches.
+            ->when($this->user->ownRecordsOnly(), fn ($q) => $q->where('customers.owner_user_id', $this->user->id))
             // Segment de la marque choisie (RFM par marque), sinon segment du groupe.
             ->when($this->segment !== null && $this->brandFilter['selected'] !== null, fn ($q) => $q->whereExists(fn ($m) => $m->from('customer_brand_metrics')
                 ->whereColumn('customer_brand_metrics.customer_id', 'customers.id')
