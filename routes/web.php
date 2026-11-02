@@ -29,6 +29,7 @@ use App\Http\Controllers\MessageTemplateController;
 use App\Http\Controllers\ModuleController;
 use App\Http\Controllers\MultibrandController;
 use App\Http\Controllers\OrganizationController;
+use App\Http\Controllers\PlanController;
 use App\Http\Controllers\PrivacyPolicyController;
 use App\Http\Controllers\PurchaseController;
 use App\Http\Controllers\ReportController;
@@ -250,6 +251,15 @@ Route::middleware('auth')->group(function () {
         Route::post('/payment-schedules/{schedule}/cancel', [InstallmentController::class, 'cancel'])->name('payment-schedules.cancel');
         Route::post('/installments/{installment}/pay', [InstallmentController::class, 'pay'])->name('installments.pay');
         Route::get('/installments/{installment}/receipt', [InstallmentController::class, 'receipt'])->name('installments.receipt');
+    });
+
+    // Formules et abonnements (module « abonnements »).
+    Route::middleware('module:abonnements')->group(function () {
+        Route::get('/plans', [PlanController::class, 'index'])->name('plans.index');
+        Route::post('/plans', [PlanController::class, 'store'])->name('plans.store');
+        Route::put('/plans/{plan}', [PlanController::class, 'update'])->name('plans.update');
+        Route::post('/subscriptions', [PlanController::class, 'subscribe'])->name('subscriptions.store');
+        Route::post('/subscriptions/{subscription}/cancel', [PlanController::class, 'cancel'])->name('subscriptions.cancel');
     });
 
     // Import des ventes v2 (Menentia Retail) : dépôt, mapping, vérification, traitement en file, annulation.

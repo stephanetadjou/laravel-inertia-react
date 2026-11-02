@@ -6,6 +6,8 @@ import { stageInfo } from '../../components/dashboard/stages';
 import { formatDay } from '../../components/page/Page';
 import WhatsAppIcon from '../../components/common/WhatsAppIcon';
 import { InstallmentRow, PayButton, STATUS_PILL } from '../Installments/Index';
+import { SubscriptionRow, SubscriptionsTable } from '../Plans/Index';
+import SubscriptionModal, { SubscriptionFormOptions } from '../Plans/SubscriptionModal';
 
 export interface ScheduleRow {
     id: number;
@@ -49,6 +51,7 @@ export interface ModuleProps {
     beneficiaries?: BeneficiaryRow[];
     healthNote?: { visible: boolean; text: string | null; has_note: boolean };
     schedules?: ScheduleRow[] | null;
+    subscriptionModule?: (SubscriptionFormOptions & { subscriptions: SubscriptionRow[] }) | null;
     paymentMethods: Record<string, string>;
     canEdit: boolean;
     [key: string]: unknown;
@@ -75,12 +78,43 @@ export function useModuleTabs(): ModuleTab[] {
         });
     }
 
+    if (props.subscriptionModule) {
+        const current = props.subscriptionModule.subscriptions.filter((s) => s.status === 'active').length;
+        tabs.push({ key: 'subscriptions', label: `Abonnements${current ? ` (${current})` : ''}`, render: () => <SubscriptionsTab /> });
+    }
+
     if (props.schedules) {
         const late = props.schedules.flatMap((s) => s.installments).filter((i) => i.status === 'overdue').length;
         tabs.push({ key: 'schedules', label: `Échéances${late ? ` · ${late} en retard` : ''}`, render: () => <SchedulesTab /> });
     }
 
     return tabs;
+}
+
+function SubscriptionsTab() {
+    const { customer, subscriptionModule } = usePage<ModuleProps>().props;
+    const [open, setOpen] = useState(false);
+    if (!subscriptionModule) return null;
+
+    return (
+        <section className="mdash-panel">
+            <div className="mdash-ph">
+                <div>
+                    <h2>Abonnements</h2>
+                    <span className="mdash-sub">Formules de {customer.name} et des personnes qu’il ou elle suit</span>
+                </div>
+                <button type="button" className="mdash-btn brand sm" onClick={() => setOpen(true)}>
+                    Nouvel abonnement
+                </button>
+            </div>
+            {subscriptionModule.subscriptions.length === 0 ? (
+                <p className="text-sm text-gray-500">Aucun abonnement. « Nouvel abonnement » prépare aussi l’échéancier.</p>
+            ) : (
+                <SubscriptionsTable rows={subscriptionModule.subscriptions} />
+            )}
+            {open && <SubscriptionModal options={subscriptionModule} customer={{ id: customer.id, name: customer.name, phone: customer.phone_e164 }} onClose={() => setOpen(false)} />}
+        </section>
+    );
 }
 
 function SchedulesTab() {
