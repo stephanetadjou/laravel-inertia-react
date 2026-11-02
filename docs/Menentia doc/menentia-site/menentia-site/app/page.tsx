@@ -75,10 +75,10 @@ function Hero() {
             <span className="h-2 w-2 rounded-full bg-green" /> Lancement à Libreville le 15 décembre 2026
           </span>
           <h1 className="font-display text-[2.7rem] font-bold leading-[1.05] tracking-[-0.025em] text-navy sm:text-[3.3rem] lg:text-[3.6rem]">
-            Connaissez mieux vos clients. <GradientText>Faites grandir votre activité.</GradientText>
+            Connaissez vos clients. Parlez-leur au bon moment. <GradientText>Faites grandir votre activité.</GradientText>
           </h1>
           <p className="max-w-xl text-[1.15rem] leading-relaxed text-muted">
-            Agenda, réservation en ligne, fichier client et relances WhatsApp réunis dans une seule application. Chaque matin, Menentia vous dit qui confirmer, qui relancer et qui ne revient plus.
+            Fiche client, ventes, fidélité et relances WhatsApp réunies dans une seule application. Chaque matin, Menentia vous dit qui relancer, qui remercier et qui risque de ne plus revenir.
           </p>
           <div className="flex flex-col gap-3 sm:flex-row">
             <Button href={links.signup} variant="brand" size="lg">Essai gratuit de 14 jours <Icon name="arrow" className="h-4 w-4" /></Button>

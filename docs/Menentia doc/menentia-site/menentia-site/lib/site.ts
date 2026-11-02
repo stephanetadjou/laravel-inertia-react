@@ -17,10 +17,10 @@ export const WHATSAPP_DISPLAY = '+241 XX XX XX XX';
 
 export const brand = {
   name: 'Menentia',
-  promise: 'Connaissez mieux vos clients. Faites grandir votre activité.',
+  promise: 'Connaissez vos clients. Parlez-leur au bon moment. Faites grandir votre activité.',
   signature: 'Connecter · Fidéliser · Développer',
   description:
-    'Menentia est la plateforme des PME africaines qui travaillent sur rendez-vous : agenda, réservation en ligne, fichier client, analyse et relances WhatsApp, dans une seule application.',
+    'Menentia est la plateforme d’intelligence client des PME africaines : fiche client, ventes, fidélité, analyse et relances WhatsApp dans une seule application, avec les modules utiles à chaque activité (rendez-vous, cours, abonnements, paiements en plusieurs fois).',
 };
 
 export type Status = 'dispo' | 'bientot';
