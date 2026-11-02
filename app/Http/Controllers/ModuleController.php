@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Organization;
+use App\Models\Role;
 use App\Services\Audit;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -47,6 +48,10 @@ class ModuleController extends Controller
         $organization->setModules($data['enabled'], $data['settings'] ?? [], reviewed: true);
         $organization->whatsapp_api_enabled = in_array('campagnes', $data['enabled'], true);
         $organization->save();
+
+        if ($organization->hasModule('prospects')) {
+            Role::ensureSalesRole($organization);
+        }
 
         Audit::record('settings.updated', $organization, 'Modules : '.implode(', ', $organization->enabledModules()), $organization->modules);
 

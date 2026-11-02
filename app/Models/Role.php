@@ -45,6 +45,18 @@ class Role extends Model
         ];
     }
 
+    /**
+     * Rôle « Commercial » (suivi des prospects) : toute l'entreprise, mais
+     * seulement les fiches dont il est responsable. Créé à l'activation du module.
+     */
+    public static function ensureSalesRole(Organization $organization): self
+    {
+        return self::firstOrCreate(
+            ['organization_id' => $organization->id, 'name' => 'Commercial'],
+            ['scope' => self::SCOPE_ORGANIZATION, 'can_manage_organization' => false, 'can_import' => false, 'can_export' => false, 'own_records_only' => true],
+        );
+    }
+
     public function organization(): BelongsTo
     {
         return $this->belongsTo(Organization::class);

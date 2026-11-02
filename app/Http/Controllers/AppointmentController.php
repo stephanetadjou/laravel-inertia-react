@@ -303,6 +303,9 @@ class AppointmentController extends Controller
             'duration_minutes' => $a->duration_minutes,
             'service' => $a->service,
             'status' => $a->status,
+            'kind' => $a->kind ?? 'rdv',
+            'kind_label' => Appointment::KINDS[$a->kind ?? 'rdv'] ?? null,
+            'has_gps' => $a->latitude !== null,
             'notes' => $a->notes,
             'store_id' => $a->store_id,
             'store_name' => $a->store?->name,
@@ -313,7 +316,7 @@ class AppointmentController extends Controller
             'customer_id' => $a->customer_id,
             'customer_name' => $a->customer?->name,
             'phone_e164' => $a->customer?->phone_e164,
-            'whatsapp_url' => $a->customer ? ActionLists::whatsappUrl($a->customer->phone_e164, $text) : null,
+            'whatsapp_url' => $a->customer?->phone_e164 ? ActionLists::whatsappUrl($a->customer->phone_e164, $text) : null,
             'items' => $a->items->map(fn (AppointmentItem $i) => [
                 'catalog_item_id' => $i->catalog_item_id,
                 'name' => $i->name,
@@ -365,6 +368,10 @@ class AppointmentController extends Controller
             // Prestations du catalogue choisies pour le rendez-vous.
             'item_ids' => ['nullable', 'array'],
             'item_ids.*' => ['integer'],
+            // Visite ou démo (suivi des prospects et des commerciaux), position GPS facultative.
+            'kind' => ['nullable', Rule::in(array_keys(Appointment::KINDS))],
+            'latitude' => ['nullable', 'numeric', 'between:-90,90'],
+            'longitude' => ['nullable', 'numeric', 'between:-180,180'],
         ], [
             'store_id.in' => 'Choisissez un établissement de votre périmètre.',
             'phone.required_without' => 'Indiquez le numéro du client.',
@@ -428,6 +435,8 @@ class AppointmentController extends Controller
             'staff_user_id' => $data['staff_user_id'] ?? null,
             'staff_member_id' => $data['staff_member_id'] ?? null,
             'notes' => $data['notes'] ?? null,
+            'kind' => $data['kind'] ?? 'rdv',
+            ...(isset($data['latitude'], $data['longitude']) ? ['latitude' => $data['latitude'], 'longitude' => $data['longitude']] : []),
         ];
     }
 

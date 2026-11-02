@@ -367,6 +367,17 @@
             </table>
         @endif
 
+        @if (! empty($report['sales_team']))
+            <h2>Commerciaux</h2>
+            <table class="data">
+                <tr><th>Commercial</th><th class="r">Visites</th><th class="r">Démos</th><th class="r">Nouveaux clients</th><th class="r">Objectifs du mois</th><th>En retard</th></tr>
+                @foreach ($report['sales_team'] as $s)
+                    <tr><td>{{ $s['name'] }}</td><td class="r">{{ $s['visits'] }}</td><td class="r">{{ $s['demos'] }}</td><td class="r"><b>{{ $s['won'] }}</b></td>
+                        <td class="r">{{ $s['score'] !== null ? $s['score'].' %' : '—' }}</td><td class="{{ $s['behind'] ? 'bad' : 'muted' }}">{{ $s['behind'] ? implode(', ', $s['behind']) : 'dans les temps' }}</td></tr>
+                @endforeach
+            </table>
+        @endif
+
         <h2>Actions recommandées pour demain</h2>
         @if (count($report['actions']) === 0)
             <div class="empty">Rien d’urgent : bonne soirée.</div>

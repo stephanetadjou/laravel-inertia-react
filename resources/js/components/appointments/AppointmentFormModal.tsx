@@ -1,4 +1,4 @@
-import { useForm } from '@inertiajs/react';
+import { useForm, usePage } from '@inertiajs/react';
 import { FormEventHandler } from 'react';
 
 import Button from '../ui/button/Button';
@@ -16,6 +16,10 @@ export interface AppointmentRow {
     duration_minutes: number;
     service: string | null;
     status: string;
+    /** rdv, visite ou demo (suivi des prospects). */
+    kind?: 'rdv' | 'visite' | 'demo';
+    kind_label?: string | null;
+    has_gps?: boolean;
     notes: string | null;
     store_id: number;
     store_name: string | null;
@@ -123,6 +127,8 @@ export default function AppointmentFormModal({
     catalog?: CatalogEntry[];
 }) {
     const isEditing = appointment !== null;
+    // Types visite / démo : avec le module « Suivi des prospects ».
+    const withKinds = (usePage<{ auth?: { organization?: { modules?: string[] } | null } }>().props.auth?.organization?.modules ?? []).includes('prospects');
     const withCustomer = isEditing || customerId !== undefined;
 
     const { data, setData, post, put, transform, processing, errors } = useForm({
@@ -137,6 +143,9 @@ export default function AppointmentFormModal({
         staff_member_id: appointment?.staff_member_id ? String(appointment.staff_member_id) : '',
         status: appointment?.status ?? 'planned',
         notes: appointment?.notes ?? '',
+        kind: appointment?.kind ?? 'rdv',
+        latitude: '' as string | number,
+        longitude: '' as string | number,
         item_ids: (appointment?.items ?? []).map((i) => i.catalog_item_id).filter((id): id is number => id !== null),
     });
 
@@ -297,6 +306,34 @@ export default function AppointmentFormModal({
                         </select>
                     </div>
                 </div>
+
+                {withKinds && (
+                    <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                        <div>
+                            <Label htmlFor="appt-kind">Type</Label>
+                            <select id="appt-kind" value={data.kind} onChange={(e) => setData('kind', e.target.value as 'rdv' | 'visite' | 'demo')} className={fieldClasses()}>
+                                <option value="rdv">Rendez-vous</option>
+                                <option value="visite">Visite (prospect)</option>
+                                <option value="demo">Démo (prospect)</option>
+                            </select>
+                        </div>
+                        {data.kind !== 'rdv' && (
+                            <div className="flex items-end">
+                                <button
+                                    type="button"
+                                    className="mdash-btn ghost sm"
+                                    onClick={() =>
+                                        navigator.geolocation?.getCurrentPosition((pos) =>
+                                            setData((d) => ({ ...d, latitude: pos.coords.latitude, longitude: pos.coords.longitude })),
+                                        )
+                                    }
+                                >
+                                    {data.latitude !== '' ? '✓ Position enregistrée' : 'Ajouter ma position GPS'}
+                                </button>
+                            </div>
+                        )}
+                    </div>
+                )}
 
                 <div>
                     <Label htmlFor="appt-notes">Notes</Label>

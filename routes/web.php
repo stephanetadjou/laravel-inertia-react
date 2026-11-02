@@ -38,6 +38,7 @@ use App\Http\Controllers\PurchaseController;
 use App\Http\Controllers\ReportController;
 use App\Http\Controllers\RoleController;
 use App\Http\Controllers\SalesImportController;
+use App\Http\Controllers\SalesTeamController;
 use App\Http\Controllers\ScheduleSettingsController;
 use App\Http\Controllers\SelfServiceController;
 use App\Http\Controllers\StoreController;
@@ -134,6 +135,11 @@ Route::middleware('auth')->group(function () {
         Route::post('/prospects/{customer}/stage', [ProspectController::class, 'move'])->name('prospects.move');
         Route::put('/prospects/{customer}/owner', [ProspectController::class, 'assign'])->name('prospects.assign');
         Route::post('/customers/{customer}/prospect', [ProspectController::class, 'follow'])->name('customers.prospect');
+        // Suivi des commerciaux : objectifs, résultats, primes.
+        Route::get('/sales-team', [SalesTeamController::class, 'index'])->name('sales-team.index');
+        Route::put('/sales-team/{member}/targets', [SalesTeamController::class, 'updateTargets'])->name('sales-team.targets');
+        Route::get('/commissions', [SalesTeamController::class, 'commissions'])->name('commissions.index');
+        Route::get('/commissions/export', [SalesTeamController::class, 'export'])->name('commissions.export');
     });
     // Personnes suivies (module « beneficiaires ») : ajout depuis le responsable, rattachement, note de santé.
     Route::middleware('module:beneficiaires')->group(function () {

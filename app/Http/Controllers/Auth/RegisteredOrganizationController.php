@@ -86,6 +86,9 @@ class RegisteredOrganizationController extends Controller
             $organization->save();
 
             Role::seedDefaultsFor($organization);
+            if ($organization->hasModule('prospects')) {
+                Role::ensureSalesRole($organization);
+            }
 
             $brand = Brand::create([
                 'organization_id' => $organization->id,

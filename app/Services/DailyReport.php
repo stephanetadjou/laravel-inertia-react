@@ -10,11 +10,13 @@ use App\Models\Customer;
 use App\Models\CustomerFollowUp;
 use App\Models\Installment;
 use App\Models\Organization;
+use App\Models\ProspectStageChange;
 use App\Models\Purchase;
 use App\Models\PurchaseItem;
 use App\Models\StaffMember;
 use App\Models\Store;
 use App\Models\Subscription;
+use App\Models\User;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
@@ -111,6 +113,8 @@ class DailyReport
             'base' => $this->base(),
             // Modules actifs : échéances, présences, abonnements à renouveler.
             'modules' => $this->modules($day),
+            // Suivi des commerciaux : journée de chacun et retard sur l'objectif à date.
+            'sales_team' => $this->salesTeam($day),
         ];
 
         $report['summary'] = $this->summary($report);
@@ -533,9 +537,42 @@ class DailyReport
         ];
     }
 
+    /** @return list<array<string, mixed>>|null */
+    private function salesTeam(Carbon $day): ?array
+    {
+        if (! $this->organization->hasModule('prospects')) {
+            return null;
+        }
+
+        $team = new SalesTeam($this->organization, $day->format('Y-m'));
+        $director = User::where('organization_id', $this->organization->id)->whereHas('role', fn ($q) => $q->where('can_manage_organization', true))->first();
+        if ($director === null) {
+            return null;
+        }
+
+        $dayCount = fn (int $userId, string $kind) => Appointment::whereIn('store_id', $this->storeIds)->where('kind', $kind)->where('status', 'done')
+            ->where('starts_at', '>=', $day->toDateString())->where('starts_at', '<', $day->copy()->addDay()->toDateString())
+            ->where(fn ($q) => $q->where('staff_user_id', $userId)->orWhere(fn ($w) => $w->whereNull('staff_user_id')->where('created_by', $userId)))->count();
+
+        return collect($team->board($director))->map(fn ($row) => [
+            'name' => $row['name'],
+            'visits' => $dayCount($row['id'], 'visite'),
+            'demos' => $dayCount($row['id'], 'demo'),
+            'won' => ProspectStageChange::where('owner_user_id', $row['id'])->where('to_kind', 'gagne')
+                ->where('changed_at', '>=', $day->toDateString())->where('changed_at', '<', $day->copy()->addDay()->toDateString())->count(),
+            'score' => $row['score'],
+            'behind' => $row['behind'],
+        ])->all();
+    }
+
     private function actions(array $r): array
     {
         $actions = [];
+
+        $late = collect($r['sales_team'] ?? [])->filter(fn ($s) => $s['behind'] !== []);
+        if ($late->isNotEmpty()) {
+            $actions[] = '**Faire le point avec '.$late->pluck('name')->join(', ', ' et ').'** : en retard sur l’objectif à date ('.$late->flatMap(fn ($s) => $s['behind'])->unique()->join(', ').').';
+        }
 
         if (($r['modules']['overdue_count'] ?? 0) > 0) {
             $actions[] = "**Relancer les {$r['modules']['overdue_count']} tranche(s) en retard** (".self::money($r['modules']['overdue_amount']).') depuis À faire › « Échéances à rappeler ».';

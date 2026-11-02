@@ -12,6 +12,8 @@ Schedule::command('crm:refresh-lifecycle')->dailyAt('02:30')->withoutOverlapping
 // Rapport quotidien au dirigeant : envoyé dès que l'heure choisie par chaque
 // entreprise est passée (Paramètres › Rapports), une fois par jour.
 Schedule::command('crm:daily-report')->everyFifteenMinutes()->withoutOverlapping();
+// Rappel du matin aux commerciaux : leurs relances de prospects du jour.
+Schedule::command('crm:sales-morning')->dailyAt('07:30')->withoutOverlapping();
 
 Artisan::command('inspire', function () {
     $this->comment(Inspiring::quote());
