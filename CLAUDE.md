@@ -55,6 +55,7 @@ php artisan demo:retail --type=restaurant # (ou --type=distribution) ; --fresh n
 php artisan demo:sport                    # club sportif fictif « Club Étoile Libreville » (cours, abonnements, échéances, enfants suivis)
 php artisan demo:menentia                 # entreprise fictive « Menentia Solutions digitales » (prospects, commerciaux, objectifs)
 php artisan demo:retailgroup-mode         # groupe fictif RETAILGROUP MODE (fidélité par enseigne, ~300 clients) ; --fresh ne supprime que cette entreprise
+php artisan demo:fidelite-cas             # programme 2026-2027 et 15 cas pédagogiques sur RETAILGROUP MODE (contrôle les résultats)
 php artisan fidelite:recalculer           # recalcule les cartes de fidélité par enseigne (--organization=ID)
 ```
 
