@@ -35,6 +35,7 @@ class Purchase extends Model
         'subtotal',
         'discount_amount',
         'loyalty_discount_percent',
+        'loyalty_reward_label',
         'currency',
         'import_batch_id',
         'original_purchase_id',

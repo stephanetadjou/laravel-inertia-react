@@ -28,8 +28,8 @@ class LoyaltyMovement extends Model
         self::GAIN => 'Gain',
         self::BONUS => 'Bonus d’activation',
         self::TIER => 'Palier atteint',
-        self::DISCOUNT_USED => 'Remise utilisée',
-        self::DISCOUNT_IGNORED => 'Remise ignorée',
+        self::DISCOUNT_USED => 'Récompense utilisée',
+        self::DISCOUNT_IGNORED => 'Récompense ignorée',
         self::RETURN => 'Retour',
         self::EXPIRATION => 'Expiration',
     ];

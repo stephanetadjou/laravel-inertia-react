@@ -208,7 +208,7 @@ Route::middleware('auth')->group(function () {
         Route::put('/settings/modules', [ModuleController::class, 'update'])->name('settings.modules.update');
 
         Route::middleware('module:fidelite')->group(function () {
-            Route::get('/settings/loyalty-programs', [LoyaltyProgramController::class, 'index'])->name('settings.loyalty.programs');
+            Route::redirect('/settings/loyalty-programs', '/settings/loyalty')->name('settings.loyalty.programs');
             Route::post('/settings/loyalty-programs', [LoyaltyProgramController::class, 'store'])->name('settings.loyalty.programs.store');
             Route::put('/settings/loyalty-programs/{program}', [LoyaltyProgramController::class, 'update'])->name('settings.loyalty.programs.update');
             Route::delete('/settings/loyalty-programs/{program}', [LoyaltyProgramController::class, 'destroy'])->name('settings.loyalty.programs.destroy');

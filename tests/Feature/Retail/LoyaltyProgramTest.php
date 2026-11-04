@@ -197,7 +197,7 @@ it('records the discount from the customer page', function () {
     $card = ($this->card)($this->adidas);
 
     $this->actingAs($this->admin)->post("/customers/{$card->customer_id}/loyalty-cards/{$card->id}/redeem", [
-        'store_id' => $this->adidasMall->id, 'discount_percent' => 10, 'amount' => 25000, 'used_on' => '2026-11-03',
+        'store_id' => $this->adidasMall->id, 'tier_points' => 300, 'amount' => 25000, 'used_on' => '2026-11-03',
     ])->assertSessionHasNoErrors();
 
     expect(($this->card)($this->adidas)->points)->toBe(0)
@@ -206,7 +206,7 @@ it('records the discount from the customer page', function () {
 
     // Un magasin d'une autre enseigne est refusé.
     $this->actingAs($this->admin)->post("/customers/{$card->customer_id}/loyalty-cards/".($this->card)($this->adidas)->id.'/redeem', [
-        'store_id' => $this->mangoGlass->id, 'discount_percent' => 10, 'amount' => 25000, 'used_on' => '2026-11-03',
+        'store_id' => $this->mangoGlass->id, 'tier_points' => 300, 'amount' => 25000, 'used_on' => '2026-11-03',
     ])->assertSessionHasErrors('store_id');
 });
 
@@ -239,6 +239,71 @@ it('filters customers by brand, status and tier, crossed with RFM, and saves the
     expect(Group::where('name', 'Palier 10')->first()->contacts()->count())->toBe(1);
 });
 
+it('lets each tier give any kind of reward, on the card, the button and the import', function () {
+    Queue::fake();
+    $rule = $this->program->rules()->where('brand_id', $this->adidas->id)->first();
+    $rule->update(['tiers' => [['points' => 60, 'type' => 'voucher', 'amount' => 15000], ['points' => 70, 'type' => 'gift', 'label' => 'Casquette offerte']]]);
+
+    ($this->buy)($this->adidasGlass, 150000 + 100000, '2026-02-01');
+    ($this->buy)($this->adidasGlass, 150000, '2026-02-02');
+    ($this->buy)($this->adidasGlass, 110000, '2026-02-03');
+    ($this->recalculate)();
+    $card = ($this->card)($this->adidas);
+
+    expect($card->points)->toBe(101)
+        ->and($card->reward_label)->toBe('Casquette offerte')
+        ->and((new CustomerSearch($this->admin, ['loyalty_tier' => 'Casquette offerte']))->baseQuery()->count())->toBe(1);
+
+    $this->actingAs($this->admin)->post("/customers/{$card->customer_id}/loyalty-cards/{$card->id}/redeem", [
+        'store_id' => $this->adidasGlass->id, 'tier_points' => 60, 'used_on' => '2026-03-01',
+    ])->assertSessionHasNoErrors();
+
+    $used = LoyaltyMovement::where('type', 'discount_used')->first();
+    expect(($this->card)($this->adidas)->points)->toBe(0)
+        ->and($used->note)->toContain('Bon d’achat')
+        ->and((int) $used->amount)->toBe(15000);
+
+    ($this->buy)($this->adidasGlass, 800000, '2026-03-02');
+    ($this->importFile)('cadeau.csv', [
+        ['date_vente', 'enseigne', 'magasin', 'numero_ticket', 'telephone', 'montant_net', 'nom', 'remise_fidelite'],
+        ['2026-04-01', 'Adidas', 'ADI-GL', 'C1', '+24162605054', '20000', 'Awa Ndong', 'Casquette offerte'],
+    ]);
+    ($this->recalculate)();
+
+    expect(Purchase::where('receipt_number', 'C1')->first()->loyalty_discount_percent)->toBe(0)
+        ->and(($this->card)($this->adidas)->points)->toBe(2)
+        ->and(LoyaltyMovement::where('type', 'discount_used')->latest('id')->first()->note)->toBe('Casquette offerte');
+});
+
+it('applies one grid to every brand when the programme uses the same rules, and can switch back', function () {
+    Queue::fake();
+    $this->program->update(['ends_on' => '2026-05-31']);
+    $grid = ['threshold' => 100000, 'tranche_amount' => 5000, 'points_per_tranche' => 2, 'activation_bonus' => 10, 'tiers' => [['points' => 90, 'type' => 'perk', 'label' => 'Retouches offertes']], 'validity_months' => 6, 'reset_after_use' => true];
+    $payload = ['name' => 'Été', 'starts_on' => '2026-06-01', 'ends_on' => '2026-08-31', 'same_rules' => true, 'rules' => [
+        ['brand_id' => $this->adidas->id, ...$grid],
+        ['brand_id' => $this->mango->id, ...$grid, 'threshold' => 999],
+    ]];
+
+    $this->actingAs($this->admin)->post('/settings/loyalty-programs', $payload)->assertSessionHasNoErrors();
+    $program = LoyaltyProgram::where('name', 'Été')->first();
+    expect($program->same_rules)->toBeTrue()
+        ->and($program->rules()->pluck('threshold')->all())->toBe([100000, 100000]);
+
+    $this->actingAs($this->admin)->put("/settings/loyalty-programs/{$program->id}", [...$payload, 'same_rules' => false])->assertSessionHasNoErrors();
+    expect($program->fresh()->same_rules)->toBeFalse()
+        ->and($program->rules()->where('brand_id', $this->mango->id)->value('threshold'))->toBe(999);
+});
+
+it('refuses a reward left empty', function () {
+    Queue::fake();
+    $this->program->update(['ends_on' => '2026-05-31']);
+
+    $this->actingAs($this->admin)->post('/settings/loyalty-programs', ['name' => 'Été', 'starts_on' => '2026-06-01', 'ends_on' => '2026-08-31', 'rules' => [[
+        'brand_id' => $this->adidas->id, 'threshold' => 1, 'tranche_amount' => 1, 'points_per_tranche' => 1, 'activation_bonus' => 0,
+        'tiers' => [['points' => 10, 'type' => 'gift', 'label' => '']], 'validity_months' => 6, 'reset_after_use' => true,
+    ]]])->assertSessionHasErrors('rules');
+});
+
 it('no longer counts a finished programme as close to a threshold or a tier', function () {
     ($this->buy)($this->adidasGlass, 350000, '2026-02-01');
     ($this->recalculate)();
@@ -266,7 +331,8 @@ it('lets any company create a programme, refuses overlapping brands, and recalcu
         ->and($program->rules->first()->reset_after_use)->toBeFalse();
     Queue::assertPushed(RecalculateLoyaltyJob::class);
 
-    $this->actingAs($this->admin)->get('/settings/loyalty-programs')->assertOk();
+    $this->actingAs($this->admin)->get('/settings/loyalty-programs')->assertRedirect('/settings/loyalty');
+    $this->actingAs($this->admin)->get('/settings/loyalty')->assertInertia(fn ($page) => $page->component('Settings/LoyaltyPrograms'));
     $this->actingAs($this->admin)->put("/settings/loyalty-programs/{$program->id}", [...$payload, 'name' => 'Été 2026'])->assertSessionHasNoErrors();
     expect($program->fresh()->name)->toBe('Été 2026');
 });

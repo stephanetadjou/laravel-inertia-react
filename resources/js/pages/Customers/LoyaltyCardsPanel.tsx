@@ -17,8 +17,9 @@ export interface LoyaltyCardData {
     cycle_amount: number;
     threshold: number | null;
     amount_to_threshold: number;
-    tiers: { points: number; percent: number }[];
-    discount_percent: number | null;
+    tiers: { points: number; percent: number; label: string; cost: number }[];
+    tier_points: number | null;
+    reward_label: string | null;
     next_tier_points: number | null;
     points_to_next_tier: number | null;
     activated_on: string | null;
@@ -35,7 +36,7 @@ const today = () => new Date().toISOString().slice(0, 10);
 function Redeem({ customerId, card, onDone }: { customerId: number; card: LoyaltyCardData; onDone: () => void }) {
     const { data, setData, post, processing, errors } = useForm({
         store_id: card.stores.length === 1 ? String(card.stores[0].id) : '',
-        discount_percent: String(card.discount_percent ?? ''),
+        tier_points: String(card.tier_points ?? ''),
         amount: '',
         used_on: today(),
     });
@@ -55,20 +56,20 @@ function Redeem({ customerId, card, onDone }: { customerId: number; card: Loyalt
                     </option>
                 ))}
             </select>
-            <select aria-label="Palier" value={data.discount_percent} onChange={(e) => setData('discount_percent', e.target.value)}>
-                <option value="">Palier</option>
+            <select aria-label="Récompense" value={data.tier_points} onChange={(e) => setData('tier_points', e.target.value)}>
+                <option value="">Récompense</option>
                 {card.tiers.map((t) => (
-                    <option key={t.points} value={t.percent}>
-                        {t.percent} % ({t.points} pts)
+                    <option key={t.points} value={t.points}>
+                        {t.label} ({t.points} pts)
                     </option>
                 ))}
             </select>
-            <input type="number" min={0} aria-label="Montant de la remise" placeholder="Montant de la remise" value={data.amount} onChange={(e) => setData('amount', e.target.value)} />
+            <input type="number" min={0} aria-label="Coût pour l’entreprise (facultatif)" placeholder="Coût (facultatif)" value={data.amount} onChange={(e) => setData('amount', e.target.value)} />
             <input type="date" aria-label="Date" value={data.used_on} onChange={(e) => setData('used_on', e.target.value)} />
             <button type="submit" className="mdash-btn ghost sm" disabled={processing}>
                 Valider
             </button>
-            {(errors.store_id || errors.discount_percent || errors.amount || errors.used_on) && <em>{errors.store_id ?? errors.discount_percent ?? errors.amount ?? errors.used_on}</em>}
+            {(errors.store_id || errors.tier_points || errors.amount || errors.used_on) && <em>{errors.store_id ?? errors.tier_points ?? errors.amount ?? errors.used_on}</em>}
         </form>
     );
 }
@@ -101,24 +102,24 @@ function Card({ customerId, card }: { customerId: number; card: LoyaltyCardData 
                             : 'Palier le plus haut atteint'
                         : `Encore ${money(card.amount_to_threshold)} d’achats avant le seuil de ${money(card.threshold ?? 0)}`}
                 </span>
-                {card.tiers.length > 0 && <span className="mloy-muted">Paliers : {card.tiers.map((t) => `${t.points} pts → ${t.percent} %`).join(' · ')}</span>}
+                {card.tiers.length > 0 && <span className="mloy-muted">Paliers : {card.tiers.map((t) => `${t.points} pts → ${t.label}`).join(' · ')}</span>}
             </div>
 
-            {active && card.discount_percent !== null && <p className="mloy-muted">Remise disponible : {card.discount_percent} %</p>}
+            {active && card.reward_label !== null && <p className="mloy-muted">Récompense disponible : {card.reward_label}</p>}
             {card.expires_on && (
                 <p className="mloy-muted">
                     {card.status === 'expired' ? 'Carte expirée, valable jusqu’au' : 'Carte valable jusqu’au'} {day(card.expires_on)}
-                    {card.discounts_used > 0 ? ` · remise utilisée ${card.discounts_used} fois` : ''}
+                    {card.discounts_used > 0 ? ` · récompense utilisée ${card.discounts_used} fois` : ''}
                 </p>
             )}
 
             {active &&
-                card.discount_percent !== null &&
+                card.tier_points !== null &&
                 (redeeming ? (
                     <Redeem customerId={customerId} card={card} onDone={() => setRedeeming(false)} />
                 ) : (
                     <button type="button" className="mdash-btn ghost sm" onClick={() => setRedeeming(true)}>
-                        Remise utilisée
+                        Récompense utilisée
                     </button>
                 ))}
 

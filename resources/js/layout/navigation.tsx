@@ -68,7 +68,7 @@ export function buildSections({ canManageOrganization, whatsappApiEnabled, modul
                   ...(has('rdv') ? [{ name: 'Réservation en ligne', path: '/settings/booking' }] : []),
                   ...(agenda ? [{ name: 'Intervenants', path: '/settings/staff' }] : []),
                   ...(has('rdv') ? [{ name: 'Fermetures', path: '/settings/closures' }] : []),
-                  ...(has('fidelite') ? [{ name: 'Fidélité', path: '/settings/loyalty' }, { name: 'Programmes de fidélité', path: '/settings/loyalty-programs' }] : []),
+                  ...(has('fidelite') ? [{ name: 'Fidélité', path: '/settings/loyalty' }] : []),
                   ...(has('prospects') ? [{ name: 'Prospects', path: '/settings/prospects' }] : []),
                   { name: 'Segments RFM', path: '/settings/rfm' },
                   { name: 'Rapports', path: '/settings/reports' },

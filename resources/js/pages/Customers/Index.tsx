@@ -39,8 +39,8 @@ interface Filters {
     loyalty_program?: number | null;
     loyalty_brand?: number | null;
     loyalty_status?: string | null;
-    loyalty_tier?: number | null;
-    loyalty_options?: { programs: { id: number; name: string }[]; statuses: { key: string; label: string }[]; tiers: number[] } | null;
+    loyalty_tier?: number | string | null;
+    loyalty_options?: { programs: { id: number; name: string }[]; statuses: { key: string; label: string }[]; tiers: { value: number | string; label: string }[] } | null;
     follow_options?: { value: string; label: string }[];
     analysis?: Record<string, string | number>;
     prop: string | null;
@@ -411,11 +411,11 @@ function CustomersIndex() {
                                         </option>
                                     ))}
                                 </select>
-                                <select aria-label="Palier" value={filters.loyalty_tier ?? ''} onChange={(e) => visit({ loyalty_tier: e.target.value ? Number(e.target.value) : null })}>
+                                <select aria-label="Palier" value={filters.loyalty_tier ?? ''} onChange={(e) => visit({ loyalty_tier: e.target.value || null })}>
                                     <option value="">Tous les paliers</option>
                                     {filters.loyalty_options.tiers.map((t) => (
-                                        <option key={t} value={t}>
-                                            Palier {t} %
+                                        <option key={t.value} value={t.value}>
+                                            {t.label}
                                         </option>
                                     ))}
                                 </select>

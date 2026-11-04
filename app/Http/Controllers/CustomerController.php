@@ -548,7 +548,10 @@ class CustomerController extends Controller
         return [
             'programs' => $programs,
             'statuses' => collect(CustomerSearch::LOYALTY_STATUSES)->map(fn ($label, $key) => ['key' => $key, 'label' => $label])->values(),
-            'tiers' => LoyaltyProgramRule::whereIn('loyalty_program_id', $programs->pluck('id'))->pluck('tiers')->flatten(1)->pluck('percent')->unique()->sort()->values(),
+            'tiers' => LoyaltyProgramRule::whereIn('loyalty_program_id', $programs->pluck('id'))->pluck('tiers')->flatten(1)
+                ->map(fn ($t) => LoyaltyProgramRule::reward($t, $user->organization->currencySymbol()))
+                ->map(fn ($r) => ['value' => $r['percent'] ?: $r['label'], 'label' => $r['label']])
+                ->unique('value')->sortBy('label')->values(),
         ];
     }
 

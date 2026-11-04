@@ -53,11 +53,11 @@ Ces filtres se croisent avec les segments RFM, et « Créer un groupe / relancer
 
 Le fichier fait passer des seuils, atteindre des paliers, utilise deux remises et enregistre deux retours. Si vous le déposez deux fois, le second dépôt est refusé. Les mêmes tickets dans un autre fichier sont signalés comme doublons et ne comptent pas.
 
-Sur une fiche avec une remise disponible, le bouton **Remise utilisée** fait la même chose qu'un ticket portant `remise_fidelite`.
+Sur une fiche avec une remise disponible, le bouton **Récompense utilisée** fait la même chose qu'un ticket portant `remise_fidelite`.
 
 ## Paramétrage
 
-**Paramètres › Programmes de fidélité** : tout se règle sans développement, et les cartes sont recalculées à l'enregistrement.
+**Paramètres › Fidélité** : mêmes règles pour toutes les enseignes ou règles par enseigne, et pour chaque palier une remise en %, un montant, un bon d'achat, un cadeau ou un avantage libre. Tout se règle sans développement, et les cartes sont recalculées à l'enregistrement.
 
 Le modèle de fichier à donner aux caisses est `docs/exemples/modele-import-ventes.xlsx`. Sa feuille « Colonnes » décrit chaque colonne.
 

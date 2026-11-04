@@ -94,8 +94,8 @@ class PdfReport
                 'title' => 'Fidélité par enseigne',
                 'tables' => [[
                     'title' => null,
-                    'columns' => ['Enseigne', 'Programme', 'Statut', 'Points', 'Remise', 'Expire le'],
-                    'rows' => $cards->map(fn (LoyaltyCard $c) => [$c->brand->name, $c->program->name, LoyaltyCard::STATUSES[$c->status] ?? $c->status, $c->points, $c->discount_percent ? "{$c->discount_percent} %" : '—', $c->expires_on?->format('d/m/Y') ?? '—'])->all(),
+                    'columns' => ['Enseigne', 'Programme', 'Statut', 'Points', 'Récompense', 'Expire le'],
+                    'rows' => $cards->map(fn (LoyaltyCard $c) => [$c->brand->name, $c->program->name, LoyaltyCard::STATUSES[$c->status] ?? $c->status, $c->points, $c->reward_label ?: '—', $c->expires_on?->format('d/m/Y') ?? '—'])->all(),
                 ]],
             ],
             ['title' => 'Derniers achats', 'tables' => [[

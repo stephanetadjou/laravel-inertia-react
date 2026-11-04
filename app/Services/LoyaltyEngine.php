@@ -82,7 +82,7 @@ class LoyaltyEngine
     {
         $ids = $customerIds ?? $this->customersOf($program, $rule);
         $base = ['organization_id' => $organization->id, 'loyalty_program_id' => $program->id, 'brand_id' => $rule->brand_id];
-        $settings = $this->ruleArray($rule);
+        $settings = $this->ruleArray($rule, $organization->currencySymbol());
         $written = 0;
 
         foreach (array_chunk($ids, self::CHUNK) as $chunk) {
@@ -168,7 +168,10 @@ class LoyaltyEngine
                 return;
             }
 
-            $percent = $event['percent'] ?: self::tiers($rule, $points)['percent'];
+            $tier = self::tiers($rule, $points);
+            $percent = $event['percent'] ?: $tier['percent'];
+            $label = $event['label'] ?? ($event['percent'] ? "Remise de {$event['percent']} %" : $tier['label']);
+            $cost = ($event['discount'] ?? 0) ?: $tier['cost'];
             $lost = 0;
             $used++;
 
@@ -178,7 +181,7 @@ class LoyaltyEngine
                 $reachedTier = null;
             }
 
-            $write(LoyaltyMovement::DISCOUNT_USED, -$lost, $event['date'], $event['id'], $event['discount'] ?: null, $percent ? "Remise de {$percent} %" : null, $percent);
+            $write(LoyaltyMovement::DISCOUNT_USED, -$lost, $event['date'], $event['id'], $cost ?: null, $label, $percent);
         };
 
         foreach ($events as $event) {
@@ -233,7 +236,7 @@ class LoyaltyEngine
             $tier = self::tiers($rule, $points);
 
             if ($tier['points'] !== null && $tier['points'] > (int) $reachedTier) {
-                $write(LoyaltyMovement::TIER, 0, $event['date'], $event['id'], note: "Palier {$tier['points']} points : {$tier['percent']} %", percent: $tier['percent']);
+                $write(LoyaltyMovement::TIER, 0, $event['date'], $event['id'], note: "Palier {$tier['points']} points : {$tier['label']}", percent: $tier['percent']);
             }
             $reachedTier = $tier['points'];
         }
@@ -250,6 +253,7 @@ class LoyaltyEngine
             'cycle_amount' => $cycle,
             'program_amount' => $total,
             'discount_percent' => $active ? $tier['percent'] : null,
+            'reward_label' => $active ? $tier['label'] : null,
             'tier_points' => $active ? $tier['points'] : null,
             'next_tier_points' => $tier['next'],
             'points_to_next_tier' => $tier['next'] !== null ? $tier['next'] - $points : null,
@@ -263,7 +267,7 @@ class LoyaltyEngine
      * Palier atteint et palier suivant pour un nombre de points.
      *
      * @param  array{tiers: list<array{points: int, percent: int}>}  $rule
-     * @return array{points: int|null, percent: int|null, next: int|null}
+     * @return array{points: int|null, percent: int|null, label: string|null, cost: int, next: int|null}
      */
     private static function tiers(array $rule, int $points): array
     {
@@ -272,7 +276,9 @@ class LoyaltyEngine
 
         return [
             'points' => $current['points'] ?? null,
-            'percent' => $current['percent'] ?? null,
+            'percent' => ($current['percent'] ?? 0) ?: null,
+            'label' => $current === null ? null : ($current['label'] ?? "Remise de {$current['percent']} %"),
+            'cost' => $current['cost'] ?? 0,
             'next' => $tiers->first(fn ($t) => $points < $t['points'])['points'] ?? null,
         ];
     }
@@ -282,14 +288,14 @@ class LoyaltyEngine
      *
      * @return array{threshold: int, tranche: int, per_tranche: int, bonus: int, tiers: list<array{points: int, percent: int}>, validity: int, reset: bool}
      */
-    private function ruleArray(LoyaltyProgramRule $rule): array
+    private function ruleArray(LoyaltyProgramRule $rule, string $currency): array
     {
         return [
             'threshold' => $rule->threshold,
             'tranche' => max(1, $rule->tranche_amount),
             'per_tranche' => $rule->points_per_tranche,
             'bonus' => $rule->activation_bonus,
-            'tiers' => array_map(fn ($t) => ['points' => (int) $t['points'], 'percent' => (int) $t['percent']], $rule->tiers ?? []),
+            'tiers' => array_map(fn ($t) => LoyaltyProgramRule::reward($t, $currency), $rule->tiers ?? []),
             'validity' => $rule->validity_months,
             'reset' => $rule->reset_after_use,
         ];
@@ -334,7 +340,7 @@ class LoyaltyEngine
 
         $tickets = $this->ticketQuery($program, $rule)
             ->whereIn('contacts.customer_id', $customerIds)
-            ->get(['contacts.customer_id', 'purchases.id', 'purchases.purchased_at', 'purchases.amount', 'purchases.discount_amount', 'purchases.loyalty_discount_percent']);
+            ->get(['contacts.customer_id', 'purchases.id', 'purchases.purchased_at', 'purchases.amount', 'purchases.discount_amount', 'purchases.loyalty_discount_percent', 'purchases.loyalty_reward_label']);
 
         foreach ($tickets as $t) {
             if (isset($this->discountApplied[$t->id])) {
@@ -343,14 +349,14 @@ class LoyaltyEngine
 
             $percent = $t->loyalty_discount_percent !== null ? (int) $t->loyalty_discount_percent : null;
             $discount = (int) $t->discount_amount ?: ($percent > 0 && $percent < 100 ? (int) round($t->amount * $percent / (100 - $percent)) : 0);
-            $events[(int) $t->customer_id][] = ['date' => substr((string) $t->purchased_at, 0, 10), 'kind' => 'ticket', 'amount' => (int) $t->amount, 'percent' => $percent, 'id' => (int) $t->id, 'discount' => max(0, $discount)];
+            $events[(int) $t->customer_id][] = ['date' => substr((string) $t->purchased_at, 0, 10), 'kind' => 'ticket', 'amount' => (int) $t->amount, 'percent' => $percent, 'id' => (int) $t->id, 'discount' => max(0, $discount), 'label' => $t->loyalty_reward_label];
         }
 
         $redemptions = DB::table('loyalty_redemptions')->where('loyalty_program_id', $program->id)->where('brand_id', $rule->brand_id)
             ->whereIn('customer_id', $customerIds)->get();
 
         foreach ($redemptions as $r) {
-            $events[(int) $r->customer_id][] = ['date' => substr((string) $r->used_on, 0, 10), 'kind' => 'manual', 'amount' => 0, 'percent' => (int) $r->discount_percent, 'id' => null, 'discount' => (int) $r->amount];
+            $events[(int) $r->customer_id][] = ['date' => substr((string) $r->used_on, 0, 10), 'kind' => 'manual', 'amount' => 0, 'percent' => (int) $r->discount_percent, 'id' => null, 'discount' => (int) $r->amount, 'label' => $r->reward_label];
         }
 
         foreach ($events as &$list) {

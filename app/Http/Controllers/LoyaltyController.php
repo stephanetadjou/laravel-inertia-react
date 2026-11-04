@@ -23,6 +23,11 @@ class LoyaltyController extends Controller
     {
         $organization = $request->user()->organization;
 
+        // Enseignes ou commerce : les programmes ; le réglage simple reste accessible s'il est actif.
+        if (! $request->boolean('simple') && ($organization->sector === 'commerce' || $organization->brands()->count() > 1 || $organization->loyaltyPrograms()->exists())) {
+            return app(LoyaltyProgramController::class)->index($request);
+        }
+
         return Inertia::render('Settings/Loyalty', [
             'settings' => $organization->loyaltySettings(),
             'rewards' => LoyaltyReward::where('organization_id', $organization->id)->orderBy('points_cost')->get(['id', 'name', 'points_cost', 'active']),

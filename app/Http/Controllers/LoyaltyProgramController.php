@@ -8,6 +8,7 @@ use App\Models\Customer;
 use App\Models\LoyaltyCard;
 use App\Models\LoyaltyMovement;
 use App\Models\LoyaltyProgram;
+use App\Models\LoyaltyProgramRule;
 use App\Models\LoyaltyRedemption;
 use App\Models\Organization;
 use App\Models\Store;
@@ -38,6 +39,8 @@ class LoyaltyProgramController extends Controller
             ->get()->groupBy('loyalty_program_id');
 
         return Inertia::render('Settings/LoyaltyPrograms', [
+            'legacyEnabled' => $organization->loyaltySettings()['enabled'],
+            'rewardTypes' => collect(LoyaltyProgramRule::REWARD_TYPES)->map(fn ($label, $key) => ['key' => $key, 'label' => $label])->values(),
             'brands' => Brand::where('organization_id', $organization->id)->orderBy('name')->get(['id', 'name']),
             'programs' => LoyaltyProgram::where('organization_id', $organization->id)->with('rules.brand:id,name')->orderByDesc('starts_on')->get()
                 ->map(fn (LoyaltyProgram $p) => [
@@ -45,6 +48,7 @@ class LoyaltyProgramController extends Controller
                     'name' => $p->name,
                     'starts_on' => $p->starts_on->toDateString(),
                     'ends_on' => $p->ends_on->toDateString(),
+                    'same_rules' => $p->same_rules,
                     'rules' => $p->rules->map(fn ($r) => [
                         'brand_id' => $r->brand_id,
                         'brand_name' => $r->brand?->name,
@@ -52,7 +56,7 @@ class LoyaltyProgramController extends Controller
                         'tranche_amount' => $r->tranche_amount,
                         'points_per_tranche' => $r->points_per_tranche,
                         'activation_bonus' => $r->activation_bonus,
-                        'tiers' => $r->tiers,
+                        'tiers' => array_map(fn ($t) => [...$t, 'type' => $t['type'] ?? 'percent', 'reward' => LoyaltyProgramRule::reward($t, $organization->currencySymbol())['label']], $r->tiers),
                         'validity_months' => $r->validity_months,
                         'reset_after_use' => $r->reset_after_use,
                     ])->values(),
@@ -69,7 +73,7 @@ class LoyaltyProgramController extends Controller
         $data = $this->validated($request, $organization);
 
         $program = DB::transaction(function () use ($data, $organization) {
-            $program = LoyaltyProgram::create(['organization_id' => $organization->id, 'name' => $data['name'], 'starts_on' => $data['starts_on'], 'ends_on' => $data['ends_on']]);
+            $program = LoyaltyProgram::create(['organization_id' => $organization->id, 'name' => $data['name'], 'starts_on' => $data['starts_on'], 'ends_on' => $data['ends_on'], 'same_rules' => $data['same_rules']]);
             $program->rules()->createMany($data['rules']);
 
             return $program;
@@ -88,7 +92,7 @@ class LoyaltyProgramController extends Controller
         $data = $this->validated($request, $organization, $program);
 
         DB::transaction(function () use ($program, $data) {
-            $program->update(['name' => $data['name'], 'starts_on' => $data['starts_on'], 'ends_on' => $data['ends_on']]);
+            $program->update(['name' => $data['name'], 'starts_on' => $data['starts_on'], 'ends_on' => $data['ends_on'], 'same_rules' => $data['same_rules']]);
             $program->rules()->whereNotIn('brand_id', array_column($data['rules'], 'brand_id'))->delete();
 
             foreach ($data['rules'] as $rule) {
@@ -123,17 +127,29 @@ class LoyaltyProgramController extends Controller
 
         $data = $request->validate([
             'store_id' => ['required', 'integer', Rule::in((clone $stores)->pluck('id'))],
-            'discount_percent' => ['required', 'integer', 'min:1', 'max:100'],
-            'amount' => ['required', 'integer', 'min:0'],
+            'tier_points' => ['required', 'integer'],
+            'amount' => ['nullable', 'integer', 'min:0'],
             'used_on' => ['required', 'date', 'before_or_equal:today'],
-        ], ['store_id.required' => 'Choisissez le magasin.', 'amount.required' => 'Indiquez le montant de la remise.']);
+        ], ['store_id.required' => 'Choisissez le magasin.', 'tier_points.required' => 'Choisissez la récompense.']);
 
         if ($card->status !== LoyaltyCard::STATUS_ACTIVE) {
-            throw ValidationException::withMessages(['discount_percent' => 'Cette carte n’est pas active.']);
+            throw ValidationException::withMessages(['tier_points' => 'Cette carte n’est pas active.']);
         }
 
+        $tier = collect($card->program->rules->firstWhere('brand_id', $card->brand_id)?->tiers ?? [])->firstWhere('points', $data['tier_points']);
+
+        if ($tier === null) {
+            throw ValidationException::withMessages(['tier_points' => 'Ce palier n’existe pas dans le programme.']);
+        }
+
+        $reward = LoyaltyProgramRule::reward($tier, $user->organization->currencySymbol());
+
         LoyaltyRedemption::create([
-            ...$data,
+            'store_id' => $data['store_id'],
+            'used_on' => $data['used_on'],
+            'discount_percent' => $reward['percent'],
+            'reward_label' => $reward['label'],
+            'amount' => (int) ($data['amount'] ?? 0) ?: $reward['cost'],
             'organization_id' => $user->organization_id,
             'loyalty_program_id' => $card->loyalty_program_id,
             'brand_id' => $card->brand_id,
@@ -141,9 +157,9 @@ class LoyaltyProgramController extends Controller
             'user_id' => $user->id,
         ]);
         $engine->recalculate($user->organization, [$customer->id]);
-        Audit::record('loyalty.discount_used', $customer, "Remise de {$data['discount_percent']} % utilisée", $data);
+        Audit::record('loyalty.discount_used', $customer, "Récompense utilisée : {$reward['label']}", $data);
 
-        return back()->with('success', 'Remise enregistrée.');
+        return back()->with('success', 'Récompense enregistrée.');
     }
 
     /**
@@ -168,6 +184,7 @@ class LoyaltyProgramController extends Controller
 
         return $cards->values()->map(function (LoyaltyCard $card) use ($stores, $history) {
             $rule = $card->program->rules->firstWhere('brand_id', $card->brand_id);
+            $currency = $card->program->organization?->currencySymbol() ?? 'FCFA';
 
             return [
                 'id' => $card->id,
@@ -179,8 +196,9 @@ class LoyaltyProgramController extends Controller
                 'cycle_amount' => (int) $card->cycle_amount,
                 'threshold' => $rule?->threshold,
                 'amount_to_threshold' => (int) $card->amount_to_threshold,
-                'tiers' => collect($rule?->tiers ?? [])->sortBy('points')->values(),
-                'discount_percent' => $card->discount_percent,
+                'tiers' => collect($rule?->tiers ?? [])->map(fn ($t) => LoyaltyProgramRule::reward($t, $currency))->sortBy('points')->values(),
+                'tier_points' => $card->tier_points,
+                'reward_label' => $card->reward_label,
                 'next_tier_points' => $card->next_tier_points,
                 'points_to_next_tier' => $card->points_to_next_tier,
                 'activated_on' => $card->activated_on?->toDateString(),
@@ -204,13 +222,33 @@ class LoyaltyProgramController extends Controller
         abort_unless($program->organization_id === $request->user()->organization_id, 404);
     }
 
-    /** @return array{name: string, starts_on: string, ends_on: string, rules: list<array<string, mixed>>} */
+    /**
+     * Palier enregistré : { points, percent } pour une remise en %, sinon le type et sa valeur.
+     *
+     * @param  array<string, mixed>  $tier
+     * @return array<string, mixed>
+     */
+    private function tier(array $tier): array
+    {
+        $type = $tier['type'] ?? 'percent';
+        $points = (int) $tier['points'];
+
+        return match (true) {
+            $type === 'percent' && (int) ($tier['percent'] ?? 0) > 0 => ['points' => $points, 'percent' => (int) $tier['percent']],
+            in_array($type, ['amount', 'voucher'], true) && (int) ($tier['amount'] ?? 0) > 0 => ['points' => $points, 'type' => $type, 'amount' => (int) $tier['amount']],
+            in_array($type, ['gift', 'perk'], true) && filled($tier['label'] ?? null) => ['points' => $points, 'type' => $type, 'label' => trim($tier['label'])],
+            default => throw ValidationException::withMessages(['rules' => "Complétez la récompense du palier de {$points} points."]),
+        };
+    }
+
+    /** @return array{name: string, starts_on: string, ends_on: string, same_rules: bool, rules: list<array<string, mixed>>} */
     private function validated(Request $request, Organization $organization, ?LoyaltyProgram $program = null): array
     {
         $data = $request->validate([
             'name' => ['required', 'string', 'max:120'],
             'starts_on' => ['required', 'date'],
             'ends_on' => ['required', 'date', 'after_or_equal:starts_on'],
+            'same_rules' => ['sometimes', 'boolean'],
             'rules' => ['required', 'array', 'min:1'],
             'rules.*.brand_id' => ['required', 'integer', 'distinct', Rule::exists('brands', 'id')->where('organization_id', $organization->id)],
             'rules.*.threshold' => ['required', 'integer', 'min:0'],
@@ -219,7 +257,10 @@ class LoyaltyProgramController extends Controller
             'rules.*.activation_bonus' => ['required', 'integer', 'min:0'],
             'rules.*.tiers' => ['required', 'array', 'min:1'],
             'rules.*.tiers.*.points' => ['required', 'integer', 'min:1'],
-            'rules.*.tiers.*.percent' => ['required', 'integer', 'min:1', 'max:100'],
+            'rules.*.tiers.*.type' => ['nullable', Rule::in(array_keys(LoyaltyProgramRule::REWARD_TYPES))],
+            'rules.*.tiers.*.percent' => ['nullable', 'integer', 'min:0', 'max:100'],
+            'rules.*.tiers.*.amount' => ['nullable', 'integer', 'min:0'],
+            'rules.*.tiers.*.label' => ['nullable', 'string', 'max:120'],
             'rules.*.validity_months' => ['required', 'integer', 'min:1', 'max:120'],
             'rules.*.reset_after_use' => ['required', 'boolean'],
         ], [
@@ -240,8 +281,13 @@ class LoyaltyProgramController extends Controller
             throw ValidationException::withMessages(['rules' => "Une enseigne est déjà dans le programme « {$overlap->name} » sur ces dates : un ticket compterait deux fois."]);
         }
 
-        $data['rules'] = array_map(function (array $rule) {
-            $tiers = collect($rule['tiers'])->map(fn ($t) => ['points' => (int) $t['points'], 'percent' => (int) $t['percent']])->sortBy('points')->values();
+        $data['same_rules'] = (bool) ($data['same_rules'] ?? false);
+        $first = $data['rules'][array_key_first($data['rules'])];
+
+        $data['rules'] = array_map(function (array $rule) use ($data, $first) {
+            // Mêmes règles : une seule grille pour toutes les enseignes, compteurs séparés.
+            $rule = $data['same_rules'] ? [...$first, 'brand_id' => $rule['brand_id']] : $rule;
+            $tiers = collect($rule['tiers'])->map(fn ($t) => $this->tier($t))->sortBy('points')->values();
 
             if ($tiers->pluck('points')->duplicates()->isNotEmpty()) {
                 throw ValidationException::withMessages(['rules' => 'Deux paliers d’une enseigne ont le même nombre de points.']);

@@ -54,6 +54,11 @@ it('earns one point per 1 000 FCFA from the launch date', function () {
     expect($loyalty->balance($this->customer))->toBe(25);
 });
 
+it('keeps the simple settings for a single brand outside commerce', function () {
+    $this->actingAs($this->admin)->get('/settings/loyalty-programs')->assertRedirect('/settings/loyalty');
+    $this->actingAs($this->admin)->get('/settings/loyalty')->assertInertia(fn ($page) => $page->component('Settings/Loyalty'));
+});
+
 it('earns nothing while the programme is off', function () {
     $this->organization->update(['loyalty_settings' => [...$this->organization->loyalty_settings, 'enabled' => false]]);
     loyaltyPurchase(50000);

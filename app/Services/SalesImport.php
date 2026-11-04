@@ -85,7 +85,7 @@ class SalesImport
         'unit_price' => ['label' => 'Prix unitaire', 'help' => 'Montant = quantité × prix − remise si pas de montant.', 'aliases' => ['prix', 'prix unitaire', 'pu', 'prix vente', 'unit price']],
         'discount' => ['label' => 'Remise', 'help' => 'Montant de remise de la ligne.', 'aliases' => ['remise', 'reduction', 'discount', 'rabais']],
         'line_total' => ['label' => 'Montant de la ligne', 'help' => 'Montant payé (TTC) ; négatif pour un retour.', 'aliases' => ['montant net', 'montant', 'total', 'montant ttc', 'total ligne', 'ca', 'chiffre affaire', 'amount', 'net']],
-        'loyalty_discount' => ['label' => 'Remise fidélité', 'help' => 'Ex. 10 % : signale l’utilisation de la remise, les points repartent de zéro.', 'aliases' => ['remise fidelite', 'remise carte', 'remise programme', 'loyalty discount']],
+        'loyalty_discount' => ['label' => 'Remise fidélité', 'help' => 'Ex. 10 % ou le libellé de la récompense : signale son utilisation, les points repartent de zéro.', 'aliases' => ['remise fidelite', 'remise carte', 'remise programme', 'loyalty discount']],
         'line_type' => ['label' => 'Type de ligne', 'help' => 'Vente ou retour (avoir, remboursement…).', 'aliases' => ['type', 'type ligne', 'sens', 'nature', 'mouvement']],
         'payment_method' => ['label' => 'Moyen de paiement', 'help' => 'Espèces, carte, Mobile Money…', 'aliases' => ['paiement', 'mode paiement', 'moyen paiement', 'reglement', 'mode reglement']],
         'consent' => ['label' => 'Consentement WhatsApp', 'help' => 'Oui / non, recueilli en caisse.', 'aliases' => ['consentement', 'consentement whatsapp', 'opt in', 'optin']],
@@ -551,6 +551,7 @@ class SalesImport
             'subtotal' => (int) $lines->sum(fn ($line) => $line['data']['amount'] + $line['data']['discount']),
             'discount_amount' => (int) $lines->sum(fn ($line) => $line['data']['discount']),
             'loyalty_discount_percent' => $lines->pluck('data.loyalty_discount')->filter(fn ($v) => $v !== null)->max(),
+            'loyalty_reward_label' => $lines->pluck('data.loyalty_reward')->filter()->first(),
             'currency' => $context['currency'],
             'category_id' => $main['category_id'],
             'product_category' => $main['label'],
@@ -894,6 +895,8 @@ class SalesImport
             'district' => $value('district') !== null ? mb_substr($value('district'), 0, 255) : null,
             'email' => filter_var($value('email'), FILTER_VALIDATE_EMAIL) ?: null,
             'loyalty_discount' => self::loyaltyDiscount($value('loyalty_discount')),
+            'loyalty_reward' => self::loyaltyDiscount($value('loyalty_discount')) === 0 && ! in_array(FamilyMatcher::normalize($value('loyalty_discount')), ['oui', 'o', 'yes', 'x'], true)
+                ? mb_substr((string) $value('loyalty_discount'), 0, 255) : null,
             'customer_type' => self::isBusiness($value('customer_type')) ? Customer::TYPE_BUSINESS : null,
             'family' => $family !== null ? mb_substr($family, 0, 255) : null,
             'category' => $category !== null ? mb_substr($category, 0, 255) : null,
@@ -1030,16 +1033,20 @@ class SalesImport
         return $text !== '' && preg_match('/\b(retour|return|avoir|rembour\w*|refund|annul\w*|r)\b/', $text) === 1;
     }
 
-    /** « 10% » → 10 ; « oui » → 0 (utilisée, pourcentage inconnu) ; vide, « 0 », « non » → null. */
+    /** « 10% » → 10 ; « oui » ou un libellé (« Bon d'achat 10 000 ») → 0 : utilisée, sans pourcentage ; vide, « 0 », « non » → null. */
     private static function loyaltyDiscount(?string $value): ?int
     {
         $text = FamilyMatcher::normalize($value);
 
-        if (preg_match('/\d+/', $text, $match)) {
-            return (int) $match[0] > 0 ? min(100, (int) $match[0]) : null;
+        if ($text === '' || in_array($text, ['non', 'n', 'no'], true)) {
+            return null;
         }
 
-        return in_array($text, ['oui', 'o', 'yes', 'x'], true) ? 0 : null;
+        if (preg_match('/^(\d+)\s*(%|pourcent|pct)?$/', trim((string) $value), $match)) {
+            return (int) $match[1] > 0 ? min(100, (int) $match[1]) : null;
+        }
+
+        return 0;
     }
 
     private static function gender(?string $value): ?string

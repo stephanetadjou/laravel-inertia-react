@@ -186,7 +186,7 @@ class BiDashboard
 
         $statuses = (clone $cards())->groupBy('status')->selectRaw('status, COUNT(*) as total')->pluck('total', 'status');
         $byBrand = (clone $cards())->where('status', LoyaltyCard::STATUS_ACTIVE)->groupBy('brand_id')->selectRaw('brand_id, COUNT(*) as total')->pluck('total', 'brand_id');
-        $tiers = (clone $cards())->where('status', LoyaltyCard::STATUS_ACTIVE)->whereNotNull('discount_percent')->groupBy('discount_percent')->selectRaw('discount_percent, COUNT(*) as total')->orderBy('discount_percent')->pluck('total', 'discount_percent');
+        $tiers = (clone $cards())->where('status', LoyaltyCard::STATUS_ACTIVE)->whereNotNull('reward_label')->groupBy('reward_label')->selectRaw('reward_label, COUNT(*) as total')->orderBy('reward_label')->pluck('total', 'reward_label');
         $brandNames = Brand::whereIn('id', $this->brandIds)->pluck('name', 'id');
 
         return [
@@ -211,8 +211,8 @@ class BiDashboard
                     'items' => $byBrand->sortDesc()->map(fn ($total, $id) => ['id' => $id, 'label' => $brandNames[$id] ?? '—', 'value' => (int) $total])->values()->all(),
                 ],
                 [
-                    'key' => 'tiers', 'title' => 'Membres par palier atteint', 'filter' => null, 'unit' => 'membres',
-                    'items' => $tiers->map(fn ($total, $percent) => ['id' => $percent, 'label' => "Palier {$percent} %", 'value' => (int) $total])->values()->all(),
+                    'key' => 'tiers', 'title' => 'Membres par récompense disponible', 'filter' => null, 'unit' => 'membres',
+                    'items' => $tiers->map(fn ($total, $label) => ['id' => $label, 'label' => $label, 'value' => (int) $total])->values()->all(),
                 ],
                 [
                     'key' => 'versus', 'title' => 'CA net : membres et non-membres', 'filter' => null, 'unit' => 'fcfa',

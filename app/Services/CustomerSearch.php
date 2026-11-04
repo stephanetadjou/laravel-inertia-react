@@ -125,7 +125,8 @@ class CustomerSearch
 
     public ?string $loyaltyStatus = null;
 
-    public ?int $loyaltyTier = null;
+    /** Palier : un pourcentage, ou le libellé d'une autre récompense. */
+    public int|string|null $loyaltyTier = null;
 
     public const LOYALTY_STATUSES = [
         'active' => 'Membres actifs',
@@ -220,7 +221,8 @@ class CustomerSearch
         $loyaltyBrand = (int) ($filters['loyalty_brand'] ?? 0);
         $this->loyaltyBrand = $loyaltyBrand && $this->roleStores->contains('brand_id', $loyaltyBrand) ? $loyaltyBrand : null;
         $this->loyaltyStatus = array_key_exists((string) ($filters['loyalty_status'] ?? ''), self::LOYALTY_STATUSES) ? (string) $filters['loyalty_status'] : null;
-        $this->loyaltyTier = (int) ($filters['loyalty_tier'] ?? 0) ?: null;
+        $tier = trim((string) ($filters['loyalty_tier'] ?? ''));
+        $this->loyaltyTier = $tier === '' ? null : (ctype_digit($tier) ? (int) $tier : $tier);
 
         $follow = (string) ($filters['follow'] ?? '');
         $this->follow = preg_match('/^(unpaid|ending:\d{1,3}|absent:\d{1,2}|class:\d+)$/', $follow) ? $follow : null;
@@ -311,7 +313,7 @@ class CustomerSearch
             ->where('loyalty_cards.organization_id', $this->user->organization_id)
             ->when($this->loyaltyProgram !== null, fn ($q) => $q->where('loyalty_cards.loyalty_program_id', $this->loyaltyProgram))
             ->when($this->loyaltyBrand !== null, fn ($q) => $q->where('loyalty_cards.brand_id', $this->loyaltyBrand))
-            ->when($this->loyaltyTier !== null, fn ($q) => $q->where('loyalty_cards.discount_percent', $this->loyaltyTier))
+            ->when($this->loyaltyTier !== null, fn ($q) => $q->where(is_int($this->loyaltyTier) ? 'loyalty_cards.discount_percent' : 'loyalty_cards.reward_label', $this->loyaltyTier))
             // Programme terminé : plus aucun gain possible, donc plus rien de « proche ».
             ->when(in_array($this->loyaltyStatus, ['near_threshold', 'near_tier'], true), fn ($q) => $q
                 ->whereIn('loyalty_cards.loyalty_program_id', LoyaltyProgram::where('organization_id', $this->user->organization_id)->whereDate('ends_on', '>=', today()->toDateString())->select('id')))
@@ -494,7 +496,7 @@ class CustomerSearch
             $this->follow !== null ? self::followLabel($this->follow) : null,
             $this->loyaltyBrand !== null ? 'Fidélité '.Brand::whereKey($this->loyaltyBrand)->value('name') : null,
             $this->loyaltyStatus !== null ? self::LOYALTY_STATUSES[$this->loyaltyStatus] : null,
-            $this->loyaltyTier !== null ? "Palier {$this->loyaltyTier} %" : null,
+            $this->loyaltyTier !== null ? 'Palier '.$this->loyaltyTier.(is_int($this->loyaltyTier) ? ' %' : '') : null,
             match ($this->consent) {
                 'opt_in' => 'Opt-in',
                 'unknown' => 'Consentement inconnu',

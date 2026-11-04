@@ -23,6 +23,39 @@ class LoyaltyProgramRule extends Model
         ];
     }
 
+    public const REWARD_TYPES = [
+        'percent' => '% de remise',
+        'amount' => 'Montant de remise',
+        'voucher' => 'Bon d’achat',
+        'gift' => 'Cadeau ou article offert',
+        'perk' => 'Avantage libre',
+    ];
+
+    /**
+     * Récompense d'un palier. Un palier sans type (points, percent) est une remise en %.
+     *
+     * @param  array<string, mixed>  $tier
+     * @return array{points: int, percent: int, label: string, cost: int}
+     */
+    public static function reward(array $tier, string $currency = 'FCFA'): array
+    {
+        $type = $tier['type'] ?? 'percent';
+        $percent = $type === 'percent' ? (int) ($tier['percent'] ?? 0) : 0;
+        $amount = number_format((int) ($tier['amount'] ?? 0), 0, ',', ' ').' '.$currency;
+
+        return [
+            'points' => (int) $tier['points'],
+            'percent' => $percent,
+            'cost' => in_array($type, ['amount', 'voucher'], true) ? (int) $tier['amount'] : 0,
+            'label' => match ($type) {
+                'amount' => "Remise de {$amount}",
+                'voucher' => "Bon d’achat de {$amount}",
+                'gift', 'perk' => (string) ($tier['label'] ?? ''),
+                default => "Remise de {$percent} %",
+            },
+        ];
+    }
+
     public function program(): BelongsTo
     {
         return $this->belongsTo(LoyaltyProgram::class, 'loyalty_program_id');
