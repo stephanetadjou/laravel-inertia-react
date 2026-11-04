@@ -9,7 +9,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 /** Programme de fidélité daté, sur une ou plusieurs enseignes (cf. LoyaltyEngine). */
 class LoyaltyProgram extends Model
 {
-    protected $fillable = ['organization_id', 'name', 'starts_on', 'ends_on', 'same_rules'];
+    protected $fillable = ['organization_id', 'name', 'starts_on', 'ends_on', 'same_rules', 'near_points'];
 
     protected function casts(): array
     {

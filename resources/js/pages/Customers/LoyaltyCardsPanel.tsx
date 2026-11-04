@@ -17,7 +17,7 @@ export interface LoyaltyCardData {
     cycle_amount: number;
     threshold: number | null;
     amount_to_threshold: number;
-    tiers: { points: number; percent: number; label: string; cost: number }[];
+    tiers: { points: number; percent: number; label: string; cost: number; state: 'current' | 'reached' | 'near' | 'future'; missing: number; used: number }[];
     tier_points: number | null;
     reward_label: string | null;
     next_tier_points: number | null;
@@ -33,7 +33,9 @@ const money = (n: number) => `${n.toLocaleString('fr-FR')} FCFA`;
 const day = (d: string) => new Date(`${d}T12:00:00`).toLocaleDateString('fr-FR');
 const today = () => new Date().toISOString().slice(0, 10);
 
-function Redeem({ customerId, card, onDone }: { customerId: number; card: LoyaltyCardData; onDone: () => void }) {
+type RedeemCard = { id: number; stores: { id: number; name: string }[]; tier_points: number | null; tiers: { points: number; label: string }[] };
+
+export function Redeem({ customerId, card, onDone }: { customerId: number; card: RedeemCard; onDone: () => void }) {
     const { data, setData, post, processing, errors } = useForm({
         store_id: card.stores.length === 1 ? String(card.stores[0].id) : '',
         tier_points: String(card.tier_points ?? ''),
@@ -102,7 +104,17 @@ function Card({ customerId, card }: { customerId: number; card: LoyaltyCardData 
                             : 'Palier le plus haut atteint'
                         : `Encore ${money(card.amount_to_threshold)} d’achats avant le seuil de ${money(card.threshold ?? 0)}`}
                 </span>
-                {card.tiers.length > 0 && <span className="mloy-muted">Paliers : {card.tiers.map((t) => `${t.points} pts → ${t.label}`).join(' · ')}</span>}
+                <ol className="mloy-steps">
+                    {card.tiers.map((t) => (
+                        <li key={t.points} className={t.state}>
+                            <b>{t.label}</b>
+                            <small>
+                                {t.points} pts · {t.state === 'current' ? 'actuelle' : t.state === 'reached' ? 'obtenue' : `encore ${t.missing} pts`}
+                                {t.used > 0 ? ` · utilisée ${t.used} fois` : ''}
+                            </small>
+                        </li>
+                    ))}
+                </ol>
             </div>
 
             {active && card.reward_label !== null && <p className="mloy-muted">Récompense disponible : {card.reward_label}</p>}

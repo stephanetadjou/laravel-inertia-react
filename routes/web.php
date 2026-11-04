@@ -28,6 +28,7 @@ use App\Http\Controllers\ImportTemplateController;
 use App\Http\Controllers\InstallmentController;
 use App\Http\Controllers\LoyaltyController;
 use App\Http\Controllers\LoyaltyProgramController;
+use App\Http\Controllers\LoyaltyTrackingController;
 use App\Http\Controllers\ManualSaleController;
 use App\Http\Controllers\MessageTemplateController;
 use App\Http\Controllers\ModuleController;
@@ -151,6 +152,11 @@ Route::middleware('auth')->group(function () {
         Route::put('/customers/{customer}/health-note', [BeneficiaryController::class, 'updateHealthNote'])->name('customers.health-note');
     });
     Route::post('/customers/{customer}/loyalty/redeem', [LoyaltyController::class, 'redeem'])->middleware('module:fidelite')->name('customers.loyalty.redeem');
+    Route::middleware('module:fidelite')->group(function () {
+        Route::get('/fidelite', [LoyaltyTrackingController::class, 'index'])->name('loyalty.tracking');
+        Route::get('/fidelite/export', [LoyaltyTrackingController::class, 'export'])->name('loyalty.tracking.export');
+        Route::post('/fidelite/group', [LoyaltyTrackingController::class, 'group'])->name('loyalty.tracking.group');
+    });
     Route::post('/customers/{customer}/loyalty-cards/{card}/redeem', [LoyaltyProgramController::class, 'redeem'])->middleware('module:fidelite')->name('customers.loyalty-cards.redeem');
     Route::post('/customers/{customer}/loyalty/adjust', [LoyaltyController::class, 'adjust'])->middleware('module:fidelite')->name('customers.loyalty.adjust');
 

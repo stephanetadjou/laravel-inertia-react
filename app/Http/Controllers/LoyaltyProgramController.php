@@ -14,6 +14,7 @@ use App\Models\Organization;
 use App\Models\Store;
 use App\Models\User;
 use App\Services\Audit;
+use App\Services\CustomerSearch;
 use App\Services\LoyaltyEngine;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -49,6 +50,7 @@ class LoyaltyProgramController extends Controller
                     'starts_on' => $p->starts_on->toDateString(),
                     'ends_on' => $p->ends_on->toDateString(),
                     'same_rules' => $p->same_rules,
+                    'near_points' => $p->near_points,
                     'rules' => $p->rules->map(fn ($r) => [
                         'brand_id' => $r->brand_id,
                         'brand_name' => $r->brand?->name,
@@ -73,7 +75,7 @@ class LoyaltyProgramController extends Controller
         $data = $this->validated($request, $organization);
 
         $program = DB::transaction(function () use ($data, $organization) {
-            $program = LoyaltyProgram::create(['organization_id' => $organization->id, 'name' => $data['name'], 'starts_on' => $data['starts_on'], 'ends_on' => $data['ends_on'], 'same_rules' => $data['same_rules']]);
+            $program = LoyaltyProgram::create(['organization_id' => $organization->id, 'name' => $data['name'], 'starts_on' => $data['starts_on'], 'ends_on' => $data['ends_on'], 'same_rules' => $data['same_rules'], 'near_points' => $data['near_points'] ?? null]);
             $program->rules()->createMany($data['rules']);
 
             return $program;
@@ -92,7 +94,7 @@ class LoyaltyProgramController extends Controller
         $data = $this->validated($request, $organization, $program);
 
         DB::transaction(function () use ($program, $data) {
-            $program->update(['name' => $data['name'], 'starts_on' => $data['starts_on'], 'ends_on' => $data['ends_on'], 'same_rules' => $data['same_rules']]);
+            $program->update(['name' => $data['name'], 'starts_on' => $data['starts_on'], 'ends_on' => $data['ends_on'], 'same_rules' => $data['same_rules'], 'near_points' => $data['near_points'] ?? null]);
             $program->rules()->whereNotIn('brand_id', array_column($data['rules'], 'brand_id'))->delete();
 
             foreach ($data['rules'] as $rule) {
@@ -196,7 +198,15 @@ class LoyaltyProgramController extends Controller
                 'cycle_amount' => (int) $card->cycle_amount,
                 'threshold' => $rule?->threshold,
                 'amount_to_threshold' => (int) $card->amount_to_threshold,
-                'tiers' => collect($rule?->tiers ?? [])->map(fn ($t) => LoyaltyProgramRule::reward($t, $currency))->sortBy('points')->values(),
+                'tiers' => collect($rule?->tiers ?? [])->map(fn ($t) => LoyaltyProgramRule::reward($t, $currency))->sortBy('points')->values()
+                    ->map(fn ($t) => [...$t, 'state' => match (true) {
+                        $card->status !== LoyaltyCard::STATUS_ACTIVE => 'future',
+                        $card->tier_points === $t['points'] => 'current',
+                        $card->points >= $t['points'] => 'reached',
+                        $t['points'] - $card->points <= CustomerSearch::NEAR_TIER_POINTS => 'near',
+                        default => 'future',
+                    }, 'missing' => max(0, $t['points'] - $card->points),
+                        'used' => ($history["{$card->loyalty_program_id}-{$card->brand_id}"] ?? collect())->where('type', LoyaltyMovement::DISCOUNT_USED)->where('note', $t['label'])->count()]),
                 'tier_points' => $card->tier_points,
                 'reward_label' => $card->reward_label,
                 'next_tier_points' => $card->next_tier_points,
@@ -249,6 +259,7 @@ class LoyaltyProgramController extends Controller
             'starts_on' => ['required', 'date'],
             'ends_on' => ['required', 'date', 'after_or_equal:starts_on'],
             'same_rules' => ['sometimes', 'boolean'],
+            'near_points' => ['nullable', 'integer', 'min:1'],
             'rules' => ['required', 'array', 'min:1'],
             'rules.*.brand_id' => ['required', 'integer', 'distinct', Rule::exists('brands', 'id')->where('organization_id', $organization->id)],
             'rules.*.threshold' => ['required', 'integer', 'min:0'],

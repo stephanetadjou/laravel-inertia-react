@@ -36,6 +36,7 @@ interface Program {
     starts_on: string;
     ends_on: string;
     same_rules: boolean;
+    near_points: number | null;
     rules: Rule[];
     active_members: number;
     expired_members: number;
@@ -50,7 +51,7 @@ interface PageProps {
     [key: string]: unknown;
 }
 
-type FormData = { name: string; starts_on: string; ends_on: string; same_rules: boolean; rules: Rule[] };
+type FormData = { name: string; starts_on: string; ends_on: string; same_rules: boolean; near_points: string; rules: Rule[] };
 
 const field = 'w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-800 focus:border-brand-300 focus:outline-hidden dark:border-gray-700 dark:bg-white/[0.03] dark:text-white/90';
 const money = (n: number | string) => `${Number(n).toLocaleString('fr-FR')} FCFA`;
@@ -129,6 +130,7 @@ function ProgramForm({ program, brands, rewardTypes, onDone }: { program?: Progr
         starts_on: program?.starts_on ?? '',
         ends_on: program?.ends_on ?? '',
         same_rules: program?.same_rules ?? true,
+        near_points: program?.near_points ? String(program.near_points) : '',
         rules: program?.rules ?? [],
     });
 
@@ -159,6 +161,11 @@ function ProgramForm({ program, brands, rewardTypes, onDone }: { program?: Progr
                     <input type="date" value={data.ends_on} onChange={(e) => setData('ends_on', e.target.value)} className={field} />
                 </label>
             </div>
+
+            <label className="block max-w-xs">
+                <span className="mb-1 block text-xs font-medium text-gray-700 dark:text-gray-300">« Proche » : moins de combien de points ?</span>
+                <input type="number" min={1} value={data.near_points} onChange={(e) => setData('near_points', e.target.value)} className={field} placeholder="20 % de l’écart" />
+            </label>
 
             <fieldset className="flex flex-wrap gap-4">
                 <legend className="mb-1 text-xs font-medium text-gray-700 dark:text-gray-300">Règles</legend>

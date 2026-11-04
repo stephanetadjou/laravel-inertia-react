@@ -724,3 +724,33 @@
     font-weight: 600;
     border-bottom-color: var(--brand);
 }
+
+.mloy-steps {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin: 8px 0 0;
+    padding: 0;
+    list-style: none;
+}
+.mloy-next .mloy-steps li {
+    flex: 1 1 120px;
+    padding: 6px 8px;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+}
+.mloy-next .mloy-steps li b {
+    display: block;
+    font-size: 12.5px;
+}
+.mloy-next .mloy-steps li small {
+    color: var(--muted);
+    font-size: 11.5px;
+}
+.mloy-next .mloy-steps li.current {
+    border-color: #00c896;
+    background: var(--surface-2);
+}
+.mloy-next .mloy-steps li.reached {
+    background: var(--surface-2);
+}

@@ -15,6 +15,7 @@ use App\Models\Purchase;
 use App\Models\Role;
 use App\Models\Store;
 use App\Models\User;
+use App\Services\BrandMetrics;
 use App\Services\CustomerSearch;
 use App\Services\LoyaltyEngine;
 use App\Services\SalesImport;
@@ -302,6 +303,50 @@ it('refuses a reward left empty', function () {
         'brand_id' => $this->adidas->id, 'threshold' => 1, 'tranche_amount' => 1, 'points_per_tranche' => 1, 'activation_bonus' => 0,
         'tiers' => [['points' => 10, 'type' => 'gift', 'label' => '']], 'validity_months' => 6, 'reset_after_use' => true,
     ]]])->assertSessionHasErrors('rules');
+});
+
+it('tracks rewards reached, near and to come, one line per customer and brand', function () {
+    ($this->buy)($this->adidasGlass, 2500000, '2026-02-01');                     // 300 pts : palier atteint
+    ($this->buy)($this->adidasGlass, 2400000, '2026-02-01', '24174000000');      // 290 pts : proche (écart 300 → 60 max)
+    ($this->buy)($this->adidasGlass, 500000, '2026-02-01', '24166000000');       // 100 pts : à venir
+    ($this->buy)($this->mangoGlass, 390000, '2026-02-01', '24166000000');        // sous le seuil : proche
+    ($this->buy)($this->mangoGlass, 100000, '2026-02-01', '24165000000');        // sous le seuil : à venir
+    ($this->recalculate)();
+    app(BrandMetrics::class)->refreshOrganization($this->organization);
+
+    $props = fn (string $url) => $this->actingAs($this->admin)->get($url)->assertOk()->viewData('page')['props'];
+    $page = $props('/fidelite');
+    expect($page['counts'])->toBe(['reached' => 1, 'near' => 2, 'future' => 2])
+        ->and($page['cards']['data'][0]['reward'])->toBe('Remise de 10 %')
+        ->and($page['cards']['data'][0]['reached_on'])->toBe('2026-02-01');
+
+    $future = collect($props('/fidelite?tab=future')['cards']['data'])->firstWhere('brand', 'Adidas');
+    expect($future['next'])->toBe('Remise de 10 %')
+        ->and($future['missing'])->toBe(200)
+        ->and($future['amount_left'])->toBe(2000000)
+        ->and($future['estimated_on'])->toBeNull(); // au-delà de la fin du programme
+
+    $threshold = collect($props('/fidelite?tab=near&sort=points&dir=asc')['cards']['data'])->firstWhere('brand', 'Mango');
+    expect($threshold['next'])->toBe('Entrée au programme')->and($threshold['amount_left'])->toBe(10000);
+
+    // Seuil « proche » paramétré ; filtres ; recherche.
+    $this->program->update(['near_points' => 5]);
+    expect($props('/fidelite')['counts']['near'])->toBe(1)
+        ->and($props("/fidelite?brand={$this->mango->id}")['counts']['future'])->toBe(1)
+        ->and($props('/fidelite?q=24174000000&tab=near')['counts']['future'])->toBe(1);
+    $this->program->update(['near_points' => null]);
+
+    $this->actingAs($this->admin)->get('/fidelite/export?tab=near')->assertOk();
+    $this->actingAs($this->admin)->post('/fidelite/group', ['tab' => 'near', 'name' => 'Proches'])->assertRedirect();
+    expect(Group::where('name', 'Proches')->first()->contacts()->count())->toBe(2);
+
+    $manager = User::factory()->create(['organization_id' => $this->organization->id, 'role_id' => Role::where('organization_id', $this->organization->id)->where('name', 'Responsable de marque')->value('id'), 'brand_id' => $this->mango->id]);
+    $scoped = $this->actingAs($manager)->get('/fidelite?tab=near')->viewData('page')['props'];
+    expect(collect($scoped['cards']['data'])->pluck('brand')->unique()->all())->toBe(['Mango']);
+
+    // Sur la fiche : la frise des récompenses.
+    $this->actingAs($this->admin)->get('/customers/'.($this->card)($this->adidas)->customer_id)
+        ->assertInertia(fn ($p) => $p->where('loyaltyCards.0.tiers.0.state', 'current')->where('loyaltyCards.0.tiers.1.missing', 50));
 });
 
 it('no longer counts a finished programme as close to a threshold or a tier', function () {
