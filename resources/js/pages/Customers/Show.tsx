@@ -120,6 +120,7 @@ interface PageProps {
     paymentMethods: Record<string, string>;
     loyalty: LoyaltyData | null;
     loyaltyCards: LoyaltyCardData[];
+    canExport: boolean;
     habits: Habits;
     auth?: { organization?: { has_agenda?: boolean; sells_products?: boolean } | null };
     staff: { id: number; name: string; store_id: number; color: string | null }[];
@@ -232,6 +233,7 @@ function CustomerShow() {
         paymentMethods,
         loyalty,
         loyaltyCards,
+        canExport,
         habits,
         auth,
         staff,
@@ -350,6 +352,11 @@ function CustomerShow() {
                             >
                                 <WhatsAppIcon />
                                 {responsible ? 'Écrire au responsable' : 'WhatsApp'}
+                            </a>
+                        )}
+                        {canExport && (
+                            <a href={`/customers/${customer.id}/fiche.pdf`} className="mdash-btn ghost">
+                                Fiche PDF
                             </a>
                         )}
                         {appointmentStores.length > 0 && (

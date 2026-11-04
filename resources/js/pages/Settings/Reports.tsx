@@ -10,7 +10,7 @@ import { Page, Panel } from '../../components/page/Page';
  */
 
 interface PageProps {
-    settings: { enabled: boolean; recipients: string[]; send_at: string; monthly_target: number; last_sent_on: string | null };
+    settings: { enabled: boolean; recipients: string[]; send_at: string; monthly_target: number; last_sent_on: string | null; monthly_enabled: boolean };
     today: string;
     userEmail: string;
     mailConfigured: boolean;
@@ -26,6 +26,7 @@ function ReportsSettings() {
     const [date, setDate] = useState(today);
     const { data, setData, put, processing, errors } = useForm({
         enabled: settings.enabled,
+        monthly_enabled: settings.monthly_enabled,
         recipients: settings.recipients.length ? settings.recipients : [userEmail],
         send_at: settings.send_at,
         monthly_target: settings.monthly_target ? String(settings.monthly_target) : '',
@@ -58,6 +59,10 @@ function ReportsSettings() {
                         <label className="flex items-center gap-2 font-medium">
                             <input type="checkbox" checked={data.enabled} onChange={(e) => setData('enabled', e.target.checked)} />
                             Envoyer le rapport chaque soir par email
+                        </label>
+                        <label className="flex items-center gap-2 font-medium">
+                            <input type="checkbox" checked={data.monthly_enabled} onChange={(e) => setData('monthly_enabled', e.target.checked)} />
+                            Envoyer aussi les rapports PDF du mois, le 1er de chaque mois
                         </label>
                         <label className="block">
                             <span className="mb-1 block font-medium text-gray-700 dark:text-gray-300">Destinataires</span>

@@ -143,6 +143,7 @@ export function buildSections({ canManageOrganization, whatsappApiEnabled, modul
         path: '/analytics',
         tabs: [
             { name: 'Pilotage', path: '/pilotage' },
+            { name: 'Rapports', path: '/rapports' },
             { name: 'Tableaux de bord', path: '/analytics' },
             ...(sellsProducts && (has('familles') || has('catalogue')) ? [{ name: 'Familles', path: '/categories' }] : []),
             ...(has('lieux') ? [{ name: 'Multimarque', path: '/multibrand' }] : []),

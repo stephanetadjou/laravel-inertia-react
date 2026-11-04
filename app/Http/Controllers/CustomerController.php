@@ -319,6 +319,7 @@ class CustomerController extends Controller
             'paymentMethods' => Purchase::PAYMENT_METHODS,
             'loyalty' => $this->loyalty($customer, $user),
             'loyaltyCards' => LoyaltyProgramController::cardsFor($customer, $user),
+            'canExport' => $user->canExport(),
             'catalog' => AppointmentController::catalogFor($user->organization_id),
             'staff' => StaffMember::whereIn('store_id', $contacts->pluck('store_id'))->where('active', true)->orderBy('name')->get(['id', 'name', 'store_id', 'color']),
             'followUps' => $customer->followUps()->with(['user:id,name', 'store:id,name'])->latest('done_at')->take(10)->get()

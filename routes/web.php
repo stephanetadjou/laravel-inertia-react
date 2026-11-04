@@ -33,6 +33,7 @@ use App\Http\Controllers\MessageTemplateController;
 use App\Http\Controllers\ModuleController;
 use App\Http\Controllers\MultibrandController;
 use App\Http\Controllers\OrganizationController;
+use App\Http\Controllers\PdfReportController;
 use App\Http\Controllers\PlanController;
 use App\Http\Controllers\PrivacyPolicyController;
 use App\Http\Controllers\ProspectController;
@@ -170,6 +171,9 @@ Route::middleware('auth')->group(function () {
     Route::get('/actions/export', [ActionController::class, 'export'])->name('actions.export');
     Route::post('/actions/group', [ActionController::class, 'group'])->name('actions.group');
     // Analyses Menentia Retail : tableaux de bord, exports, rapport de direction.
+    Route::get('/rapports', [PdfReportController::class, 'index'])->name('rapports.index');
+    Route::get('/rapports/{type}', [PdfReportController::class, 'download'])->name('rapports.download');
+    Route::get('/customers/{customer}/fiche.pdf', [PdfReportController::class, 'customer'])->name('customers.pdf');
     Route::get('/pilotage/{tab}/export/{list}', [BiDashboardController::class, 'exportList'])->name('pilotage.export');
     Route::get('/pilotage/{tab?}', [BiDashboardController::class, 'dashboard'])->name('pilotage.index');
     Route::get('/analytics/report', [AnalyticsController::class, 'report'])->name('analytics.report');

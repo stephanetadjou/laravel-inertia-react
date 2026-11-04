@@ -37,3 +37,6 @@ Ces points ne sont pas tranchés par le plan validé. Ils sont faciles à change
 11. **Téléphone ou numéro de ticket manquant** : la règle actuelle de l'import reste valable. Sans téléphone, la vente est gardée comme vente anonyme, sans points. Sans numéro de ticket, un ticket est formé par client, jour et magasin.
 12. **Famille** : facultative dès qu'un programme existe (« ticket sans détail accepté »).
 13. **« oui » dans `remise_fidelite`** : compte comme une utilisation, au palier de la carte.
+14. **Remise sur un ticket quand deux programmes sont actifs** : elle s'applique à la carte du programme le plus récent, et à l'ancienne carte seulement si la récente n'est pas active.
+15. **« Proches du seuil » et « proches d'un palier »** : il reste moins de 20 % du seuil à acheter, ou 30 points au plus avant le palier. Un programme terminé n'y figure plus. Ces deux réglages sont des constantes de `CustomerSearch`.
+16. **Clients perdus** : ceux qui ont acheté sur la période précédente de même durée et pas sur la période affichée.

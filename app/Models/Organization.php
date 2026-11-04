@@ -617,9 +617,10 @@ class Organization extends Model
         'send_at' => '21:00',
         'monthly_target' => 0,
         'last_sent_on' => null,
+        'monthly_enabled' => false,
     ];
 
-    /** @return array{enabled: bool, recipients: list<string>, send_at: string, monthly_target: int, last_sent_on: string|null} */
+    /** @return array{enabled: bool, recipients: list<string>, send_at: string, monthly_target: int, last_sent_on: string|null, monthly_enabled: bool} */
     public function reportSettings(): array
     {
         $settings = [...self::REPORT_DEFAULTS, ...array_intersect_key($this->report_settings ?? [], self::REPORT_DEFAULTS)];
@@ -630,6 +631,7 @@ class Organization extends Model
             'send_at' => (string) $settings['send_at'],
             'monthly_target' => (int) $settings['monthly_target'],
             'last_sent_on' => $settings['last_sent_on'] ?: null,
+            'monthly_enabled' => (bool) $settings['monthly_enabled'],
         ];
     }
 

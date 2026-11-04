@@ -44,6 +44,7 @@ class ReportController extends Controller
     {
         $data = $request->validate([
             'enabled' => ['required', 'boolean'],
+            'monthly_enabled' => ['sometimes', 'boolean'],
             'recipients' => ['nullable', 'array', 'max:10'],
             'recipients.*' => ['email'],
             'send_at' => ['required', 'date_format:H:i'],
@@ -52,7 +53,7 @@ class ReportController extends Controller
             'recipients.*.email' => 'Adresse email invalide.',
         ]);
 
-        if ($data['enabled'] && empty($data['recipients'])) {
+        if (($data['enabled'] || ! empty($data['monthly_enabled'])) && empty($data['recipients'])) {
             return back()->withErrors(['recipients' => 'Indiquez au moins un destinataire.']);
         }
 
@@ -60,6 +61,7 @@ class ReportController extends Controller
         $organization->update(['report_settings' => [
             ...$organization->reportSettings(),
             'enabled' => $data['enabled'],
+            'monthly_enabled' => (bool) ($data['monthly_enabled'] ?? $organization->reportSettings()['monthly_enabled']),
             'recipients' => array_values(array_unique($data['recipients'] ?? [])),
             'send_at' => $data['send_at'],
             'monthly_target' => (int) ($data['monthly_target'] ?? 0),

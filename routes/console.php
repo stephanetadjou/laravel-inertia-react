@@ -13,6 +13,7 @@ Schedule::command('crm:refresh-lifecycle')->dailyAt('02:30')->withoutOverlapping
 // entreprise est passée (Paramètres › Rapports), une fois par jour.
 // Expirations et fin de programme : elles arrivent avec le temps, sans aucun ticket.
 Schedule::command('fidelite:recalculer')->dailyAt('02:45')->withoutOverlapping();
+Schedule::command('crm:monthly-report')->monthlyOn(1, '07:00')->withoutOverlapping();
 Schedule::command('crm:daily-report')->everyFifteenMinutes()->withoutOverlapping();
 // Rappel du matin aux commerciaux : leurs relances de prospects du jour.
 Schedule::command('crm:sales-morning')->dailyAt('07:30')->withoutOverlapping();
