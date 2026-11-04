@@ -113,6 +113,7 @@ function Card({ customerId, card }: { customerId: number; card: LoyaltyCardData 
             )}
 
             {active &&
+                card.discount_percent !== null &&
                 (redeeming ? (
                     <Redeem customerId={customerId} card={card} onDone={() => setRedeeming(false)} />
                 ) : (

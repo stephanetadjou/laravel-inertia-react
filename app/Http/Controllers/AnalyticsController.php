@@ -134,7 +134,7 @@ class AnalyticsController extends Controller
      *
      * @return array{0: RetailAnalytics, 1: array<string, mixed>, 2: array<string, mixed>}
      */
-    private function resolve(Request $request): array
+    protected function resolve(Request $request): array
     {
         $user = $request->user();
         $organization = $user->organization;

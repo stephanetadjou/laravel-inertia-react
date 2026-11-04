@@ -239,6 +239,16 @@ it('filters customers by brand, status and tier, crossed with RFM, and saves the
     expect(Group::where('name', 'Palier 10')->first()->contacts()->count())->toBe(1);
 });
 
+it('no longer counts a finished programme as close to a threshold or a tier', function () {
+    ($this->buy)($this->adidasGlass, 350000, '2026-02-01');
+    ($this->recalculate)();
+    $near = fn () => (new CustomerSearch($this->admin, ['loyalty_status' => 'near_threshold']))->baseQuery()->count();
+
+    expect($near())->toBe(1);
+    $this->travelTo(Carbon::parse('2027-01-05'));
+    expect($near())->toBe(0);
+});
+
 it('lets any company create a programme, refuses overlapping brands, and recalculates', function () {
     Queue::fake();
     $payload = ['name' => 'Été', 'starts_on' => '2026-06-01', 'ends_on' => '2026-08-31', 'rules' => [[

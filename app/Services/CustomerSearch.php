@@ -299,6 +299,12 @@ class CustomerSearch
     /** Fiches dont une carte de fidélité correspond aux critères (même carte pour tous les critères). */
     private function loyaltyQuery(): \Illuminate\Database\Query\Builder
     {
+        return $this->loyaltyCards()->select('loyalty_cards.customer_id');
+    }
+
+    /** Cartes de fidélité correspondant aux critères. */
+    public function loyaltyCards(): \Illuminate\Database\Query\Builder
+    {
         return DB::table('loyalty_cards')
             ->join('loyalty_program_rules', fn ($j) => $j->on('loyalty_program_rules.loyalty_program_id', '=', 'loyalty_cards.loyalty_program_id')
                 ->on('loyalty_program_rules.brand_id', '=', 'loyalty_cards.brand_id'))
@@ -306,14 +312,16 @@ class CustomerSearch
             ->when($this->loyaltyProgram !== null, fn ($q) => $q->where('loyalty_cards.loyalty_program_id', $this->loyaltyProgram))
             ->when($this->loyaltyBrand !== null, fn ($q) => $q->where('loyalty_cards.brand_id', $this->loyaltyBrand))
             ->when($this->loyaltyTier !== null, fn ($q) => $q->where('loyalty_cards.discount_percent', $this->loyaltyTier))
+            // Programme terminé : plus aucun gain possible, donc plus rien de « proche ».
+            ->when(in_array($this->loyaltyStatus, ['near_threshold', 'near_tier'], true), fn ($q) => $q
+                ->whereIn('loyalty_cards.loyalty_program_id', LoyaltyProgram::where('organization_id', $this->user->organization_id)->whereDate('ends_on', '>=', today()->toDateString())->select('id')))
             ->when($this->loyaltyStatus !== null, fn ($q) => match ($this->loyaltyStatus) {
                 'near_threshold' => $q->where('loyalty_cards.status', '!=', LoyaltyCard::STATUS_ACTIVE)->where('loyalty_cards.amount_to_threshold', '>', 0)
                     ->whereRaw('loyalty_cards.amount_to_threshold <= loyalty_program_rules.threshold * ?', [self::NEAR_THRESHOLD_SHARE]),
                 'near_tier' => $q->where('loyalty_cards.status', LoyaltyCard::STATUS_ACTIVE)->where('loyalty_cards.points_to_next_tier', '<=', self::NEAR_TIER_POINTS),
                 'expiring' => $q->where('loyalty_cards.status', LoyaltyCard::STATUS_ACTIVE)->whereDate('loyalty_cards.expires_on', '<=', today()->addDays(30)->toDateString()),
                 default => $q->where('loyalty_cards.status', $this->loyaltyStatus),
-            })
-            ->select('loyalty_cards.customer_id');
+            });
     }
 
     /**

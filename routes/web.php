@@ -9,6 +9,7 @@ use App\Http\Controllers\AuditLogController;
 use App\Http\Controllers\Auth\AuthenticatedSessionController;
 use App\Http\Controllers\Auth\RegisteredOrganizationController;
 use App\Http\Controllers\BeneficiaryController;
+use App\Http\Controllers\BiDashboardController;
 use App\Http\Controllers\BookingController;
 use App\Http\Controllers\BookingSettingsController;
 use App\Http\Controllers\BrandController;
@@ -169,6 +170,8 @@ Route::middleware('auth')->group(function () {
     Route::get('/actions/export', [ActionController::class, 'export'])->name('actions.export');
     Route::post('/actions/group', [ActionController::class, 'group'])->name('actions.group');
     // Analyses Menentia Retail : tableaux de bord, exports, rapport de direction.
+    Route::get('/pilotage/{tab}/export/{list}', [BiDashboardController::class, 'exportList'])->name('pilotage.export');
+    Route::get('/pilotage/{tab?}', [BiDashboardController::class, 'dashboard'])->name('pilotage.index');
     Route::get('/analytics/report', [AnalyticsController::class, 'report'])->name('analytics.report');
     Route::get('/analytics/{tab}/export/{table}', [AnalyticsController::class, 'export'])->name('analytics.export');
     Route::get('/analytics/{tab?}', [AnalyticsController::class, 'index'])->name('analytics.index');
