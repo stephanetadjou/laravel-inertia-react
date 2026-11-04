@@ -36,6 +36,11 @@ interface Filters {
     brand_mix?: 'multi' | 'mono' | null;
     never_brand?: number | null;
     follow?: string | null;
+    loyalty_program?: number | null;
+    loyalty_brand?: number | null;
+    loyalty_status?: string | null;
+    loyalty_tier?: number | null;
+    loyalty_options?: { programs: { id: number; name: string }[]; statuses: { key: string; label: string }[]; tiers: number[] } | null;
     follow_options?: { value: string; label: string }[];
     analysis?: Record<string, string | number>;
     prop: string | null;
@@ -151,6 +156,10 @@ function CustomersIndex() {
                     brands: filters.brand_mix ?? null,
                     never_brand: filters.never_brand ?? null,
                     follow: filters.follow ?? null,
+                    loyalty_program: filters.loyalty_program ?? null,
+                    loyalty_brand: filters.loyalty_brand ?? null,
+                    loyalty_status: filters.loyalty_status ?? null,
+                    loyalty_tier: filters.loyalty_tier ?? null,
                     ...(filters.analysis ?? {}),
                 }).filter(([, v]) => v !== null && v !== ''),
             ) as Record<string, string | number>,
@@ -174,6 +183,10 @@ function CustomersIndex() {
             filters.brand_mix,
             filters.never_brand,
             filters.follow,
+            filters.loyalty_program,
+            filters.loyalty_brand,
+            filters.loyalty_status,
+            filters.loyalty_tier,
             filters.analysis,
         ],
     );
@@ -370,6 +383,44 @@ function CustomersIndex() {
                                 </option>
                             ))}
                         </select>
+                        {filters.loyalty_options && (
+                            <>
+                                {filters.loyalty_options.programs.length > 1 && (
+                                    <select aria-label="Programme de fidélité" value={filters.loyalty_program ?? ''} onChange={(e) => visit({ loyalty_program: e.target.value ? Number(e.target.value) : null })}>
+                                        <option value="">Tous les programmes</option>
+                                        {filters.loyalty_options.programs.map((p) => (
+                                            <option key={p.id} value={p.id}>
+                                                {p.name}
+                                            </option>
+                                        ))}
+                                    </select>
+                                )}
+                                <select aria-label="Enseigne de la carte" value={filters.loyalty_brand ?? ''} onChange={(e) => visit({ loyalty_brand: e.target.value ? Number(e.target.value) : null })}>
+                                    <option value="">Fidélité : toutes les enseignes</option>
+                                    {filters.brands.map((b) => (
+                                        <option key={b.id} value={b.id}>
+                                            Fidélité : {b.name}
+                                        </option>
+                                    ))}
+                                </select>
+                                <select aria-label="Statut fidélité" value={filters.loyalty_status ?? ''} onChange={(e) => visit({ loyalty_status: e.target.value || null })}>
+                                    <option value="">Tous les statuts fidélité</option>
+                                    {filters.loyalty_options.statuses.map((s) => (
+                                        <option key={s.key} value={s.key}>
+                                            {s.label}
+                                        </option>
+                                    ))}
+                                </select>
+                                <select aria-label="Palier" value={filters.loyalty_tier ?? ''} onChange={(e) => visit({ loyalty_tier: e.target.value ? Number(e.target.value) : null })}>
+                                    <option value="">Tous les paliers</option>
+                                    {filters.loyalty_options.tiers.map((t) => (
+                                        <option key={t} value={t}>
+                                            Palier {t} %
+                                        </option>
+                                    ))}
+                                </select>
+                            </>
+                        )}
                         {families.length > 0 && (
                             <select aria-label="Famille achetée" value={filters.family ?? ''} onChange={(e) => visit({ family: e.target.value ? Number(e.target.value) : null, family_mode: null, family_days: null })}>
                                 <option value="">Toutes les familles</option>

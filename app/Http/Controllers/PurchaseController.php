@@ -13,6 +13,7 @@ use App\Models\PurchaseItem;
 use App\Models\Store;
 use App\Services\Audit;
 use App\Services\CustomerScoring;
+use App\Services\LoyaltyEngine;
 use App\Services\PurchaseImporter;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\RedirectResponse;
@@ -106,6 +107,7 @@ class PurchaseController extends Controller
 
         $ticket->update(['status' => Purchase::STATUS_CANCELLED, 'cancelled_at' => now(), 'cancelled_by' => $request->user()->id, 'cancel_reason' => $data['reason']]);
         app(CustomerScoring::class)->refreshOrganization($request->user()->organization);
+        LoyaltyEngine::queue($request->user()->organization_id, [$ticket->contact?->customer_id]);
 
         Audit::record('sale.cancelled', $ticket, "Ticket {$this->ticketLabel($ticket)} annulé : {$data['reason']}", ['amount' => (int) $ticket->amount, 'store_id' => $ticket->store_id]);
 
@@ -123,6 +125,7 @@ class PurchaseController extends Controller
 
         $ticket->update(['status' => Purchase::STATUS_VALID, 'cancelled_at' => null, 'cancelled_by' => null, 'cancel_reason' => null]);
         app(CustomerScoring::class)->refreshOrganization($request->user()->organization);
+        LoyaltyEngine::queue($request->user()->organization_id, [$ticket->contact?->customer_id]);
 
         Audit::record('sale.restored', $ticket, "Ticket {$this->ticketLabel($ticket)} rétabli", ['amount' => (int) $ticket->amount]);
 

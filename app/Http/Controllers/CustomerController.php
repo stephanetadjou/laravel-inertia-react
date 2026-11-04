@@ -12,6 +12,8 @@ use App\Models\CustomerConsent;
 use App\Models\CustomerFollowUp;
 use App\Models\Group;
 use App\Models\GroupClass;
+use App\Models\LoyaltyProgram;
+use App\Models\LoyaltyProgramRule;
 use App\Models\LoyaltyReward;
 use App\Models\LoyaltyTransaction;
 use App\Models\MessageTemplate;
@@ -131,6 +133,11 @@ class CustomerController extends Controller
                 'brand_mix' => $search->brands,
                 'never_brand' => $search->neverBrand,
                 'follow' => $search->follow,
+                'loyalty_program' => $search->loyaltyProgram,
+                'loyalty_brand' => $search->loyaltyBrand,
+                'loyalty_status' => $search->loyaltyStatus,
+                'loyalty_tier' => $search->loyaltyTier,
+                'loyalty_options' => $this->loyaltyOptions($request->user()),
                 // Critères des modules actifs (tranches, abonnements, cours).
                 'follow_options' => $this->followOptions($request->user()),
                 'article_label' => $search->article?->label,
@@ -311,6 +318,7 @@ class CustomerController extends Controller
             'appointmentStatuses' => Appointment::STATUSES,
             'paymentMethods' => Purchase::PAYMENT_METHODS,
             'loyalty' => $this->loyalty($customer, $user),
+            'loyaltyCards' => LoyaltyProgramController::cardsFor($customer, $user),
             'catalog' => AppointmentController::catalogFor($user->organization_id),
             'staff' => StaffMember::whereIn('store_id', $contacts->pluck('store_id'))->where('active', true)->orderBy('name')->get(['id', 'name', 'store_id', 'color']),
             'followUps' => $customer->followUps()->with(['user:id,name', 'store:id,name'])->latest('done_at')->take(10)->get()
@@ -520,6 +528,26 @@ class CustomerController extends Controller
         return [
             ...$analytics->forCustomer($customer->id, $names),
             'properties' => $analytics->customerProperties($customer->id),
+        ];
+    }
+
+    /**
+     * Choix des filtres de fidélité par enseigne (null : aucun programme).
+     *
+     * @return array<string, mixed>|null
+     */
+    private function loyaltyOptions(User $user): ?array
+    {
+        $programs = LoyaltyProgram::where('organization_id', $user->organization_id)->orderByDesc('starts_on')->get(['id', 'name']);
+
+        if ($programs->isEmpty() || ! $user->organization->hasModule('fidelite')) {
+            return null;
+        }
+
+        return [
+            'programs' => $programs,
+            'statuses' => collect(CustomerSearch::LOYALTY_STATUSES)->map(fn ($label, $key) => ['key' => $key, 'label' => $label])->values(),
+            'tiers' => LoyaltyProgramRule::whereIn('loyalty_program_id', $programs->pluck('id'))->pluck('tiers')->flatten(1)->pluck('percent')->unique()->sort()->values(),
         ];
     }
 

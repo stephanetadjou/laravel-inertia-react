@@ -10,6 +10,8 @@ use App\Models\Contact;
 use App\Models\Customer;
 use App\Models\Group;
 use App\Models\GroupClass;
+use App\Models\LoyaltyCard;
+use App\Models\LoyaltyProgram;
 use App\Models\Purchase;
 use App\Models\Store;
 use App\Models\User;
@@ -116,7 +118,32 @@ class CustomerSearch
      */
     public ?string $follow = null;
 
+    /** Fidélité par enseigne : programme, enseigne, statut (cf. LOYALTY_STATUSES), palier en %. */
+    public ?int $loyaltyProgram = null;
+
+    public ?int $loyaltyBrand = null;
+
+    public ?string $loyaltyStatus = null;
+
+    public ?int $loyaltyTier = null;
+
+    public const LOYALTY_STATUSES = [
+        'active' => 'Membres actifs',
+        'none' => 'Non membres',
+        'expired' => 'Cartes expirées',
+        'near_threshold' => 'Proches du seuil',
+        'near_tier' => 'Proches d’un palier',
+        'expiring' => 'Expirent sous 30 jours',
+    ];
+
+    /** Proche du seuil : il reste moins de 20 % du seuil à acheter. */
+    public const NEAR_THRESHOLD_SHARE = 0.2;
+
+    /** Proche d'un palier : il manque au plus 30 points. */
+    public const NEAR_TIER_POINTS = 30;
+
     public const FILTER_KEYS = ['stage', 'vip', 'consent', 'q', 'brand', 'store', 'group', 'segment', 'risk', 'family', 'family_mode', 'family_days', 'family_not', 'prop', 'article', 'brands', 'never_brand', 'follow',
+        'loyalty_program', 'loyalty_brand', 'loyalty_status', 'loyalty_tier',
         'bought_from', 'bought_to', 'first_from', 'first_to', 'first_before', 'with_brand', 'customer_type'];
 
     public const FAMILY_MODES = ['bought', 'lapsed'];
@@ -188,6 +215,13 @@ class CustomerSearch
         $neverBrand = (int) ($filters['never_brand'] ?? 0);
         $this->neverBrand = $neverBrand && $this->roleStores->contains('brand_id', $neverBrand) || ($neverBrand && $user->visibleStoreIds() === null && Store::where('organization_id', $user->organization_id)->where('brand_id', $neverBrand)->exists()) ? $neverBrand : null;
 
+        $programId = (int) ($filters['loyalty_program'] ?? 0);
+        $this->loyaltyProgram = $programId ? LoyaltyProgram::where('organization_id', $user->organization_id)->whereKey($programId)->value('id') : null;
+        $loyaltyBrand = (int) ($filters['loyalty_brand'] ?? 0);
+        $this->loyaltyBrand = $loyaltyBrand && $this->roleStores->contains('brand_id', $loyaltyBrand) ? $loyaltyBrand : null;
+        $this->loyaltyStatus = array_key_exists((string) ($filters['loyalty_status'] ?? ''), self::LOYALTY_STATUSES) ? (string) $filters['loyalty_status'] : null;
+        $this->loyaltyTier = (int) ($filters['loyalty_tier'] ?? 0) ?: null;
+
         $follow = (string) ($filters['follow'] ?? '');
         $this->follow = preg_match('/^(unpaid|ending:\d{1,3}|absent:\d{1,2}|class:\d+)$/', $follow) ? $follow : null;
 
@@ -254,11 +288,32 @@ class CustomerSearch
             ->when(in_array($this->risk, ['medium', 'high'], true), fn ($q) => $q->where('churn_risk', $this->risk))
             ->when($this->family !== null || $this->familyNot !== null || $this->property !== null || $this->article !== null, fn ($q) => $this->applyFamilies($q))
             ->when($this->follow !== null, fn ($q) => $q->whereIn('customers.id', self::followQuery($this->user->organization_id, $this->follow)))
+            ->when($this->loyaltyProgram !== null || $this->loyaltyBrand !== null || $this->loyaltyStatus !== null || $this->loyaltyTier !== null, fn ($q) => $q->whereIn('customers.id', $this->loyaltyQuery()))
             ->when($this->search !== '', function ($q) {
                 $digits = ltrim(preg_replace('/\D+/', '', $this->search), '0'); // 0 du format local ignoré
                 $q->where(fn ($q) => $q->where('name', 'like', "%{$this->search}%")
                     ->when($digits !== '', fn ($q) => $q->orWhere('phone_e164', 'like', "%{$digits}%")));
             });
+    }
+
+    /** Fiches dont une carte de fidélité correspond aux critères (même carte pour tous les critères). */
+    private function loyaltyQuery(): \Illuminate\Database\Query\Builder
+    {
+        return DB::table('loyalty_cards')
+            ->join('loyalty_program_rules', fn ($j) => $j->on('loyalty_program_rules.loyalty_program_id', '=', 'loyalty_cards.loyalty_program_id')
+                ->on('loyalty_program_rules.brand_id', '=', 'loyalty_cards.brand_id'))
+            ->where('loyalty_cards.organization_id', $this->user->organization_id)
+            ->when($this->loyaltyProgram !== null, fn ($q) => $q->where('loyalty_cards.loyalty_program_id', $this->loyaltyProgram))
+            ->when($this->loyaltyBrand !== null, fn ($q) => $q->where('loyalty_cards.brand_id', $this->loyaltyBrand))
+            ->when($this->loyaltyTier !== null, fn ($q) => $q->where('loyalty_cards.discount_percent', $this->loyaltyTier))
+            ->when($this->loyaltyStatus !== null, fn ($q) => match ($this->loyaltyStatus) {
+                'near_threshold' => $q->where('loyalty_cards.status', '!=', LoyaltyCard::STATUS_ACTIVE)->where('loyalty_cards.amount_to_threshold', '>', 0)
+                    ->whereRaw('loyalty_cards.amount_to_threshold <= loyalty_program_rules.threshold * ?', [self::NEAR_THRESHOLD_SHARE]),
+                'near_tier' => $q->where('loyalty_cards.status', LoyaltyCard::STATUS_ACTIVE)->where('loyalty_cards.points_to_next_tier', '<=', self::NEAR_TIER_POINTS),
+                'expiring' => $q->where('loyalty_cards.status', LoyaltyCard::STATUS_ACTIVE)->whereDate('loyalty_cards.expires_on', '<=', today()->addDays(30)->toDateString()),
+                default => $q->where('loyalty_cards.status', $this->loyaltyStatus),
+            })
+            ->select('loyalty_cards.customer_id');
     }
 
     /**
@@ -429,6 +484,9 @@ class CustomerSearch
             $this->neverBrand !== null ? 'Jamais venus chez '.Brand::whereKey($this->neverBrand)->value('name') : null,
             $this->familyLabel(),
             $this->follow !== null ? self::followLabel($this->follow) : null,
+            $this->loyaltyBrand !== null ? 'Fidélité '.Brand::whereKey($this->loyaltyBrand)->value('name') : null,
+            $this->loyaltyStatus !== null ? self::LOYALTY_STATUSES[$this->loyaltyStatus] : null,
+            $this->loyaltyTier !== null ? "Palier {$this->loyaltyTier} %" : null,
             match ($this->consent) {
                 'opt_in' => 'Opt-in',
                 'unknown' => 'Consentement inconnu',

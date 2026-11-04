@@ -12,6 +12,7 @@ use App\Models\Customer;
 use App\Models\ImportBatch;
 use App\Models\ImportMapping;
 use App\Models\ImportRow;
+use App\Models\LoyaltyProgram;
 use App\Models\Purchase;
 use App\Models\PurchaseItem;
 use App\Models\Store;
@@ -63,12 +64,18 @@ class SalesImport
      */
     public const FIELDS = [
         'date' => ['label' => 'Date', 'help' => 'Obligatoire. JJ/MM/AAAA ou AAAA-MM-JJ.', 'aliases' => ['date', 'date achat', 'date vente', 'date ticket', 'date facture', 'jour']],
+        'brand' => ['label' => 'Enseigne / marque', 'help' => 'Précise le point de vente quand deux enseignes ont le même magasin.', 'aliases' => ['enseigne', 'marque', 'brand']],
         'store' => ['label' => 'Point de vente', 'help' => 'Obligatoire si aucun point de vente n’est fixé : nom ou code.', 'aliases' => ['boutique', 'magasin', 'point de vente', 'pdv', 'store', 'site', 'code boutique', 'code magasin', 'restaurant', 'agence', 'depot']],
         'receipt' => ['label' => 'N° de ticket / facture', 'help' => 'Regroupe les lignes d’un même ticket.', 'aliases' => ['ticket', 'n ticket', 'no ticket', 'numero ticket', 'facture', 'n facture', 'numero facture', 'piece', 'n piece', 'receipt', 'bon']],
         'original_receipt' => ['label' => 'Ticket d’origine (retour)', 'help' => 'Pour relier un retour au ticket vendu.', 'aliases' => ['ticket origine', 'facture origine', 'ticket initial']],
         'phone' => ['label' => 'Téléphone du client', 'help' => 'Clé de la fiche client. Vide ou invalide : vente anonyme.', 'aliases' => ['telephone', 'tel', 'mobile', 'portable', 'phone', 'whatsapp', 'numero client', 'gsm']],
         'customer_code' => ['label' => 'Code client', 'help' => 'Code du client dans votre caisse ou votre ERP.', 'aliases' => ['code client', 'n client', 'id client', 'compte client', 'customer code', 'ref client']],
         'name' => ['label' => 'Nom du client', 'help' => 'Nom, ou raison sociale pour une entreprise.', 'aliases' => ['nom', 'client', 'nom client', 'raison sociale', 'customer', 'nom prenom']],
+        'first_name' => ['label' => 'Prénom du client', 'help' => 'Ajouté devant le nom.', 'aliases' => ['prenom', 'prenom client', 'first name']],
+        'gender' => ['label' => 'Sexe', 'help' => 'F ou H. Complète la fiche client si elle est vide.', 'aliases' => ['sexe', 'civilite']],
+        'birthdate' => ['label' => 'Date de naissance', 'help' => 'Complète la fiche client si elle est vide.', 'aliases' => ['date naissance', 'date de naissance', 'naissance', 'anniversaire']],
+        'district' => ['label' => 'Quartier', 'help' => 'Complète la fiche client si elle est vide.', 'aliases' => ['quartier']],
+        'email' => ['label' => 'E-mail', 'help' => 'Complète la fiche client si elle est vide.', 'aliases' => ['email', 'e mail', 'mail', 'courriel']],
         'customer_type' => ['label' => 'Type de client', 'help' => 'Particulier ou entreprise (pro, société, grossiste…).', 'aliases' => ['type client', 'type de client', 'categorie client', 'segment client']],
         'family' => ['label' => 'Famille', 'help' => 'Famille de l’article (ou catégorie, ou famille par défaut).', 'aliases' => ['famille', 'famille article', 'sous categorie', 'rayon', 'family']],
         'category' => ['label' => 'Catégorie', 'help' => 'Niveau au-dessus de la famille (ex. Boissons).', 'aliases' => ['categorie', 'categorie article', 'univers', 'departement', 'category']],
@@ -77,7 +84,8 @@ class SalesImport
         'quantity' => ['label' => 'Quantité', 'help' => '1 par défaut.', 'aliases' => ['quantite', 'qte', 'qty', 'nombre']],
         'unit_price' => ['label' => 'Prix unitaire', 'help' => 'Montant = quantité × prix − remise si pas de montant.', 'aliases' => ['prix', 'prix unitaire', 'pu', 'prix vente', 'unit price']],
         'discount' => ['label' => 'Remise', 'help' => 'Montant de remise de la ligne.', 'aliases' => ['remise', 'reduction', 'discount', 'rabais']],
-        'line_total' => ['label' => 'Montant de la ligne', 'help' => 'Montant payé (TTC) ; négatif pour un retour.', 'aliases' => ['montant', 'total', 'montant ttc', 'total ligne', 'ca', 'chiffre affaire', 'amount', 'net']],
+        'line_total' => ['label' => 'Montant de la ligne', 'help' => 'Montant payé (TTC) ; négatif pour un retour.', 'aliases' => ['montant net', 'montant', 'total', 'montant ttc', 'total ligne', 'ca', 'chiffre affaire', 'amount', 'net']],
+        'loyalty_discount' => ['label' => 'Remise fidélité', 'help' => 'Ex. 10 % : signale l’utilisation de la remise, les points repartent de zéro.', 'aliases' => ['remise fidelite', 'remise carte', 'remise programme', 'loyalty discount']],
         'line_type' => ['label' => 'Type de ligne', 'help' => 'Vente ou retour (avoir, remboursement…).', 'aliases' => ['type', 'type ligne', 'sens', 'nature', 'mouvement']],
         'payment_method' => ['label' => 'Moyen de paiement', 'help' => 'Espèces, carte, Mobile Money…', 'aliases' => ['paiement', 'mode paiement', 'moyen paiement', 'reglement', 'mode reglement']],
         'consent' => ['label' => 'Consentement WhatsApp', 'help' => 'Oui / non, recueilli en caisse.', 'aliases' => ['consentement', 'consentement whatsapp', 'opt in', 'optin']],
@@ -89,6 +97,7 @@ class SalesImport
         'date_invalid' => 'Date illisible ou dans le futur',
         'store_missing' => 'Point de vente manquant',
         'store_unknown' => 'Point de vente inconnu ou hors de votre périmètre',
+        'brand_unknown' => 'Enseigne inconnue ou hors de votre périmètre',
         'amount_missing' => 'Ni montant, ni prix renseigné',
         'amount_invalid' => 'Montant illisible',
         'family_missing' => 'Famille ou catégorie manquante (choisissez une famille par défaut si le fichier n’en a pas)',
@@ -402,6 +411,7 @@ class SalesImport
 
             app(CustomerScoring::class)->refreshOrganization($batch->organization);
             RefreshBrandMetricsJob::dispatch($batch->organization_id);
+            LoyaltyEngine::queue($batch->organization_id, $this->batchCustomers($batch));
 
             $hasErrors = $batch->rejected_rows > 0 || $batch->duplicate_rows + $stats['duplicates'] > 0;
             $batch->update([
@@ -431,6 +441,7 @@ class SalesImport
     public function cancel(ImportBatch $batch, User $user): int
     {
         $deleted = 0;
+        $customers = $this->batchCustomers($batch);
 
         if ($batch->isProcessed() || $batch->status === ImportBatch::STATUS_FAILED) {
             CustomerLifecycle::batch(function () use ($batch, &$deleted) {
@@ -446,6 +457,7 @@ class SalesImport
 
             app(CustomerScoring::class)->refreshOrganization($batch->organization);
             RefreshBrandMetricsJob::dispatch($batch->organization_id);
+            LoyaltyEngine::queue($batch->organization_id, $customers);
         }
 
         $batch->update(['status' => ImportBatch::STATUS_CANCELLED, 'cancelled_at' => now(), 'cancelled_by' => $user->id]);
@@ -453,6 +465,17 @@ class SalesImport
         Audit::record('import.cancelled', $batch, "Import n° {$batch->id} annulé : {$deleted} vente(s) supprimée(s)", ['deleted' => $deleted, 'file' => $batch->original_filename], $user);
 
         return $deleted;
+    }
+
+    /**
+     * Clients touchés par un lot (recalcul ciblé de la fidélité).
+     *
+     * @return list<int>
+     */
+    private function batchCustomers(ImportBatch $batch): array
+    {
+        return Contact::whereIn('id', $batch->purchases()->whereNotNull('contact_id')->select('contact_id'))
+            ->whereNotNull('customer_id')->distinct()->pluck('customer_id')->all();
     }
 
     /**
@@ -527,6 +550,7 @@ class SalesImport
             'quantity' => (int) $lines->sum(fn ($line) => $line['data']['quantity']),
             'subtotal' => (int) $lines->sum(fn ($line) => $line['data']['amount'] + $line['data']['discount']),
             'discount_amount' => (int) $lines->sum(fn ($line) => $line['data']['discount']),
+            'loyalty_discount_percent' => $lines->pluck('data.loyalty_discount')->filter(fn ($v) => $v !== null)->max(),
             'currency' => $context['currency'],
             'category_id' => $main['category_id'],
             'product_category' => $main['label'],
@@ -673,6 +697,8 @@ class SalesImport
                 'store_id' => $data['store_id'],
                 'phone_e164' => $phone,
                 'name' => $data['name'] ?? "Client {$phone}",
+                'gender' => $data['gender'] ?? null,
+                'birthdate' => $data['birthdate'] ?? null,
                 'consent_status' => $data['consent'] ?? 'unknown',
                 'consent_source' => $data['consent'] !== null ? 'import' : null,
             ]);
@@ -708,6 +734,12 @@ class SalesImport
 
         if ($data['customer_code'] !== null && blank($customer->external_code)) {
             $changes['external_code'] = $data['customer_code'];
+        }
+
+        foreach (['gender', 'birthdate', 'district', 'email'] as $field) {
+            if (filled($data[$field] ?? null) && blank($customer->{$field})) {
+                $changes[$field] = $data[$field];
+            }
         }
 
         if ($changes !== []) {
@@ -788,6 +820,14 @@ class SalesImport
                 return [null, 'store_missing'];
             }
             $storeId = $context['stores_by_code'][mb_strtoupper($rawStore)] ?? $context['stores_by_name'][mb_strtolower($rawStore)] ?? null;
+            // Deux enseignes peuvent avoir un magasin du même nom : l'enseigne tranche.
+            if ($value('brand') !== null) {
+                $brandStores = $context['stores_by_brand'][mb_strtolower($value('brand'))] ?? null;
+                if ($brandStores === null) {
+                    return [null, 'brand_unknown'];
+                }
+                $storeId = $brandStores[mb_strtoupper($rawStore)] ?? $brandStores[mb_strtolower($rawStore)] ?? null;
+            }
             if ($storeId === null) {
                 return [null, 'store_unknown'];
             }
@@ -848,7 +888,12 @@ class SalesImport
             'phone' => $phone,
             'phone_invalid' => $value('phone') !== null && $phone === null,
             'customer_code' => $customerCode,
-            'name' => $value('name') !== null ? mb_substr($value('name'), 0, 255) : null,
+            'name' => ($fullName = trim($value('first_name').' '.$value('name'))) !== '' ? mb_substr($fullName, 0, 255) : null,
+            'gender' => self::gender($value('gender')),
+            'birthdate' => $value('birthdate') !== null ? ImportedDate::parse($value('birthdate'), 1900) : null,
+            'district' => $value('district') !== null ? mb_substr($value('district'), 0, 255) : null,
+            'email' => filter_var($value('email'), FILTER_VALIDATE_EMAIL) ?: null,
+            'loyalty_discount' => self::loyaltyDiscount($value('loyalty_discount')),
             'customer_type' => self::isBusiness($value('customer_type')) ? Customer::TYPE_BUSINESS : null,
             'family' => $family !== null ? mb_substr($family, 0, 255) : null,
             'category' => $category !== null ? mb_substr($category, 0, 255) : null,
@@ -877,7 +922,8 @@ class SalesImport
         $stores = Store::where('organization_id', $batch->organization_id)
             ->when($visible !== null, fn ($q) => $q->whereIn('id', $visible))
             ->when($batch->brand_id !== null, fn ($q) => $q->where('brand_id', $batch->brand_id))
-            ->get(['id', 'name', 'code']);
+            ->with('brand:id,name')
+            ->get(['id', 'name', 'code', 'brand_id']);
 
         $catalog = null;
         if ($batch->organization?->hasModule('catalogue')) {
@@ -902,13 +948,18 @@ class SalesImport
             'store_id' => $batch->store_id !== null && $stores->contains('id', $batch->store_id) ? $batch->store_id : null,
             'stores_by_code' => $stores->filter(fn ($s) => filled($s->code))->mapWithKeys(fn ($s) => [mb_strtoupper($s->code) => $s->id])->all(),
             'stores_by_name' => $stores->mapWithKeys(fn ($s) => [mb_strtolower($s->name) => $s->id])->all(),
+            'stores_by_brand' => $stores->groupBy(fn ($s) => mb_strtolower((string) $s->brand?->name))
+                ->map(fn ($group) => $group->flatMap(fn ($s) => array_filter([mb_strtolower($s->name) => $s->id, mb_strtoupper((string) $s->code) => filled($s->code) ? $s->id : null]))->all())
+                ->all(),
             'property_columns' => $propertyColumns,
             'default_category_id' => $batch->default_category_id !== null
                 ? Category::where('organization_id', $batch->organization_id)->whereKey($batch->default_category_id)->value('id')
                 : null,
             'matcher' => FamilyMatcher::for($batch->organization_id),
             'catalog' => $catalog,
-            'family_required' => $batch->organization?->hasModule('familles') ?? true,
+            // Programme de fidélité : un ticket sans détail suffit à compter les points.
+            'family_required' => ($batch->organization?->hasModule('familles') ?? true)
+                && ! LoyaltyProgram::where('organization_id', $batch->organization_id)->exists(),
             'currency' => $batch->organization?->currency ?? 'XAF',
             'articles' => [],
             'parents' => [],
@@ -977,6 +1028,30 @@ class SalesImport
         $text = FamilyMatcher::normalize($value);
 
         return $text !== '' && preg_match('/\b(retour|return|avoir|rembour\w*|refund|annul\w*|r)\b/', $text) === 1;
+    }
+
+    /** « 10% » → 10 ; « oui » → 0 (utilisée, pourcentage inconnu) ; vide, « 0 », « non » → null. */
+    private static function loyaltyDiscount(?string $value): ?int
+    {
+        $text = FamilyMatcher::normalize($value);
+
+        if (preg_match('/\d+/', $text, $match)) {
+            return (int) $match[0] > 0 ? min(100, (int) $match[0]) : null;
+        }
+
+        return in_array($text, ['oui', 'o', 'yes', 'x'], true) ? 0 : null;
+    }
+
+    private static function gender(?string $value): ?string
+    {
+        $text = FamilyMatcher::normalize($value);
+
+        return match (true) {
+            $text === '' => null,
+            in_array($text[0], ['f', 'w'], true), str_starts_with($text, 'mme'), str_starts_with($text, 'madame') => 'F',
+            in_array($text[0], ['h', 'm'], true) => 'H',
+            default => null,
+        };
     }
 
     private static function isBusiness(?string $value): bool

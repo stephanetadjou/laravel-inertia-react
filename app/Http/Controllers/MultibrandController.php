@@ -7,6 +7,7 @@ use App\Models\Brand;
 use App\Models\Organization;
 use App\Services\Audit;
 use App\Services\CustomerScoring;
+use App\Services\LoyaltyEngine;
 use App\Services\RfmCalculator;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -130,6 +131,7 @@ class MultibrandController extends Controller
 
         $scoring->refreshOrganization($organization);
         RefreshBrandMetricsJob::dispatch($organization->id);
+        LoyaltyEngine::queue($organization->id);
 
         return back()->with('success', "Règles enregistrées (version {$settings['version']}) : segments recalculés.");
     }

@@ -8,6 +8,7 @@ import AppointmentFormModal, { APPOINTMENT_PILL, AppointmentRow, CatalogEntry, f
 import CheckoutModal from '../../components/appointments/CheckoutModal';
 import WhatsAppIcon from '../../components/common/WhatsAppIcon';
 import CustomerEditModal from './CustomerEditModal';
+import LoyaltyCardsPanel, { LoyaltyCardData } from './LoyaltyCardsPanel';
 import LoyaltyPanel, { LoyaltyData } from './LoyaltyPanel';
 import IdentityPanel, { BrandMetric, IdentityData } from './IdentityPanel';
 import { CustomerTabs, ModuleProps, useModuleTabs } from './CustomerModules';
@@ -118,6 +119,7 @@ interface PageProps {
     catalog: CatalogEntry[];
     paymentMethods: Record<string, string>;
     loyalty: LoyaltyData | null;
+    loyaltyCards: LoyaltyCardData[];
     habits: Habits;
     auth?: { organization?: { has_agenda?: boolean; sells_products?: boolean } | null };
     staff: { id: number; name: string; store_id: number; color: string | null }[];
@@ -229,6 +231,7 @@ function CustomerShow() {
         catalog,
         paymentMethods,
         loyalty,
+        loyaltyCards,
         habits,
         auth,
         staff,
@@ -639,6 +642,7 @@ function CustomerShow() {
 
                 <IdentityPanel customerId={customer.id} identity={identity} canSteward={canSteward} brandMetrics={brandMetrics} />
 
+                {loyaltyCards.length > 0 && <LoyaltyCardsPanel customerId={customer.id} cards={loyaltyCards} />}
                 {loyalty && <LoyaltyPanel customerId={customer.id} customerName={customer.name} loyalty={loyalty} />}
 
                 {(auth?.organization?.has_agenda ?? true) && (

@@ -617,6 +617,9 @@
     color: var(--muted);
     font-size: 12.5px;
 }
+.mloy-next span {
+    display: block;
+}
 .mloy-next {
     margin: 8px 0 4px;
 }
@@ -656,6 +659,7 @@
     gap: 6px;
     margin-top: 10px;
 }
+.mloy-adjust select,
 .mloy-adjust input {
     padding: 6px 8px;
     border: 1px solid var(--line);

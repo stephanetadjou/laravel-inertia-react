@@ -89,6 +89,7 @@ class ManualSale
         if ($organization->sellsProducts()) {
             RefreshBrandMetricsJob::dispatch($organization->id);
         }
+        LoyaltyEngine::queue($organization->id, [$purchase->contact?->customer_id]);
 
         Audit::record('sale.created', $purchase, 'Vente saisie : '.number_format((int) $purchase->amount, 0, ',', ' ').' '.$organization->currencySymbol().($receipt ? " (ticket {$receipt})" : ''), [
             'store_id' => $storeId,

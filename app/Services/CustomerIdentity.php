@@ -156,7 +156,7 @@ class CustomerIdentity
             // Écritures directes : pas d'événements Contact (pas de changement de numéro en cascade).
             Contact::whereKey($contactIds)->update(['customer_id' => $target->id]);
 
-            foreach (['appointments', 'customer_follow_ups', 'loyalty_transactions', 'customer_stage_changes'] as $table) {
+            foreach (['appointments', 'customer_follow_ups', 'loyalty_transactions', 'loyalty_redemptions', 'customer_stage_changes'] as $table) {
                 DB::table($table)->where('customer_id', $source->id)->update(['customer_id' => $target->id]);
             }
 
@@ -187,6 +187,7 @@ class CustomerIdentity
 
         app(CustomerScoring::class)->refreshOrganization($target->organization);
         RefreshBrandMetricsJob::dispatch($target->organization_id);
+        LoyaltyEngine::queue($target->organization_id, [$target->id]);
 
         return $target->fresh();
     }
@@ -235,6 +236,7 @@ class CustomerIdentity
 
         app(CustomerScoring::class)->refreshOrganization($customer->organization);
         RefreshBrandMetricsJob::dispatch($customer->organization_id);
+        LoyaltyEngine::queue($customer->organization_id, [$customer->id, $new->id]);
 
         return $new;
     }

@@ -11,6 +11,8 @@ Schedule::command('crm:refresh-lifecycle')->dailyAt('02:30')->withoutOverlapping
 
 // Rapport quotidien au dirigeant : envoyé dès que l'heure choisie par chaque
 // entreprise est passée (Paramètres › Rapports), une fois par jour.
+// Expirations et fin de programme : elles arrivent avec le temps, sans aucun ticket.
+Schedule::command('fidelite:recalculer')->dailyAt('02:45')->withoutOverlapping();
 Schedule::command('crm:daily-report')->everyFifteenMinutes()->withoutOverlapping();
 // Rappel du matin aux commerciaux : leurs relances de prospects du jour.
 Schedule::command('crm:sales-morning')->dailyAt('07:30')->withoutOverlapping();

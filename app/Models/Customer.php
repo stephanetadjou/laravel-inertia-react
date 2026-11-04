@@ -57,6 +57,8 @@ class Customer extends Model
         'identity_confirmed_at',
         'gender',
         'birthdate',
+        'email',
+        'district',
         'first_purchase_at',
         'last_purchase_at',
         'purchases_count',
@@ -204,6 +206,11 @@ class Customer extends Model
     public function appointments(): HasMany
     {
         return $this->hasMany(Appointment::class);
+    }
+
+    public function loyaltyCards(): HasMany
+    {
+        return $this->hasMany(LoyaltyCard::class);
     }
 
     public function loyaltyTransactions(): HasMany

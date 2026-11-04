@@ -678,6 +678,11 @@ class Organization extends Model
         return $this->hasMany(Customer::class);
     }
 
+    public function loyaltyPrograms(): HasMany
+    {
+        return $this->hasMany(LoyaltyProgram::class);
+    }
+
     public function brands(): HasMany
     {
         return $this->hasMany(Brand::class);

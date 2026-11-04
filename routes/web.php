@@ -26,6 +26,7 @@ use App\Http\Controllers\ImportController;
 use App\Http\Controllers\ImportTemplateController;
 use App\Http\Controllers\InstallmentController;
 use App\Http\Controllers\LoyaltyController;
+use App\Http\Controllers\LoyaltyProgramController;
 use App\Http\Controllers\ManualSaleController;
 use App\Http\Controllers\MessageTemplateController;
 use App\Http\Controllers\ModuleController;
@@ -148,6 +149,7 @@ Route::middleware('auth')->group(function () {
         Route::put('/customers/{customer}/health-note', [BeneficiaryController::class, 'updateHealthNote'])->name('customers.health-note');
     });
     Route::post('/customers/{customer}/loyalty/redeem', [LoyaltyController::class, 'redeem'])->middleware('module:fidelite')->name('customers.loyalty.redeem');
+    Route::post('/customers/{customer}/loyalty-cards/{card}/redeem', [LoyaltyProgramController::class, 'redeem'])->middleware('module:fidelite')->name('customers.loyalty-cards.redeem');
     Route::post('/customers/{customer}/loyalty/adjust', [LoyaltyController::class, 'adjust'])->middleware('module:fidelite')->name('customers.loyalty.adjust');
 
     Route::get('/chat', [ChatController::class, 'index'])->middleware('whatsapp-api')->name('chat.index');
@@ -199,6 +201,10 @@ Route::middleware('auth')->group(function () {
         Route::put('/settings/modules', [ModuleController::class, 'update'])->name('settings.modules.update');
 
         Route::middleware('module:fidelite')->group(function () {
+            Route::get('/settings/loyalty-programs', [LoyaltyProgramController::class, 'index'])->name('settings.loyalty.programs');
+            Route::post('/settings/loyalty-programs', [LoyaltyProgramController::class, 'store'])->name('settings.loyalty.programs.store');
+            Route::put('/settings/loyalty-programs/{program}', [LoyaltyProgramController::class, 'update'])->name('settings.loyalty.programs.update');
+            Route::delete('/settings/loyalty-programs/{program}', [LoyaltyProgramController::class, 'destroy'])->name('settings.loyalty.programs.destroy');
             Route::get('/settings/loyalty', [LoyaltyController::class, 'settings'])->name('settings.loyalty');
             Route::put('/settings/loyalty', [LoyaltyController::class, 'update'])->name('settings.loyalty.update');
             Route::post('/settings/loyalty/rewards', [LoyaltyController::class, 'storeReward'])->name('settings.loyalty.rewards.store');
