@@ -97,10 +97,13 @@ class LoyaltyTrackingController extends Controller
 
         $user = $request->user();
         $rows = $this->rows($program, $rules, $filters, $user)->filter(fn ($r) => in_array($filters['tab'], $r['tabs'], true));
-        $storeIds = Store::where('organization_id', $user->organization_id)->whereIn('brand_id', $rows->pluck('brand_id')->unique())
-            ->when($user->visibleStoreIds() !== null, fn ($q) => $q->whereIn('id', $user->visibleStoreIds()))->pluck('id');
-        $contacts = $rows->pluck('customer_id')->unique()->chunk(500)
-            ->flatMap(fn ($ids) => Contact::whereIn('customer_id', $ids->all())->whereIn('store_id', $storeIds)->pluck('id'));
+        // Le contact du client dans l'enseigne de la ligne, pas ceux de ses autres enseignes.
+        $contacts = $rows->groupBy('brand_id')->flatMap(function ($lines, $brandId) use ($user) {
+            $storeIds = Store::where('brand_id', $brandId)->when($user->visibleStoreIds() !== null, fn ($q) => $q->whereIn('id', $user->visibleStoreIds()))->pluck('id');
+
+            return $lines->pluck('customer_id')->chunk(500)
+                ->flatMap(fn ($ids) => Contact::whereIn('customer_id', $ids->all())->whereIn('store_id', $storeIds)->pluck('id'));
+        });
 
         $group = Group::firstOrCreate(['organization_id' => $user->organization_id, 'name' => $name]);
         $group->contacts()->syncWithoutDetaching($contacts->all());
