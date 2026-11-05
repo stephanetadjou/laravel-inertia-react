@@ -73,3 +73,21 @@
 
 /* Panneaux plus doux partout. */
 .mdash-panel { border-radius: 18px !important; box-shadow: 0 1px 3px rgba(15, 23, 42, 0.05); }
+
+/* Centre d'aide. */
+.nx-help-tabs { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 14px; }
+.nx-help-tabs button { padding: 9px 16px; border-radius: 999px; border: 1px solid #e2e8f0; background: #fff; font-size: 14px; font-weight: 600; color: #0b1f3a; }
+.nx-help-tabs button[aria-selected='true'] { background: #1d4ed8; border-color: #1d4ed8; color: #fff; }
+.nx-help-title { margin: 0; font-size: 20px; font-weight: 800; }
+.nx-help-intro { margin: 4px 0 18px; color: #64748b; }
+.nx-help-steps { display: flex; flex-direction: column; gap: 12px; }
+.nx-help-steps li { display: flex; gap: 14px; padding: 14px 16px; border: 1px solid #e2e8f0; border-radius: 14px; background: #f8fafc; }
+.nx-help-steps li .nx-step-icon { flex-shrink: 0; margin: 0; }
+.nx-help-steps b { color: #0b1f3a; font-size: 15px; }
+.nx-help-steps p { margin: 3px 0 6px; color: #475569; font-size: 14px; line-height: 1.5; }
+.nx-help-tips { margin-top: 18px; padding: 14px 18px; border-radius: 14px; background: #ecfeff; border: 1px solid #a5f3fc; color: #0b1f3a; font-size: 14px; }
+.nx-help-tips ul { margin: 6px 0 0; padding-left: 18px; list-style: disc; display: flex; flex-direction: column; gap: 4px; }
+.dark .nx-help-steps li { background: rgba(255,255,255,.04); border-color: rgba(255,255,255,.1); }
+.dark .nx-help-steps b, .dark .nx-help-tabs button:not([aria-selected='true']) { color: #fff; }
+.dark .nx-help-tabs button:not([aria-selected='true']) { background: transparent; }
+.dark .nx-help-tips { background: rgba(6,182,212,.1); border-color: rgba(6,182,212,.3); color: #e2e8f0; }

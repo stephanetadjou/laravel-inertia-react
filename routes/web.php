@@ -87,6 +87,9 @@ Route::middleware('auth')->group(function () {
 
     Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard.index');
 
+    // Centre d'aide : guides pas à pas par module (bouton « Besoin d'aide ? »).
+    Route::inertia('/aide', 'Help/Index')->name('help.index');
+
     // Relances manuelles (lien wa.me) : fonctionnent sans l'API WhatsApp.
     Route::get('/actions', [ActionController::class, 'index'])->name('actions.index');
     Route::post('/actions/done', [ActionController::class, 'done'])->name('actions.done');

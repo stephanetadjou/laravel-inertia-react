@@ -17,11 +17,7 @@ const LayoutContent: React.FC<{ children: ReactNode }> = ({ children }) => {
                 <AppSidebar />
                 <Backdrop />
             </div>
-            <div
-                className={`flex-1 transition-all duration-300 ease-in-out ${
-                    isExpanded || isHovered ? 'lg:ml-[248px]' : 'lg:ml-[76px]'
-                } ${isMobileOpen ? 'ml-0' : ''}`}
-            >
+            <div className={`flex-1 transition-all duration-300 ease-in-out ${isExpanded || isHovered ? 'lg:ml-[248px]' : 'lg:ml-[76px]'} ${isMobileOpen ? 'ml-0' : ''}`}>
                 <AppHeader />
                 <div className="mx-auto max-w-(--breakpoint-2xl) p-4 md:p-6">{children}</div>
             </div>

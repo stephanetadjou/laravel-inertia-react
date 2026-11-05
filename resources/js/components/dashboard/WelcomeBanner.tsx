@@ -1,6 +1,6 @@
-import { Link, usePage } from "@inertiajs/react";
+import { Link, usePage } from '@inertiajs/react';
 
-import { CalenderIcon, PlusIcon, UserIcon } from "../../icons";
+import { CalenderIcon, PlusIcon, UserIcon } from '../../icons';
 
 interface BannerProps {
     auth?: {
@@ -14,17 +14,15 @@ interface BannerProps {
 export default function WelcomeBanner() {
     const { auth } = usePage<BannerProps>().props;
     const org = auth?.organization;
-    const today = new Date().toLocaleDateString("fr-FR", {
-        weekday: "long",
-        day: "numeric",
-        month: "long",
-        year: "numeric",
+    const today = new Date().toLocaleDateString('fr-FR', {
+        weekday: 'long',
+        day: 'numeric',
+        month: 'long',
+        year: 'numeric',
     });
     const hour = new Date().getHours();
-    const hello = hour < 18 ? "Bonjour" : "Bonsoir";
-    const action = org?.has_agenda
-        ? { href: "/appointments", label: "Nouveau RDV" }
-        : { href: "/purchases", label: "Nouvelle vente" };
+    const hello = hour < 18 ? 'Bonjour' : 'Bonsoir';
+    const action = org?.has_agenda ? { href: '/appointments', label: 'Nouveau RDV' } : { href: '/purchases', label: 'Nouvelle vente' };
 
     return (
         <section className="nx-banner" aria-label="Bienvenue">
@@ -33,17 +31,12 @@ export default function WelcomeBanner() {
                     {hello}, {org?.name ?? auth?.user?.name}
                 </span>
                 <h1>Bienvenue sur NENTIX !</h1>
-                <p>
-                    Connaissez vos clients, parlez-leur au bon moment et faites
-                    grandir votre activité : tout se pilote ici, simplement.
-                </p>
+                <p>Connaissez vos clients, parlez-leur au bon moment et faites grandir votre activité : tout se pilote ici, simplement.</p>
                 <div className="nx-banner-chips">
                     {auth?.user && (
                         <span className="nx-chip">
                             <UserIcon /> {auth.user.name}
-                            {auth.user.role_name
-                                ? ` · ${auth.user.role_name}`
-                                : ""}
+                            {auth.user.role_name ? ` · ${auth.user.role_name}` : ''}
                         </span>
                     )}
                     <span className="nx-chip">
@@ -59,21 +52,13 @@ export default function WelcomeBanner() {
 }
 
 /** Accès rapides : raccourcis vers les écrans les plus utilisés. */
-export function QuickAccess({
-    links,
-}: {
-    links: { href: string; label: string; icon: React.ReactNode }[];
-}) {
+export function QuickAccess({ links }: { links: { href: string; label: string; icon: React.ReactNode }[] }) {
     return (
         <article className="mdash-panel nx-quick">
             <h2>Accès rapides</h2>
             <div className="nx-quick-grid">
                 {links.map((l) => (
-                    <Link
-                        key={l.href + l.label}
-                        href={l.href}
-                        className="nx-quick-item"
-                    >
+                    <Link key={l.href + l.label} href={l.href} className="nx-quick-item">
                         <span aria-hidden="true">{l.icon}</span>
                         {l.label}
                     </Link>

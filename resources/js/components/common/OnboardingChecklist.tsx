@@ -1,4 +1,4 @@
-import { Link, router } from "@inertiajs/react";
+import { Link, router } from '@inertiajs/react';
 
 /*
  * « Pour bien démarrer » (accueil) : les premières étapes selon les modules
@@ -18,48 +18,23 @@ export interface OnboardingData {
     total: number;
 }
 
-export default function OnboardingChecklist({
-    data,
-}: {
-    data: OnboardingData;
-}) {
+export default function OnboardingChecklist({ data }: { data: OnboardingData }) {
     const next = data.steps.find((s) => !s.done);
 
     return (
-        <section
-            className="mdash-panel nx-onboarding"
-            aria-labelledby="onboarding-title"
-        >
+        <section className="mdash-panel nx-onboarding" aria-labelledby="onboarding-title">
             <div className="mdash-ph">
                 <div>
                     <h2 id="onboarding-title">Vos premiers pas</h2>
                     <span className="mdash-sub">
-                        {data.done} étape{data.done > 1 ? "s" : ""} sur{" "}
-                        {data.total} · tout se règle ici, sans intervention
-                        technique
+                        {data.done} étape{data.done > 1 ? 's' : ''} sur {data.total} · tout se règle ici, sans intervention technique
                     </span>
                 </div>
-                <button
-                    type="button"
-                    className="mdash-btn ghost sm"
-                    onClick={() =>
-                        router.post(
-                            "/onboarding/dismiss",
-                            {},
-                            { preserveScroll: true },
-                        )
-                    }
-                >
+                <button type="button" className="mdash-btn ghost sm" onClick={() => router.post('/onboarding/dismiss', {}, { preserveScroll: true })}>
                     Masquer
                 </button>
             </div>
-            <div
-                className="mb-3 h-2 overflow-hidden rounded-full bg-gray-100 dark:bg-white/10"
-                role="progressbar"
-                aria-valuenow={data.done}
-                aria-valuemin={0}
-                aria-valuemax={data.total}
-            >
+            <div className="mb-3 h-2 overflow-hidden rounded-full bg-gray-100 dark:bg-white/10" role="progressbar" aria-valuenow={data.done} aria-valuemin={0} aria-valuemax={data.total}>
                 <div
                     className="h-full rounded-full bg-brand-500"
                     style={{
@@ -73,27 +48,16 @@ export default function OnboardingChecklist({
                     .sort((a, b) => Number(a.s.done) - Number(b.s.done))
                     .map(({ s, i }) => (
                         <li key={s.key}>
-                            <Link
-                                href={s.url}
-                                className={`nx-step ${s.done ? "done" : s.key === next?.key ? "next" : ""}`}
-                            >
-                                <span
-                                    className="nx-step-num"
-                                    aria-hidden="true"
-                                >
+                            <Link href={s.url} className={`nx-step ${s.done ? 'done' : s.key === next?.key ? 'next' : ''}`}>
+                                <span className="nx-step-num" aria-hidden="true">
                                     {i + 1}
                                 </span>
-                                <span
-                                    className="nx-step-icon"
-                                    aria-hidden="true"
-                                >
-                                    {s.done ? "✓" : i + 1}
+                                <span className="nx-step-icon" aria-hidden="true">
+                                    {s.done ? '✓' : i + 1}
                                 </span>
                                 <b>{s.label}</b>
                                 <span className="nx-step-help">{s.help}</span>
-                                <span className="nx-step-go">
-                                    {s.done ? "Fait" : "C’est parti →"}
-                                </span>
+                                <span className="nx-step-go">{s.done ? 'Fait' : 'C’est parti →'}</span>
                             </Link>
                         </li>
                     ))}
