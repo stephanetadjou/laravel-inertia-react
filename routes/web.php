@@ -36,6 +36,7 @@ use App\Http\Controllers\MultibrandController;
 use App\Http\Controllers\OrganizationController;
 use App\Http\Controllers\PdfReportController;
 use App\Http\Controllers\PlanController;
+use App\Http\Controllers\PlatformWhatsAppWebhookController;
 use App\Http\Controllers\PrivacyPolicyController;
 use App\Http\Controllers\ProspectController;
 use App\Http\Controllers\PurchaseController;
@@ -53,6 +54,9 @@ use Illuminate\Support\Facades\Route;
 
 // Webhook Meta par établissement : public, authentifié par la signature
 // X-Hub-Signature-256 (exclu de la vérification CSRF, cf. bootstrap/app.php).
+// Webhook unique de l'app Meta de Menentia (numéros gérés par Menentia).
+Route::get('/webhooks/whatsapp', [PlatformWhatsAppWebhookController::class, 'verify'])->name('webhooks.whatsapp.platform');
+Route::post('/webhooks/whatsapp', [PlatformWhatsAppWebhookController::class, 'receive']);
 Route::get('/webhooks/whatsapp/{key}', [WhatsAppWebhookController::class, 'verify'])->name('webhooks.whatsapp');
 Route::post('/webhooks/whatsapp/{key}', [WhatsAppWebhookController::class, 'receive']);
 
@@ -358,4 +362,5 @@ Route::middleware(['auth', 'platform-admin'])->prefix('admin')->name('admin.')->
     Route::get('/leads', [Admin\LeadController::class, 'index'])->name('leads.index');
     Route::get('/leads/export', [Admin\LeadController::class, 'export'])->name('leads.export');
     Route::put('/leads/{lead}', [Admin\LeadController::class, 'update'])->name('leads.update');
+    Route::put('/organizations/{organization}/stores/{store}/whatsapp', [Admin\OrganizationController::class, 'manageWhatsApp'])->name('organizations.stores.whatsapp');
 });

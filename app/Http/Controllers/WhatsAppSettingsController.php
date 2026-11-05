@@ -37,6 +37,7 @@ class WhatsAppSettingsController extends Controller
                 'business_account_id' => $store->whatsapp_business_account_id,
                 'phone_number_id' => $store->whatsapp_phone_number_id,
                 'app_id' => $store->whatsapp_app_id,
+                'managed' => $store->whatsapp_managed,
                 'has_access_token' => filled($store->whatsapp_access_token),
                 'has_app_secret' => filled($store->whatsapp_app_secret),
                 'connected' => $store->canSendWhatsApp(),
@@ -58,6 +59,10 @@ class WhatsAppSettingsController extends Controller
     public function update(Request $request, Store $store): RedirectResponse
     {
         $this->authorizeStore($request, $store);
+
+        if ($store->whatsapp_managed) {
+            return back()->with('error', "Le WhatsApp de {$store->name} est géré par Menentia : contactez l'équipe Menentia pour le modifier.");
+        }
 
         $data = $request->validate([
             'business_account_id' => ['nullable', 'regex:/^\d{5,25}$/'],

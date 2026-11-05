@@ -24,6 +24,7 @@ class Store extends Model
         'whatsapp_app_id',
         'whatsapp_access_token',
         'whatsapp_app_secret',
+        'whatsapp_managed',
         'whatsapp_verified_name',
         'whatsapp_display_phone_number',
         'whatsapp_quality_rating',
@@ -72,6 +73,7 @@ class Store extends Model
             'booking_break' => 'array',
             'whatsapp_registered_at' => 'datetime',
             'is_active' => 'boolean',
+            'whatsapp_managed' => 'boolean',
         ];
     }
 
@@ -107,9 +109,29 @@ class Store extends Model
         $fallback = $this->mayUseSharedAccount() ? null : '';
 
         return new WhatsAppClient(
-            $this->whatsapp_access_token ?: $fallback,
+            $this->ownAccessToken() ?: $fallback,
             $this->whatsapp_phone_number_id ?: $fallback,
         );
+    }
+
+    /**
+     * Token qui accède au numéro : celui de Menentia pour un numéro géré par
+     * Menentia (compte partagé avec son portefeuille), sinon celui saisi par
+     * l'entreprise.
+     */
+    private function ownAccessToken(): ?string
+    {
+        return $this->whatsapp_managed
+            ? (config('services.meta_whatsapp.platform.token') ?: null)
+            : $this->whatsapp_access_token;
+    }
+
+    /** App Secret qui signe les appels du webhook de ce numéro. */
+    private function ownAppSecret(): ?string
+    {
+        return $this->whatsapp_managed
+            ? (config('services.meta_whatsapp.platform.app_secret') ?: null)
+            : $this->whatsapp_app_secret;
     }
 
     private function mayUseSharedAccount(): bool
@@ -129,7 +151,7 @@ class Store extends Model
         }
 
         $shared = $this->mayUseSharedAccount();
-        $token = $this->whatsapp_access_token ?: ($shared ? config('services.meta_whatsapp.token') : null);
+        $token = $this->ownAccessToken() ?: ($shared ? config('services.meta_whatsapp.token') : null);
         $phoneNumberId = $this->whatsapp_phone_number_id ?: ($shared ? config('services.meta_whatsapp.phone_number_id') : null);
 
         return filled($token) && filled($phoneNumberId);
@@ -173,11 +195,13 @@ class Store extends Model
      */
     public function hasValidWebhookSignature(string $rawBody, ?string $header): bool
     {
-        if (blank($this->whatsapp_app_secret) || ! is_string($header) || ! str_starts_with($header, 'sha256=')) {
+        $secret = $this->ownAppSecret();
+
+        if (blank($secret) || ! is_string($header) || ! str_starts_with($header, 'sha256=')) {
             return false;
         }
 
-        $expected = 'sha256='.hash_hmac('sha256', $rawBody, $this->whatsapp_app_secret);
+        $expected = 'sha256='.hash_hmac('sha256', $rawBody, $secret);
 
         return hash_equals($expected, $header);
     }
@@ -201,7 +225,7 @@ class Store extends Model
 
     public function usesSharedWhatsAppAccount(): bool
     {
-        return $this->mayUseSharedAccount()
+        return $this->mayUseSharedAccount() && ! $this->whatsapp_managed
             && blank($this->whatsapp_access_token) && blank($this->whatsapp_phone_number_id);
     }
 

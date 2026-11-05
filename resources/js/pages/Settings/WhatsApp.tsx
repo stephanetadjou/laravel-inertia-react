@@ -12,6 +12,7 @@ interface StoreSettings {
     business_account_id: string | null;
     phone_number_id: string | null;
     app_id: string | null;
+    managed: boolean;
     has_access_token: boolean;
     has_app_secret: boolean;
     connected: boolean;
@@ -149,6 +150,27 @@ function StoreCard({ store }: { store: StoreSettings }) {
             </div>
 
             <div className="grid gap-6 p-5 lg:grid-cols-[1fr_320px]">
+                {store.managed ? (
+                    <div className="space-y-4 text-sm">
+                        <p className="text-gray-700 dark:text-gray-300">
+                            Ce numéro est <b>géré par Menentia</b> : votre compte WhatsApp est partagé avec Menentia, qui s'occupe du token et du webhook.
+                            Pour changer de numéro, contactez l'équipe Menentia.
+                        </p>
+                        <dl className="grid gap-2 sm:grid-cols-2">
+                            <div>
+                                <dt className={labelClass}>WABA ID</dt>
+                                <dd className="font-mono text-gray-800 dark:text-white/90">{store.business_account_id ?? '—'}</dd>
+                            </div>
+                            <div>
+                                <dt className={labelClass}>Phone Number ID</dt>
+                                <dd className="font-mono text-gray-800 dark:text-white/90">{store.phone_number_id ?? '—'}</dd>
+                            </div>
+                        </dl>
+                        <Button type="button" variant="outline" disabled={!store.connected || busy !== null} onClick={test}>
+                            {busy === 'test' ? 'Test en cours…' : 'Tester'}
+                        </Button>
+                    </div>
+                ) : (
                 <form onSubmit={save} className="space-y-4">
                     <div className="grid gap-4 sm:grid-cols-3">
                         <div>
@@ -241,6 +263,7 @@ function StoreCard({ store }: { store: StoreSettings }) {
                         </Button>
                     </div>
                 </form>
+                )}
 
                 <aside className="space-y-4 rounded-xl border border-gray-200 p-4 text-sm dark:border-gray-800">
                     <div>

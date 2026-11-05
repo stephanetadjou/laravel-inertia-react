@@ -22,14 +22,88 @@ interface PageProps {
         appointments_count: number;
     };
     users: { id: number; name: string; email: string; role: string | null; created_at: string | null }[];
+    stores: ManagedStore[];
+    platform_whatsapp_ready: boolean;
     logs: PlatformLogRow[];
     options: { plans: Option[] };
     errors: Record<string, string>;
     [key: string]: unknown;
 }
 
+interface ManagedStore {
+    id: number;
+    name: string;
+    whatsapp_managed: boolean;
+    business_account_id: string | null;
+    phone_number_id: string | null;
+    verified_name: string | null;
+    display_phone_number: string | null;
+    checked_at: string | null;
+}
+
+/* WhatsApp géré par Menentia : le client a partagé son compte WhatsApp avec le portefeuille Menentia. */
+function ManagedWhatsAppRow({ organizationId, store }: { organizationId: number; store: ManagedStore }) {
+    const form = useForm({
+        managed: true,
+        business_account_id: store.business_account_id ?? '',
+        phone_number_id: store.phone_number_id ?? '',
+    });
+    const url = `/admin/organizations/${organizationId}/stores/${store.id}/whatsapp`;
+
+    const save: FormEventHandler = (e) => {
+        e.preventDefault();
+        form.transform((d) => ({ ...d, managed: true }));
+        form.put(url, { preserveScroll: true });
+    };
+
+    return (
+        <form onSubmit={save} className="space-y-2 border-b border-gray-100 p-5 last:border-0 dark:border-gray-800">
+            <div className="flex items-center justify-between gap-2">
+                <b>{store.name}</b>
+                {store.whatsapp_managed ? <span className="mdash-pill ok">Géré par Menentia</span> : <span className="mdash-pill">Géré par l’entreprise</span>}
+            </div>
+            <div className="grid gap-2 sm:grid-cols-2">
+                <input
+                    value={form.data.business_account_id}
+                    onChange={(e) => form.setData('business_account_id', e.target.value)}
+                    className={fieldClasses()}
+                    placeholder="WABA ID"
+                    aria-label={`WABA ID de ${store.name}`}
+                    inputMode="numeric"
+                />
+                <input
+                    value={form.data.phone_number_id}
+                    onChange={(e) => form.setData('phone_number_id', e.target.value)}
+                    className={fieldClasses()}
+                    placeholder="Phone Number ID"
+                    aria-label={`Phone Number ID de ${store.name}`}
+                    inputMode="numeric"
+                />
+            </div>
+            {(form.errors.business_account_id || form.errors.phone_number_id) && (
+                <p className="text-error-500">{form.errors.business_account_id ?? form.errors.phone_number_id}</p>
+            )}
+            {store.checked_at && (
+                <p className="mpage-muted">
+                    Dernier test : {store.verified_name ?? '—'} ({store.display_phone_number ?? '?'}), {formatDay(store.checked_at, true)}
+                </p>
+            )}
+            <div className="flex gap-2">
+                <button type="submit" className="mdash-btn brand" disabled={form.processing}>
+                    {store.whatsapp_managed ? 'Mettre à jour' : 'Gérer par Menentia'}
+                </button>
+                {store.whatsapp_managed && (
+                    <button type="button" className="mdash-btn ghost" onClick={() => router.put(url, { managed: false }, { preserveScroll: true })}>
+                        Rendre la main à l’entreprise
+                    </button>
+                )}
+            </div>
+        </form>
+    );
+}
+
 function OrganizationShow() {
-    const { organization: o, users, logs, options, errors } = usePage<PageProps>().props;
+    const { organization: o, users, stores, platform_whatsapp_ready, logs, options, errors } = usePage<PageProps>().props;
     const base = `/admin/organizations/${o.id}`;
     const [days, setDays] = useState(14);
     const suspendForm = useForm({ reason: '' });
@@ -133,6 +207,13 @@ function OrganizationShow() {
                             </form>
                         )}
                     </div>
+                </Panel>
+
+                <Panel title="WhatsApp géré par Menentia" sub="Compte WhatsApp du client partagé avec le portefeuille Menentia" className="c12">
+                    {!platform_whatsapp_ready && (
+                        <p className="px-5 pt-4 text-sm text-warning-600">MENENTIA_WHATSAPP_TOKEN n’est pas renseigné sur le serveur : les numéros gérés ne pourront pas envoyer.</p>
+                    )}
+                    {stores.length === 0 ? <Empty title="Aucun point de vente" /> : stores.map((s) => <ManagedWhatsAppRow key={s.id} organizationId={o.id} store={s} />)}
                 </Panel>
 
                 <Panel title="Utilisateurs" className="c7">

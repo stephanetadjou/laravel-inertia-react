@@ -21,6 +21,7 @@ class PlatformLog extends Model
         'organization.reactivated' => 'Entreprise réactivée',
         'lead.updated' => 'Demande de démo mise à jour',
         'leads.exported' => 'Demandes de démo exportées',
+        'store.whatsapp_managed' => 'WhatsApp géré par Menentia',
     ];
 
     protected $fillable = ['user_id', 'organization_id', 'lead_id', 'action', 'description', 'payload', 'ip_address'];

@@ -56,6 +56,16 @@ return [
         // l'URL de rappel affichée, quand l'app tourne derrière un tunnel en
         // local. Vide : APP_URL.
         'webhook_base_url' => env('WHATSAPP_WEBHOOK_BASE_URL'),
+        // App Meta de Menentia, pour les numéros « gérés par Menentia » (le
+        // client partage son compte WhatsApp avec le portefeuille Menentia) :
+        // token permanent de l'utilisateur système Menentia, App Secret qui
+        // signe le webhook unique /webhooks/whatsapp et son jeton de
+        // vérification (à recopier dans l'app Meta).
+        'platform' => [
+            'token' => env('MENENTIA_WHATSAPP_TOKEN'),
+            'app_secret' => env('MENENTIA_WHATSAPP_APP_SECRET'),
+            'verify_token' => env('MENENTIA_WHATSAPP_VERIFY_TOKEN'),
+        ],
         // Envoi des campagnes : messages par lot (un job par lot) et pause
         // entre deux messages pour rester sous le débit autorisé par Meta.
         'batch_size' => (int) env('WHATSAPP_BATCH_SIZE', 50),

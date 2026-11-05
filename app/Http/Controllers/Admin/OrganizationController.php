@@ -8,6 +8,7 @@ use App\Models\Customer;
 use App\Models\Organization;
 use App\Models\PlatformLog;
 use App\Models\Purchase;
+use App\Models\Store;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\RedirectResponse;
@@ -79,6 +80,17 @@ class OrganizationController extends Controller
                 'role' => $u->role?->name,
                 'created_at' => $u->created_at?->toIso8601String(),
             ]),
+            'stores' => Store::where('organization_id', $organization->id)->orderBy('name')->get()->map(fn (Store $s) => [
+                'id' => $s->id,
+                'name' => $s->name,
+                'whatsapp_managed' => $s->whatsapp_managed,
+                'business_account_id' => $s->whatsapp_business_account_id,
+                'phone_number_id' => $s->whatsapp_phone_number_id,
+                'verified_name' => $s->whatsapp_verified_name,
+                'display_phone_number' => $s->whatsapp_display_phone_number,
+                'checked_at' => $s->whatsapp_checked_at?->toIso8601String(),
+            ]),
+            'platform_whatsapp_ready' => filled(config('services.meta_whatsapp.platform.token')),
             'logs' => PlatformLog::where('organization_id', $organization->id)->with('user:id,name')->latest('id')->take(30)->get()
                 ->map(fn (PlatformLog $log) => self::presentLog($log)),
             'options' => self::options(),
@@ -143,6 +155,66 @@ class OrganizationController extends Controller
         PlatformLog::record('organization.suspended', $data['reason'], [], $organization);
 
         return back()->with('success', 'Entreprise suspendue : ses utilisateurs voient la page « compte suspendu ».');
+    }
+
+    /**
+     * « WhatsApp géré par Menentia » : le client a partagé son compte
+     * WhatsApp Business avec le portefeuille Menentia ; Menentia envoie avec
+     * son token et reçoit les événements sur le webhook unique. Réglé ici
+     * seulement, jamais par l'entreprise : un Phone Number ID saisi par un
+     * client ne doit pas lui donner le token de Menentia.
+     */
+    public function manageWhatsApp(Request $request, Organization $organization, Store $store): RedirectResponse
+    {
+        abort_unless($store->organization_id === $organization->id, 404);
+
+        $data = $request->validate([
+            'managed' => ['required', 'boolean'],
+            'business_account_id' => ['nullable', 'required_if:managed,true', 'regex:/^\d{5,25}$/'],
+            'phone_number_id' => [
+                'nullable', 'required_if:managed,true', 'regex:/^\d{5,25}$/',
+                Rule::unique('stores', 'whatsapp_phone_number_id')->ignore($store->id),
+            ],
+        ], [
+            '*.regex' => 'Identifiant Meta attendu : chiffres uniquement.',
+            '*.required_if' => 'Obligatoire pour un numéro géré par Menentia.',
+            'phone_number_id.unique' => 'Ce numéro est déjà rattaché à un autre point de vente.',
+        ]);
+
+        if (! $data['managed']) {
+            $store->update(['whatsapp_managed' => false]);
+            PlatformLog::record('store.whatsapp_managed', "{$store->name} : géré par l'entreprise", ['store_id' => $store->id, 'managed' => false], $organization);
+
+            return back()->with('success', "{$store->name} : WhatsApp n'est plus géré par Menentia.");
+        }
+
+        $phoneChanged = $data['phone_number_id'] !== $store->whatsapp_phone_number_id;
+
+        $store->fill([
+            'whatsapp_managed' => true,
+            'whatsapp_business_account_id' => $data['business_account_id'],
+            'whatsapp_phone_number_id' => $data['phone_number_id'],
+            // Le token et l'App Secret de Menentia remplacent ceux de l'entreprise.
+            'whatsapp_access_token' => null,
+            'whatsapp_app_secret' => null,
+        ]);
+
+        if ($phoneChanged) {
+            $store->fill([
+                'whatsapp_verified_name' => null,
+                'whatsapp_display_phone_number' => null,
+                'whatsapp_quality_rating' => null,
+                'whatsapp_messaging_limit_tier' => null,
+                'whatsapp_checked_at' => null,
+                'whatsapp_registered_at' => null,
+            ]);
+        }
+
+        $store->save();
+        $organization->update(['whatsapp_api_enabled' => true]);
+        PlatformLog::record('store.whatsapp_managed', "{$store->name} : numéro {$data['phone_number_id']}", ['store_id' => $store->id, 'managed' => true], $organization);
+
+        return back()->with('success', "{$store->name} : WhatsApp géré par Menentia. Lancez « Tester » dans les Paramètres WhatsApp de l'entreprise.");
     }
 
     public function reactivate(Organization $organization): RedirectResponse
