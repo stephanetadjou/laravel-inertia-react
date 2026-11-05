@@ -81,7 +81,7 @@
         <table>
             <tr>
                 <td>
-                    <div class="brand"><i>m</i>menentia</div>
+                    <div class="brand">NENTIX</div>
                     <h1>Rapport du {{ $report['day_label'] }}</h1>
                     <div class="sub">{{ $report['organization'] }} · {{ count($report['stores']) }} établissement{{ count($report['stores']) > 1 ? 's' : '' }}{{ count($report['stores']) <= 3 ? ' · '.implode(', ', $report['stores']) : '' }}</div>
                 </td>
@@ -241,7 +241,7 @@
 
 <div class="sheet">
     <div class="top" style="padding: 14px 34px">
-        <table><tr><td><div class="brand"><i>m</i>menentia</div></td><td class="meta" style="vertical-align: middle">Rapport du {{ $report['day_label'] }} · {{ $report['organization'] }}</td></tr></table>
+        <table><tr><td><div class="brand">NENTIX</div></td><td class="meta" style="vertical-align: middle">Rapport du {{ $report['day_label'] }} · {{ $report['organization'] }}</td></tr></table>
     </div>
     <div class="body">
         <h2>Clients à risque de départ <small>ont dépassé 1,5 à 2 fois leur rythme habituel</small></h2>

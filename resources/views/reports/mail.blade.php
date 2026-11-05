@@ -9,7 +9,7 @@
     <tr><td align="center">
         <table role="presentation" width="600" cellpadding="0" cellspacing="0" style="max-width:600px;width:100%;background:#ffffff;border-radius:12px;overflow:hidden">
             <tr><td style="background:#0b2d4a;color:#ffffff;padding:20px 24px">
-                <div style="font-weight:800;font-size:18px">menentia</div>
+                <div style="font-weight:800;font-size:18px;letter-spacing:.02em">NENTIX</div>
                 <div style="font-size:20px;font-weight:700;margin-top:8px">Rapport du {{ $report['day_label'] }}</div>
                 <div style="color:#7fe3c7;font-size:13px">{{ $report['organization'] }}</div>
             </td></tr>

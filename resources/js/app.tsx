@@ -4,7 +4,7 @@ import type { ReactNode } from 'react'
 import { ThemeProvider } from './context/ThemeContext'
 
 createInertiaApp({
-    title: title => (title ? `${title} · Menentia` : 'Menentia'),
+    title: title => (title ? `${title} · NENTIX` : 'NENTIX'),
     resolve: name => {
         const pages = import.meta.glob<{ default: (props: unknown) => ReactNode }>('./pages/**/*.tsx')
         return pages[`./pages/${name}.tsx`]()
