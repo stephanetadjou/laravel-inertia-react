@@ -6,19 +6,20 @@ import AppSidebar from './AppSidebar';
 import '../pages/Dashboard/dashboard.css';
 import '../components/page/page.css';
 import '../components/page/simple.css';
+import '../../css/nentix.css';
 
 const LayoutContent: React.FC<{ children: ReactNode }> = ({ children }) => {
     const { isExpanded, isHovered, isMobileOpen } = useSidebar();
 
     return (
-        <div className="min-h-screen xl:flex">
+        <div className="nx-app min-h-screen xl:flex">
             <div>
                 <AppSidebar />
                 <Backdrop />
             </div>
             <div
                 className={`flex-1 transition-all duration-300 ease-in-out ${
-                    isExpanded || isHovered ? 'lg:ml-[232px]' : 'lg:ml-[72px]'
+                    isExpanded || isHovered ? 'lg:ml-[248px]' : 'lg:ml-[76px]'
                 } ${isMobileOpen ? 'ml-0' : ''}`}
             >
                 <AppHeader />

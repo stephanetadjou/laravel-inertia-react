@@ -1,28 +1,50 @@
-import { Head, Link, router, usePage } from '@inertiajs/react';
-import { useEffect, useMemo, useState } from 'react';
+import { Head, Link, router, usePage } from "@inertiajs/react";
+import {
+    AlertIcon,
+    CheckCircleIcon,
+    DollarLineIcon,
+    GroupIcon,
+    PaperPlaneIcon,
+    PieChartIcon,
+    TaskIcon,
+    UserIcon,
+} from "../../icons";
+import { useEffect, useMemo, useState } from "react";
 
-import AppLayout from '../../layout/AppLayout';
-import { ConsentDonut, MessagesChart, SalesChart, bucketLabel, formatCompact, formatNumber } from '../../components/dashboard/Charts';
-import type { Bucket } from '../../components/dashboard/Charts';
-import { useHeaderHeight } from '../../components/dashboard/useHeaderHeight';
-import { Delta, Kpi, percentChange } from '../../components/dashboard/Kpi';
-import { VIP_PILL, stageInfo } from '../../components/dashboard/stages';
-import './dashboard.css';
-import { customerUrl } from '../../components/common/customerUrl';
-import { NotificationPanel } from '../../components/notifications/Notifications';
-import OnboardingChecklist, { OnboardingData } from '../../components/common/OnboardingChecklist';
+import AppLayout from "../../layout/AppLayout";
+import {
+    ConsentDonut,
+    MessagesChart,
+    SalesChart,
+    bucketLabel,
+    formatCompact,
+    formatNumber,
+} from "../../components/dashboard/Charts";
+import type { Bucket } from "../../components/dashboard/Charts";
+import { useHeaderHeight } from "../../components/dashboard/useHeaderHeight";
+import { Delta, Kpi, percentChange } from "../../components/dashboard/Kpi";
+import { VIP_PILL, stageInfo } from "../../components/dashboard/stages";
+import "./dashboard.css";
+import { customerUrl } from "../../components/common/customerUrl";
+import { NotificationPanel } from "../../components/notifications/Notifications";
+import WelcomeBanner, {
+    QuickAccess,
+} from "../../components/dashboard/WelcomeBanner";
+import OnboardingChecklist, {
+    OnboardingData,
+} from "../../components/common/OnboardingChecklist";
 
 /** Couleur de chaque étape du parcours, selon sa pastille (cf. stages.ts). */
 const STAGE_COLORS: Record<string, string> = {
-    idle: 'var(--faint)',
-    info: 'var(--data)',
-    ok: 'var(--ok)',
-    accent: 'var(--accent)',
-    warn: 'var(--warn)',
-    bad: 'var(--bad)',
+    idle: "var(--faint)",
+    info: "var(--data)",
+    ok: "var(--ok)",
+    accent: "var(--accent)",
+    warn: "var(--warn)",
+    bad: "var(--bad)",
 };
 
-type Preset = 'today' | '7d' | '30d' | '90d';
+type Preset = "today" | "7d" | "30d" | "90d";
 
 interface Filters {
     from: string;
@@ -41,7 +63,12 @@ interface Kpis {
     contacts: { current: number; previous: number; new: number };
     opt_in: { opt_in: number; opt_out: number; unknown: number; total: number };
     messages: { current: number; previous: number; campaigns: number };
-    failure: { failed: number; attempted: number; previous_failed: number; previous_attempted: number };
+    failure: {
+        failed: number;
+        attempted: number;
+        previous_failed: number;
+        previous_attempted: number;
+    };
     buyers: { current: number; previous: number; purchases: number };
 }
 
@@ -58,7 +85,7 @@ interface NewClient {
     name: string;
     phone_e164: string;
     store_name: string;
-    consent_status: 'unknown' | 'opt_in' | 'opt_out';
+    consent_status: "unknown" | "opt_in" | "opt_out";
     welcomed: boolean;
     created_at: string;
 }
@@ -104,14 +131,27 @@ interface PageProps {
     salesSeries: (Bucket & { revenue: number; previous: number })[];
     pendingWelcome: number;
     topCategories: CategoryRow[];
-    catalogMix: { services: number; products: number; other: number; visits: number; average: number; top: { name: string; quantity: number; revenue: number }[] };
+    catalogMix: {
+        services: number;
+        products: number;
+        other: number;
+        visits: number;
+        average: number;
+        top: { name: string; quantity: number; revenue: number }[];
+    };
     newClients: NewClient[];
     brandContacts: BrandContacts[];
     lifecycle: {
         stages: { key: string; label: string; count: number }[];
         total: number;
         vip: number;
-        moves: { new_buyers: number; new_prospects: number; at_risk: number; churned: number; reactivated: number };
+        moves: {
+            new_buyers: number;
+            new_prospects: number;
+            at_risk: number;
+            churned: number;
+            reactivated: number;
+        };
     };
     stores: StoreRow[];
     recentCampaigns: CampaignRow[];
@@ -121,38 +161,38 @@ interface PageProps {
     [key: string]: unknown;
 }
 
-type Metric = 'revenue' | 'clients' | 'purchases';
+type Metric = "revenue" | "clients" | "purchases";
 
 const PRESETS: { key: Preset; label: string }[] = [
-    { key: 'today', label: "Aujourd'hui" },
-    { key: '7d', label: '7 j' },
-    { key: '30d', label: '30 j' },
-    { key: '90d', label: '90 j' },
+    { key: "today", label: "Aujourd'hui" },
+    { key: "7d", label: "7 j" },
+    { key: "30d", label: "30 j" },
+    { key: "90d", label: "90 j" },
 ];
 
 const CAMPAIGN_STATUS: Record<string, [string, string]> = {
-    draft: ['Brouillon', 'idle'],
-    queued: ['En file', 'info'],
-    sending: ['En cours', 'warn'],
-    completed: ['Terminée', 'ok'],
+    draft: ["Brouillon", "idle"],
+    queued: ["En file", "info"],
+    sending: ["En cours", "warn"],
+    completed: ["Terminée", "ok"],
 };
 
-const CONSENT: Record<NewClient['consent_status'], [string, string]> = {
-    unknown: ['Inconnu', 'idle'],
-    opt_in: ['Opt-in', 'ok'],
-    opt_out: ['Opt-out', 'bad'],
+const CONSENT: Record<NewClient["consent_status"], [string, string]> = {
+    unknown: ["Inconnu", "idle"],
+    opt_in: ["Opt-in", "ok"],
+    opt_out: ["Opt-out", "bad"],
 };
 
 function formatDate(day: string): string {
-    const [y, m, d] = day.split('-');
+    const [y, m, d] = day.split("-");
     return `${d}/${m}/${y}`;
 }
 
 function formatPercent(value: number): string {
-    return value.toLocaleString('fr-FR', { maximumFractionDigits: 1 }) + ' %';
+    return value.toLocaleString("fr-FR", { maximumFractionDigits: 1 }) + " %";
 }
 
-function plural(n: number, word: string, pluralWord = word + 's'): string {
+function plural(n: number, word: string, pluralWord = word + "s"): string {
     return `${formatNumber(n)} ${n > 1 ? pluralWord : word}`;
 }
 
@@ -161,7 +201,7 @@ function agoLabel(iso: string): string {
     if (hours < 1) return "à l'instant";
     if (hours < 24) return `il y a ${hours} h`;
     const days = Math.floor(hours / 24);
-    return days === 1 ? 'hier' : `il y a ${days} j`;
+    return days === 1 ? "hier" : `il y a ${days} j`;
 }
 
 function DashboardIndex() {
@@ -189,14 +229,19 @@ function DashboardIndex() {
     const headerHeight = useHeaderHeight();
     const [customFrom, setCustomFrom] = useState(filters.from);
     const [customTo, setCustomTo] = useState(filters.to);
-    const [metric, setMetric] = useState<Metric>('revenue');
+    const [metric, setMetric] = useState<Metric>("revenue");
 
     useEffect(() => {
         setCustomFrom(filters.from);
         setCustomTo(filters.to);
     }, [filters.from, filters.to]);
 
-    function visit(params: { period?: Preset; from?: string; to?: string; brand?: number | null }) {
+    function visit(params: {
+        period?: Preset;
+        from?: string;
+        to?: string;
+        brand?: number | null;
+    }) {
         const brand = params.brand !== undefined ? params.brand : filters.brand;
         const query: Record<string, string | number> = {};
         if (params.period) {
@@ -213,7 +258,11 @@ function DashboardIndex() {
         if (brand !== null && !filters.brand_locked) {
             query.brand = brand;
         }
-        router.get('/dashboard', query, { preserveState: true, preserveScroll: true, replace: true });
+        router.get("/dashboard", query, {
+            preserveState: true,
+            preserveScroll: true,
+            replace: true,
+        });
     }
 
     function applyCustomRange(from: string, to: string) {
@@ -229,40 +278,85 @@ function DashboardIndex() {
         visit({ brand: id });
     }
 
-    const selectedBrandName = filters.brands.find((b) => b.id === filters.brand)?.name;
+    const selectedBrandName = filters.brands.find(
+        (b) => b.id === filters.brand,
+    )?.name;
 
     // --- KPI ---
-    const optInRate = kpis.opt_in.total > 0 ? (kpis.opt_in.opt_in / kpis.opt_in.total) * 100 : 0;
-    const optOutRate = kpis.opt_in.total > 0 ? (kpis.opt_in.opt_out / kpis.opt_in.total) * 100 : 0;
-    const failureRate = kpis.failure.attempted > 0 ? (kpis.failure.failed / kpis.failure.attempted) * 100 : 0;
-    const previousFailureRate = kpis.failure.previous_attempted > 0 ? (kpis.failure.previous_failed / kpis.failure.previous_attempted) * 100 : null;
-    const averageBasket = kpis.buyers.purchases > 0 ? kpis.revenue.current / kpis.buyers.purchases : 0;
+    const optInRate =
+        kpis.opt_in.total > 0
+            ? (kpis.opt_in.opt_in / kpis.opt_in.total) * 100
+            : 0;
+    const optOutRate =
+        kpis.opt_in.total > 0
+            ? (kpis.opt_in.opt_out / kpis.opt_in.total) * 100
+            : 0;
+    const failureRate =
+        kpis.failure.attempted > 0
+            ? (kpis.failure.failed / kpis.failure.attempted) * 100
+            : 0;
+    const previousFailureRate =
+        kpis.failure.previous_attempted > 0
+            ? (kpis.failure.previous_failed / kpis.failure.previous_attempted) *
+              100
+            : null;
+    const averageBasket =
+        kpis.buyers.purchases > 0
+            ? kpis.revenue.current / kpis.buyers.purchases
+            : 0;
 
     // --- Top 10 ---
-    const top10 = useMemo(() => [...topCategories].sort((a, b) => b[metric] - a[metric]).slice(0, 10), [topCategories, metric]);
+    const top10 = useMemo(
+        () =>
+            [...topCategories]
+                .sort((a, b) => b[metric] - a[metric])
+                .slice(0, 10),
+        [topCategories, metric],
+    );
     const topMax = top10[0]?.[metric] || 1;
 
     // --- Ventes ---
     const salesTotal = salesSeries.reduce((sum, d) => sum + d.revenue, 0);
     const salesPrevious = salesSeries.reduce((sum, d) => sum + d.previous, 0);
-    const bestBucket = salesSeries.reduce<(typeof salesSeries)[number] | null>((best, d) => (d.revenue > (best?.revenue ?? 0) ? d : best), null);
+    const bestBucket = salesSeries.reduce<(typeof salesSeries)[number] | null>(
+        (best, d) => (d.revenue > (best?.revenue ?? 0) ? d : best),
+        null,
+    );
     const weekly = filters.days > 31;
 
     // --- Nouveaux clients & bienvenue ---
-    const selectable = newClients.filter((c) => c.consent_status === 'unknown' && !c.welcomed);
-    const [selectedIds, setSelectedIds] = useState<Set<number>>(() => new Set(selectable.map((c) => c.id)));
-    const [confirming, setConfirming] = useState<'selection' | 'all' | null>(null);
-    const [welcomeTemplate, setWelcomeTemplate] = useState(welcomeTemplates[0]?.name ?? '');
+    const selectable = newClients.filter(
+        (c) => c.consent_status === "unknown" && !c.welcomed,
+    );
+    const [selectedIds, setSelectedIds] = useState<Set<number>>(
+        () => new Set(selectable.map((c) => c.id)),
+    );
+    const [confirming, setConfirming] = useState<"selection" | "all" | null>(
+        null,
+    );
+    const [welcomeTemplate, setWelcomeTemplate] = useState(
+        welcomeTemplates[0]?.name ?? "",
+    );
     const [sending, setSending] = useState(false);
 
     useEffect(() => {
-        setSelectedIds(new Set(newClients.filter((c) => c.consent_status === 'unknown' && !c.welcomed).map((c) => c.id)));
+        setSelectedIds(
+            new Set(
+                newClients
+                    .filter(
+                        (c) => c.consent_status === "unknown" && !c.welcomed,
+                    )
+                    .map((c) => c.id),
+            ),
+        );
         setConfirming(null);
     }, [newClients]);
 
     // « Tous les nouveaux en attente » s'appuie sur le périmètre du rôle et la
     // période : proposé seulement si aucune marque n'est choisie à la main.
-    const canSendAllPending = pendingWelcome > selectable.length && (filters.brand === null || filters.brand_locked);
+    const canSendAllPending =
+        pendingWelcome > selectable.length &&
+        (filters.brand === null || filters.brand_locked);
 
     function toggleClient(id: number) {
         setSelectedIds((prev) => {
@@ -274,26 +368,40 @@ function DashboardIndex() {
     }
 
     function toggleAllClients() {
-        setSelectedIds((prev) => (selectable.every((c) => prev.has(c.id)) ? new Set() : new Set(selectable.map((c) => c.id))));
+        setSelectedIds((prev) =>
+            selectable.every((c) => prev.has(c.id))
+                ? new Set()
+                : new Set(selectable.map((c) => c.id)),
+        );
     }
 
     function sendWelcome() {
         if (!welcomeTemplate || !confirming) return;
         setSending(true);
         const payload =
-            confirming === 'all'
-                ? { all_pending: true, from: filters.from, to: filters.to, template_name: welcomeTemplate }
-                : { contact_ids: Array.from(selectedIds), template_name: welcomeTemplate };
-        router.post('/contacts/send-welcome-bulk', payload, {
+            confirming === "all"
+                ? {
+                      all_pending: true,
+                      from: filters.from,
+                      to: filters.to,
+                      template_name: welcomeTemplate,
+                  }
+                : {
+                      contact_ids: Array.from(selectedIds),
+                      template_name: welcomeTemplate,
+                  };
+        router.post("/contacts/send-welcome-bulk", payload, {
             preserveScroll: true,
             onSuccess: () => setConfirming(null),
             onFinish: () => setSending(false),
         });
     }
 
-    const allSelected = selectable.length > 0 && selectable.every((c) => selectedIds.has(c.id));
+    const allSelected =
+        selectable.length > 0 && selectable.every((c) => selectedIds.has(c.id));
     const someSelected = selectedIds.size > 0 && !allSelected;
-    const confirmCount = confirming === 'all' ? pendingWelcome : selectedIds.size;
+    const confirmCount =
+        confirming === "all" ? pendingWelcome : selectedIds.size;
 
     return (
         <div className="mdash">
@@ -303,14 +411,27 @@ function DashboardIndex() {
                 <div className="mdash-top-in">
                     <div>
                         <h1>Tableau de bord</h1>
-                        <small>{apiEnabled ? 'Clients, ventes et WhatsApp' : 'Clients et ventes'}</small>
+                        <small>
+                            {apiEnabled
+                                ? "Clients, ventes et WhatsApp"
+                                : "Clients et ventes"}
+                        </small>
                     </div>
                     <div className="mdash-filters">
                         <div className="mdash-fgroup">
                             <span>Période</span>
-                            <div className="mdash-seg" role="group" aria-label="Période">
+                            <div
+                                className="mdash-seg"
+                                role="group"
+                                aria-label="Période"
+                            >
                                 {PRESETS.map((p) => (
-                                    <button key={p.key} type="button" aria-pressed={filters.preset === p.key} onClick={() => visit({ period: p.key })}>
+                                    <button
+                                        key={p.key}
+                                        type="button"
+                                        aria-pressed={filters.preset === p.key}
+                                        onClick={() => visit({ period: p.key })}
+                                    >
                                         {p.label}
                                     </button>
                                 ))}
@@ -319,9 +440,31 @@ function DashboardIndex() {
                         <div className="mdash-fgroup">
                             <span>Du / au</span>
                             <div className="mdash-range">
-                                <input type="date" aria-label="Date de début" value={customFrom} max={customTo} onChange={(e) => applyCustomRange(e.target.value, customTo)} />
+                                <input
+                                    type="date"
+                                    aria-label="Date de début"
+                                    value={customFrom}
+                                    max={customTo}
+                                    onChange={(e) =>
+                                        applyCustomRange(
+                                            e.target.value,
+                                            customTo,
+                                        )
+                                    }
+                                />
                                 <span>→</span>
-                                <input type="date" aria-label="Date de fin" value={customTo} min={customFrom} onChange={(e) => applyCustomRange(customFrom, e.target.value)} />
+                                <input
+                                    type="date"
+                                    aria-label="Date de fin"
+                                    value={customTo}
+                                    min={customFrom}
+                                    onChange={(e) =>
+                                        applyCustomRange(
+                                            customFrom,
+                                            e.target.value,
+                                        )
+                                    }
+                                />
                             </div>
                         </div>
                         {!filters.brand_hidden && (
@@ -329,12 +472,26 @@ function DashboardIndex() {
                                 <label htmlFor="mdash-brand">Marque</label>
                                 <select
                                     id="mdash-brand"
-                                    value={filters.brand ?? ''}
+                                    value={filters.brand ?? ""}
                                     disabled={filters.brand_locked}
-                                    title={filters.brand_locked ? 'Votre rôle est limité à cette marque' : undefined}
-                                    onChange={(e) => selectBrand(e.target.value ? Number(e.target.value) : null)}
+                                    title={
+                                        filters.brand_locked
+                                            ? "Votre rôle est limité à cette marque"
+                                            : undefined
+                                    }
+                                    onChange={(e) =>
+                                        selectBrand(
+                                            e.target.value
+                                                ? Number(e.target.value)
+                                                : null,
+                                        )
+                                    }
                                 >
-                                    {!filters.brand_locked && <option value="">Toutes les marques</option>}
+                                    {!filters.brand_locked && (
+                                        <option value="">
+                                            Toutes les marques
+                                        </option>
+                                    )}
                                     {filters.brands.map((b) => (
                                         <option key={b.id} value={b.id}>
                                             {b.name}
@@ -346,13 +503,27 @@ function DashboardIndex() {
                     </div>
                 </div>
                 <div className="mdash-scope">
-                    Vous regardez <b>{selectedBrandName ?? (filters.brand_hidden ? 'votre boutique' : 'toutes les marques')}</b> ·{' '}
-                    <b>{plural(filters.store_count, 'boutique')}</b> · du <b>{formatDate(filters.from)}</b> au <b>{formatDate(filters.to)}</b>
+                    Vous regardez{" "}
+                    <b>
+                        {selectedBrandName ??
+                            (filters.brand_hidden
+                                ? "votre boutique"
+                                : "toutes les marques")}
+                    </b>{" "}
+                    · <b>{plural(filters.store_count, "boutique")}</b> · du{" "}
+                    <b>{formatDate(filters.from)}</b> au{" "}
+                    <b>{formatDate(filters.to)}</b>
                 </div>
             </header>
 
-            {flash?.success && <div className="mdash-flash ok">{flash.success}</div>}
-            {flash?.error && <div className="mdash-flash bad">{flash.error}</div>}
+            {flash?.success && (
+                <div className="mdash-flash ok">{flash.success}</div>
+            )}
+            {flash?.error && (
+                <div className="mdash-flash bad">{flash.error}</div>
+            )}
+
+            <WelcomeBanner />
 
             {onboarding && <OnboardingChecklist data={onboarding} />}
 
@@ -363,106 +534,256 @@ function DashboardIndex() {
                     <Kpi
                         hero
                         label="CA achats clients"
+                        icon={<DollarLineIcon />}
+                        tone="blue"
+                        href="/purchases"
                         value={formatCompact(kpis.revenue.current)}
                         unit="FCFA"
-                        delta={<Delta value={percentChange(kpis.revenue.current, kpis.revenue.previous)} />}
+                        delta={
+                            <Delta
+                                value={percentChange(
+                                    kpis.revenue.current,
+                                    kpis.revenue.previous,
+                                )}
+                            />
+                        }
                     />
                     <Kpi
                         label="Contacts"
+                        icon={<UserIcon />}
+                        tone="cyan"
+                        href="/customers"
                         value={formatNumber(kpis.contacts.current)}
-                        delta={<Delta value={percentChange(kpis.contacts.current, kpis.contacts.previous)} />}
-                        foot={`+${plural(kpis.contacts.new, 'nouveau', 'nouveaux')}`}
+                        delta={
+                            <Delta
+                                value={percentChange(
+                                    kpis.contacts.current,
+                                    kpis.contacts.previous,
+                                )}
+                            />
+                        }
+                        foot={`+${plural(kpis.contacts.new, "nouveau", "nouveaux")}`}
                     />
                     <Kpi
                         label="Taux d'opt-in"
-                        value={optInRate.toLocaleString('fr-FR', { maximumFractionDigits: 1 })}
+                        icon={<CheckCircleIcon />}
+                        tone="emerald"
+                        value={optInRate.toLocaleString("fr-FR", {
+                            maximumFractionDigits: 1,
+                        })}
                         unit="%"
-                        delta={<Delta value={null} missing="Pas d'historique du consentement : variation indisponible" />}
+                        delta={
+                            <Delta
+                                value={null}
+                                missing="Pas d'historique du consentement : variation indisponible"
+                            />
+                        }
                         foot={`${formatPercent(optOutRate)} opt-out`}
                     />
                     {apiEnabled && (
-                    <Kpi
-                        label="Messages envoyés"
-                        value={formatNumber(kpis.messages.current)}
-                        delta={<Delta value={percentChange(kpis.messages.current, kpis.messages.previous)} />}
-                        foot={plural(kpis.messages.campaigns, 'campagne')}
-                    />
+                        <Kpi
+                            label="Messages envoyés"
+                            icon={<PaperPlaneIcon />}
+                            tone="indigo"
+                            href="/campaigns"
+                            value={formatNumber(kpis.messages.current)}
+                            delta={
+                                <Delta
+                                    value={percentChange(
+                                        kpis.messages.current,
+                                        kpis.messages.previous,
+                                    )}
+                                />
+                            }
+                            foot={plural(kpis.messages.campaigns, "campagne")}
+                        />
                     )}
                     {apiEnabled && (
-                    <Kpi
-                        label="Taux d'échec d'envoi"
-                        value={failureRate.toLocaleString('fr-FR', { maximumFractionDigits: 1 })}
-                        unit="%"
-                        delta={<Delta value={previousFailureRate === null ? null : failureRate - previousFailureRate} unit="pt" inverted />}
-                        foot={`${formatNumber(kpis.failure.failed)} / ${formatNumber(kpis.failure.attempted)} msg de campagne`}
-                    />
+                        <Kpi
+                            label="Taux d'échec d'envoi"
+                            icon={<AlertIcon />}
+                            tone="rose"
+                            value={failureRate.toLocaleString("fr-FR", {
+                                maximumFractionDigits: 1,
+                            })}
+                            unit="%"
+                            delta={
+                                <Delta
+                                    value={
+                                        previousFailureRate === null
+                                            ? null
+                                            : failureRate - previousFailureRate
+                                    }
+                                    unit="pt"
+                                    inverted
+                                />
+                            }
+                            foot={`${formatNumber(kpis.failure.failed)} / ${formatNumber(kpis.failure.attempted)} msg de campagne`}
+                        />
                     )}
                     <Kpi
                         label="Clients acheteurs"
+                        icon={<GroupIcon />}
+                        tone="amber"
+                        href="/customers"
                         value={formatNumber(kpis.buyers.current)}
-                        delta={<Delta value={percentChange(kpis.buyers.current, kpis.buyers.previous)} />}
+                        delta={
+                            <Delta
+                                value={percentChange(
+                                    kpis.buyers.current,
+                                    kpis.buyers.previous,
+                                )}
+                            />
+                        }
                         foot={`panier moy. ${formatNumber(averageBasket)} F`}
                     />
                 </div>
 
+                <div className="c12">
+                    <QuickAccess
+                        links={[
+                            {
+                                href: "/actions",
+                                label: "À faire",
+                                icon: <TaskIcon />,
+                            },
+                            {
+                                href: "/customers",
+                                label: "Clients",
+                                icon: <UserIcon />,
+                            },
+                            {
+                                href: "/purchases",
+                                label: "Ventes",
+                                icon: <DollarLineIcon />,
+                            },
+                            ...(apiEnabled
+                                ? [
+                                      {
+                                          href: "/campaigns",
+                                          label: "Campagnes",
+                                          icon: <PaperPlaneIcon />,
+                                      },
+                                  ]
+                                : []),
+                            {
+                                href: "/analytics",
+                                label: "Analyses",
+                                icon: <PieChartIcon />,
+                            },
+                        ]}
+                    />
+                </div>
+
                 {apiEnabled && (
-                <>
-                <article className="mdash-panel c8">
-                    <div className="mdash-ph">
-                        <div>
-                            <h2>Messages WhatsApp envoyés</h2>
-                            <div className="mdash-sub">Campagnes et messages de bienvenue, {weekly ? 'par semaine' : 'par jour'}</div>
-                        </div>
-                        <div className="mdash-keys">
-                            <span>
-                                <i style={{ background: 'var(--data-2)' }} />
-                                Envoyés
-                            </span>
-                            <span>
-                                <i style={{ background: 'var(--bad)' }} />
-                                Échecs
-                            </span>
-                        </div>
-                    </div>
-                    <MessagesChart series={messagesSeries} />
-                </article>
-
-                <article className="mdash-panel c4">
-                    <div className="mdash-ph">
-                        <h2>Consentement WhatsApp</h2>
-                        <span className="mdash-sub">{plural(kpis.opt_in.total, 'contact')}</span>
-                    </div>
-                    <div className="mdash-consent">
-                        <ConsentDonut optIn={kpis.opt_in.opt_in} unknown={kpis.opt_in.unknown} optOut={kpis.opt_in.opt_out} />
-                        <div className="mdash-legend">
-                            {(
-                                [
-                                    ['Opt-in', kpis.opt_in.opt_in, 'var(--ok)', 'Joignables par campagne'],
-                                    ['Inconnu', kpis.opt_in.unknown, 'var(--faint)', 'Exclus des campagnes marketing'],
-                                    ['Opt-out', kpis.opt_in.opt_out, 'var(--bad)', 'Ne plus contacter'],
-                                ] as const
-                            ).map(([name, value, color, hint]) => (
-                                <div key={name} className="mdash-lg">
-                                    <i style={{ background: color }} />
-                                    <span>{name}</span>
-                                    <b className="num">
-                                        {formatNumber(value)} · {kpis.opt_in.total ? Math.round((value / kpis.opt_in.total) * 100) : 0} %
-                                    </b>
-                                    <span className="s">{hint}</span>
+                    <>
+                        <article className="mdash-panel c8">
+                            <div className="mdash-ph">
+                                <div>
+                                    <h2>Messages WhatsApp envoyés</h2>
+                                    <div className="mdash-sub">
+                                        Campagnes et messages de bienvenue,{" "}
+                                        {weekly ? "par semaine" : "par jour"}
+                                    </div>
                                 </div>
-                            ))}
-                        </div>
-                    </div>
-                    {kpis.opt_in.unknown > 0 && (
-                        <div className="mdash-note">
-                            <b>{plural(kpis.opt_in.unknown, 'contact')}</b> au statut inconnu
-                            {pendingWelcome > 0 && <> (dont {formatNumber(pendingWelcome)} nouveaux sur la période jamais accueillis)</>} : envoyez-leur le
-                            message de bienvenue pour obtenir leur opt-in.
-                        </div>
-                    )}
-                </article>
+                                <div className="mdash-keys">
+                                    <span>
+                                        <i
+                                            style={{
+                                                background: "var(--data-2)",
+                                            }}
+                                        />
+                                        Envoyés
+                                    </span>
+                                    <span>
+                                        <i
+                                            style={{ background: "var(--bad)" }}
+                                        />
+                                        Échecs
+                                    </span>
+                                </div>
+                            </div>
+                            <MessagesChart series={messagesSeries} />
+                        </article>
 
-                </>
+                        <article className="mdash-panel c4">
+                            <div className="mdash-ph">
+                                <h2>Consentement WhatsApp</h2>
+                                <span className="mdash-sub">
+                                    {plural(kpis.opt_in.total, "contact")}
+                                </span>
+                            </div>
+                            <div className="mdash-consent">
+                                <ConsentDonut
+                                    optIn={kpis.opt_in.opt_in}
+                                    unknown={kpis.opt_in.unknown}
+                                    optOut={kpis.opt_in.opt_out}
+                                />
+                                <div className="mdash-legend">
+                                    {(
+                                        [
+                                            [
+                                                "Opt-in",
+                                                kpis.opt_in.opt_in,
+                                                "var(--ok)",
+                                                "Joignables par campagne",
+                                            ],
+                                            [
+                                                "Inconnu",
+                                                kpis.opt_in.unknown,
+                                                "var(--faint)",
+                                                "Exclus des campagnes marketing",
+                                            ],
+                                            [
+                                                "Opt-out",
+                                                kpis.opt_in.opt_out,
+                                                "var(--bad)",
+                                                "Ne plus contacter",
+                                            ],
+                                        ] as const
+                                    ).map(([name, value, color, hint]) => (
+                                        <div key={name} className="mdash-lg">
+                                            <i style={{ background: color }} />
+                                            <span>{name}</span>
+                                            <b className="num">
+                                                {formatNumber(value)} ·{" "}
+                                                {kpis.opt_in.total
+                                                    ? Math.round(
+                                                          (value /
+                                                              kpis.opt_in
+                                                                  .total) *
+                                                              100,
+                                                      )
+                                                    : 0}{" "}
+                                                %
+                                            </b>
+                                            <span className="s">{hint}</span>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                            {kpis.opt_in.unknown > 0 && (
+                                <div className="mdash-note">
+                                    <b>
+                                        {plural(kpis.opt_in.unknown, "contact")}
+                                    </b>{" "}
+                                    au statut inconnu
+                                    {pendingWelcome > 0 && (
+                                        <>
+                                            {" "}
+                                            (dont {formatNumber(
+                                                pendingWelcome,
+                                            )}{" "}
+                                            nouveaux sur la période jamais
+                                            accueillis)
+                                        </>
+                                    )}{" "}
+                                    : envoyez-leur le message de bienvenue pour
+                                    obtenir leur opt-in.
+                                </div>
+                            )}
+                        </article>
+                    </>
                 )}
 
                 <article className="mdash-panel c7" id="bienvenue">
@@ -470,8 +791,14 @@ function DashboardIndex() {
                         <div>
                             <h2>Nouveaux clients</h2>
                             <div className="mdash-sub">
-                                {plural(kpis.contacts.new, 'nouveau contact', 'nouveaux contacts')} sur la période
-                                {newClients.length > 0 && ` · les ${newClients.length} plus récents`}
+                                {plural(
+                                    kpis.contacts.new,
+                                    "nouveau contact",
+                                    "nouveaux contacts",
+                                )}{" "}
+                                sur la période
+                                {newClients.length > 0 &&
+                                    ` · les ${newClients.length} plus récents`}
                             </div>
                         </div>
                         <Link href="/customers" className="mdash-link">
@@ -479,25 +806,31 @@ function DashboardIndex() {
                         </Link>
                     </div>
                     {newClients.length === 0 ? (
-                        <div className="mdash-empty">Aucun nouveau contact sur la période.</div>
+                        <div className="mdash-empty">
+                            Aucun nouveau contact sur la période.
+                        </div>
                     ) : (
                         <div className="mdash-tbl">
                             <table>
                                 <thead>
                                     <tr>
                                         {apiEnabled && (
-                                        <th>
-                                            <input
-                                                type="checkbox"
-                                                aria-label="Tout sélectionner"
-                                                checked={allSelected}
-                                                disabled={selectable.length === 0}
-                                                ref={(el) => {
-                                                    if (el) el.indeterminate = someSelected;
-                                                }}
-                                                onChange={toggleAllClients}
-                                            />
-                                        </th>
+                                            <th>
+                                                <input
+                                                    type="checkbox"
+                                                    aria-label="Tout sélectionner"
+                                                    checked={allSelected}
+                                                    disabled={
+                                                        selectable.length === 0
+                                                    }
+                                                    ref={(el) => {
+                                                        if (el)
+                                                            el.indeterminate =
+                                                                someSelected;
+                                                    }}
+                                                    onChange={toggleAllClients}
+                                                />
+                                            </th>
                                         )}
                                         <th>Client</th>
                                         <th>Ajouté</th>
@@ -506,26 +839,48 @@ function DashboardIndex() {
                                 </thead>
                                 <tbody>
                                     {newClients.map((c) => {
-                                        const canSelect = c.consent_status === 'unknown' && !c.welcomed;
-                                        const [consentLabel, consentClass] = CONSENT[c.consent_status];
+                                        const canSelect =
+                                            c.consent_status === "unknown" &&
+                                            !c.welcomed;
+                                        const [consentLabel, consentClass] =
+                                            CONSENT[c.consent_status];
                                         return (
                                             <tr key={c.id}>
                                                 {apiEnabled && (
-                                                <td>
-                                                    <input
-                                                        type="checkbox"
-                                                        aria-label={`Sélectionner ${c.name}`}
-                                                        checked={canSelect && selectedIds.has(c.id)}
-                                                        disabled={!canSelect}
-                                                        onChange={() => toggleClient(c.id)}
-                                                    />
-                                                </td>
+                                                    <td>
+                                                        <input
+                                                            type="checkbox"
+                                                            aria-label={`Sélectionner ${c.name}`}
+                                                            checked={
+                                                                canSelect &&
+                                                                selectedIds.has(
+                                                                    c.id,
+                                                                )
+                                                            }
+                                                            disabled={
+                                                                !canSelect
+                                                            }
+                                                            onChange={() =>
+                                                                toggleClient(
+                                                                    c.id,
+                                                                )
+                                                            }
+                                                        />
+                                                    </td>
                                                 )}
                                                 <td className="cell-main wrap">
                                                     <b>
-                                                        <Link href={customerUrl(c)}>{c.name}</Link>
+                                                        <Link
+                                                            href={customerUrl(
+                                                                c,
+                                                            )}
+                                                        >
+                                                            {c.name}
+                                                        </Link>
                                                     </b>
-                                                    <span className="mono">{c.phone_e164}</span>
+                                                    <span className="mono">
+                                                        {c.phone_e164}
+                                                    </span>
                                                 </td>
                                                 <td>
                                                     <span className="mdash-src">
@@ -536,15 +891,29 @@ function DashboardIndex() {
                                                 </td>
                                                 <td>
                                                     <span className="mdash-stat">
-                                                        <span className={`mdash-pill ${consentClass}`}>{consentLabel}</span>
+                                                        <span
+                                                            className={`mdash-pill ${consentClass}`}
+                                                        >
+                                                            {consentLabel}
+                                                        </span>
                                                         {c.welcomed ? (
-                                                            <span className="mdash-pill ok">Bienvenue ✓</span>
-                                                        ) : c.consent_status === 'opt_out' ? (
-                                                            <span className="mdash-src">Exclu</span>
-                                                        ) : c.consent_status === 'opt_in' ? (
-                                                            <span className="mdash-src">Déjà opt-in</span>
+                                                            <span className="mdash-pill ok">
+                                                                Bienvenue ✓
+                                                            </span>
+                                                        ) : c.consent_status ===
+                                                          "opt_out" ? (
+                                                            <span className="mdash-src">
+                                                                Exclu
+                                                            </span>
+                                                        ) : c.consent_status ===
+                                                          "opt_in" ? (
+                                                            <span className="mdash-src">
+                                                                Déjà opt-in
+                                                            </span>
                                                         ) : (
-                                                            <span className="mdash-src">À accueillir</span>
+                                                            <span className="mdash-src">
+                                                                À accueillir
+                                                            </span>
                                                         )}
                                                     </span>
                                                 </td>
@@ -556,39 +925,77 @@ function DashboardIndex() {
                         </div>
                     )}
                     {apiEnabled && (
-                    <div className="mdash-bar">
-                        <span className="mdash-sub">
-                            {selectedIds.size ? `${plural(selectedIds.size, 'client')} sélectionné${selectedIds.size > 1 ? 's' : ''}` : 'Aucun client sélectionné'}
-                        </span>
-                        <span style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                            {canSendAllPending && (
-                                <button type="button" className="mdash-btn ghost" onClick={() => setConfirming('all')}>
-                                    Tous en attente ({formatNumber(pendingWelcome)})
+                        <div className="mdash-bar">
+                            <span className="mdash-sub">
+                                {selectedIds.size
+                                    ? `${plural(selectedIds.size, "client")} sélectionné${selectedIds.size > 1 ? "s" : ""}`
+                                    : "Aucun client sélectionné"}
+                            </span>
+                            <span
+                                style={{
+                                    display: "flex",
+                                    gap: 8,
+                                    flexWrap: "wrap",
+                                }}
+                            >
+                                {canSendAllPending && (
+                                    <button
+                                        type="button"
+                                        className="mdash-btn ghost"
+                                        onClick={() => setConfirming("all")}
+                                    >
+                                        Tous en attente (
+                                        {formatNumber(pendingWelcome)})
+                                    </button>
+                                )}
+                                <button
+                                    type="button"
+                                    className="mdash-btn primary"
+                                    disabled={selectedIds.size === 0}
+                                    onClick={() => setConfirming("selection")}
+                                >
+                                    <svg
+                                        viewBox="0 0 24 24"
+                                        fill="none"
+                                        stroke="currentColor"
+                                        strokeWidth="2.2"
+                                        strokeLinecap="round"
+                                        strokeLinejoin="round"
+                                        aria-hidden="true"
+                                    >
+                                        <path d="M22 2L11 13" />
+                                        <path d="M22 2l-7 20-4-9-9-4z" />
+                                    </svg>
+                                    Campagne de bienvenue
                                 </button>
-                            )}
-                            <button type="button" className="mdash-btn primary" disabled={selectedIds.size === 0} onClick={() => setConfirming('selection')}>
-                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                                    <path d="M22 2L11 13" />
-                                    <path d="M22 2l-7 20-4-9-9-4z" />
-                                </svg>
-                                Campagne de bienvenue
-                            </button>
-                        </span>
-                    </div>
+                            </span>
+                        </div>
                     )}
                     {apiEnabled && confirming && (
-                        <div className="mdash-confirm" role="alertdialog" aria-label="Confirmer l'envoi du message de bienvenue">
+                        <div
+                            className="mdash-confirm"
+                            role="alertdialog"
+                            aria-label="Confirmer l'envoi du message de bienvenue"
+                        >
                             {welcomeTemplates.length === 0 ? (
                                 <>
                                     <span>
-                                        Aucun modèle actif de catégorie « utility » :{' '}
-                                        <Link href="/templates" className="mdash-link">
+                                        Aucun modèle actif de catégorie «
+                                        utility » :{" "}
+                                        <Link
+                                            href="/templates"
+                                            className="mdash-link"
+                                        >
                                             créez-en un
-                                        </Link>{' '}
+                                        </Link>{" "}
                                         avant d'envoyer le message de bienvenue.
                                     </span>
                                     <div className="acts">
-                                        <button type="button" className="mdash-btn ghost" onClick={() => setConfirming(null)}>
+                                        <button
+                                            type="button"
+                                            className="mdash-btn ghost"
+                                            onClick={() => setConfirming(null)}
+                                        >
                                             Fermer
                                         </button>
                                     </div>
@@ -596,22 +1003,53 @@ function DashboardIndex() {
                             ) : (
                                 <>
                                     <span>
-                                        Envoyer le message de bienvenue à <b>{plural(confirmCount, 'client')}</b>
-                                        {confirming === 'all' && ` ajoutés du ${formatDate(filters.from)} au ${formatDate(filters.to)}`} depuis le numéro WhatsApp de leur
-                                        boutique. Seuls les contacts au consentement inconnu et jamais accueillis le recevront ; les opt-out sont exclus.
+                                        Envoyer le message de bienvenue à{" "}
+                                        <b>{plural(confirmCount, "client")}</b>
+                                        {confirming === "all" &&
+                                            ` ajoutés du ${formatDate(filters.from)} au ${formatDate(filters.to)}`}{" "}
+                                        depuis le numéro WhatsApp de leur
+                                        boutique. Seuls les contacts au
+                                        consentement inconnu et jamais
+                                        accueillis le recevront ; les opt-out
+                                        sont exclus.
                                     </span>
                                     <div className="acts">
-                                        <select aria-label="Modèle de message" value={welcomeTemplate} onChange={(e) => setWelcomeTemplate(e.target.value)}>
+                                        <select
+                                            aria-label="Modèle de message"
+                                            value={welcomeTemplate}
+                                            onChange={(e) =>
+                                                setWelcomeTemplate(
+                                                    e.target.value,
+                                                )
+                                            }
+                                        >
                                             {welcomeTemplates.map((t) => (
-                                                <option key={t.id} value={t.name}>
+                                                <option
+                                                    key={t.id}
+                                                    value={t.name}
+                                                >
                                                     {t.name} ({t.language})
                                                 </option>
                                             ))}
                                         </select>
-                                        <button type="button" className="mdash-btn primary" disabled={sending || !welcomeTemplate} onClick={sendWelcome}>
-                                            {sending ? 'Envoi…' : 'Envoyer maintenant'}
+                                        <button
+                                            type="button"
+                                            className="mdash-btn primary"
+                                            disabled={
+                                                sending || !welcomeTemplate
+                                            }
+                                            onClick={sendWelcome}
+                                        >
+                                            {sending
+                                                ? "Envoi…"
+                                                : "Envoyer maintenant"}
                                         </button>
-                                        <button type="button" className="mdash-btn ghost" disabled={sending} onClick={() => setConfirming(null)}>
+                                        <button
+                                            type="button"
+                                            className="mdash-btn ghost"
+                                            disabled={sending}
+                                            onClick={() => setConfirming(null)}
+                                        >
                                             Annuler
                                         </button>
                                     </div>
@@ -626,36 +1064,67 @@ function DashboardIndex() {
                         <div>
                             <h2>Contacts par marque</h2>
                             <div className="mdash-sub">
-                                {filters.brand_locked || filters.brand_hidden ? 'Répartition du consentement' : 'Cliquer une marque pour filtrer'}
+                                {filters.brand_locked || filters.brand_hidden
+                                    ? "Répartition du consentement"
+                                    : "Cliquer une marque pour filtrer"}
                             </div>
                         </div>
                     </div>
                     {brandContacts.length === 0 ? (
-                        <div className="mdash-empty">Aucune marque dans votre périmètre.</div>
+                        <div className="mdash-empty">
+                            Aucune marque dans votre périmètre.
+                        </div>
                     ) : (
                         <div className="mdash-brands">
                             {brandContacts.map((b) => {
-                                const pct = (v: number) => (b.total ? (v / b.total) * 100 : 0);
+                                const pct = (v: number) =>
+                                    b.total ? (v / b.total) * 100 : 0;
                                 return (
                                     <button
                                         key={b.id}
                                         type="button"
-                                        className={`mdash-br ${filters.brand !== null && filters.brand !== b.id ? 'dim' : ''}`}
+                                        className={`mdash-br ${filters.brand !== null && filters.brand !== b.id ? "dim" : ""}`}
                                         aria-pressed={filters.brand === b.id}
-                                        disabled={filters.brand_locked || filters.brand_hidden}
-                                        onClick={() => selectBrand(filters.brand === b.id ? null : b.id)}
+                                        disabled={
+                                            filters.brand_locked ||
+                                            filters.brand_hidden
+                                        }
+                                        onClick={() =>
+                                            selectBrand(
+                                                filters.brand === b.id
+                                                    ? null
+                                                    : b.id,
+                                            )
+                                        }
                                     >
                                         <span className="mdash-br-top">
                                             <b>{b.name}</b>
-                                            <span className="num">{formatNumber(b.total)}</span>
+                                            <span className="num">
+                                                {formatNumber(b.total)}
+                                            </span>
                                         </span>
                                         <span
                                             className="mdash-stack"
                                             title={`Opt-in ${formatNumber(b.opt_in)} · Inconnu ${formatNumber(b.unknown)} · Opt-out ${formatNumber(b.opt_out)}`}
                                         >
-                                            <i style={{ width: `${pct(b.opt_in)}%`, background: 'var(--ok)' }} />
-                                            <i style={{ width: `${pct(b.unknown)}%`, background: 'var(--faint)' }} />
-                                            <i style={{ width: `${pct(b.opt_out)}%`, background: 'var(--bad)' }} />
+                                            <i
+                                                style={{
+                                                    width: `${pct(b.opt_in)}%`,
+                                                    background: "var(--ok)",
+                                                }}
+                                            />
+                                            <i
+                                                style={{
+                                                    width: `${pct(b.unknown)}%`,
+                                                    background: "var(--faint)",
+                                                }}
+                                            />
+                                            <i
+                                                style={{
+                                                    width: `${pct(b.opt_out)}%`,
+                                                    background: "var(--bad)",
+                                                }}
+                                            />
                                         </span>
                                     </button>
                                 );
@@ -664,15 +1133,15 @@ function DashboardIndex() {
                     )}
                     <div className="mdash-keys" style={{ marginTop: 14 }}>
                         <span>
-                            <i style={{ background: 'var(--ok)' }} />
+                            <i style={{ background: "var(--ok)" }} />
                             Opt-in
                         </span>
                         <span>
-                            <i style={{ background: 'var(--faint)' }} />
+                            <i style={{ background: "var(--faint)" }} />
                             Inconnu
                         </span>
                         <span>
-                            <i style={{ background: 'var(--bad)' }} />
+                            <i style={{ background: "var(--bad)" }} />
                             Opt-out
                         </span>
                     </div>
@@ -683,7 +1152,10 @@ function DashboardIndex() {
                         <div>
                             <h2>Parcours client</h2>
                             <div className="mdash-sub">
-                                {formatNumber(lifecycle.total)} fiches clients par étape · mouvements du {formatDate(filters.from)} au {formatDate(filters.to)}
+                                {formatNumber(lifecycle.total)} fiches clients
+                                par étape · mouvements du{" "}
+                                {formatDate(filters.from)} au{" "}
+                                {formatDate(filters.to)}
                             </div>
                         </div>
                         <Link href="/customers" className="mdash-link">
@@ -694,23 +1166,55 @@ function DashboardIndex() {
                         {lifecycle.stages
                             .filter((s) => s.count > 0)
                             .map((s) => (
-                                <i key={s.key} style={{ width: `${(s.count / Math.max(1, lifecycle.total)) * 100}%`, background: STAGE_COLORS[stageInfo(s.key).pill] }} />
+                                <i
+                                    key={s.key}
+                                    style={{
+                                        width: `${(s.count / Math.max(1, lifecycle.total)) * 100}%`,
+                                        background:
+                                            STAGE_COLORS[stageInfo(s.key).pill],
+                                    }}
+                                />
                             ))}
                     </div>
                     <div className="mdash-journey">
                         {lifecycle.stages.map((s) => (
-                            <Link key={s.key} href={`/customers?stage=${s.key}`} className="mdash-journey-step" title={stageInfo(s.key).hint}>
+                            <Link
+                                key={s.key}
+                                href={`/customers?stage=${s.key}`}
+                                className="mdash-journey-step"
+                                title={stageInfo(s.key).hint}
+                            >
                                 <span>
-                                    <i style={{ background: STAGE_COLORS[stageInfo(s.key).pill] }} />
+                                    <i
+                                        style={{
+                                            background:
+                                                STAGE_COLORS[
+                                                    stageInfo(s.key).pill
+                                                ],
+                                        }}
+                                    />
                                     {s.label}
                                 </span>
                                 <b className="num">{formatNumber(s.count)}</b>
-                                <small>{lifecycle.total ? Math.round((s.count / lifecycle.total) * 100) : 0} %</small>
+                                <small>
+                                    {lifecycle.total
+                                        ? Math.round(
+                                              (s.count / lifecycle.total) * 100,
+                                          )
+                                        : 0}{" "}
+                                    %
+                                </small>
                             </Link>
                         ))}
-                        <Link href="/customers?vip=1" className="mdash-journey-step" title={`${VIP_PILL.hint} — statut propre à chaque boutique`}>
+                        <Link
+                            href="/customers?vip=1"
+                            className="mdash-journey-step"
+                            title={`${VIP_PILL.hint} — statut propre à chaque boutique`}
+                        >
                             <span>
-                                <i style={{ background: STAGE_COLORS.accent }} />
+                                <i
+                                    style={{ background: STAGE_COLORS.accent }}
+                                />
                                 VIP (par boutique)
                             </span>
                             <b className="num">{formatNumber(lifecycle.vip)}</b>
@@ -719,19 +1223,34 @@ function DashboardIndex() {
                     </div>
                     <div className="mdash-journey-moves">
                         <span>
-                            <b className="num">+{formatNumber(lifecycle.moves.new_buyers)}</b> nouveaux acheteurs
+                            <b className="num">
+                                +{formatNumber(lifecycle.moves.new_buyers)}
+                            </b>{" "}
+                            nouveaux acheteurs
                         </span>
                         <span>
-                            <b className="num">+{formatNumber(lifecycle.moves.new_prospects)}</b> nouveaux prospects
+                            <b className="num">
+                                +{formatNumber(lifecycle.moves.new_prospects)}
+                            </b>{" "}
+                            nouveaux prospects
                         </span>
                         <span>
-                            <b className="num">{formatNumber(lifecycle.moves.reactivated)}</b> réactivés
+                            <b className="num">
+                                {formatNumber(lifecycle.moves.reactivated)}
+                            </b>{" "}
+                            réactivés
                         </span>
                         <span className="warn">
-                            <b className="num">{formatNumber(lifecycle.moves.at_risk)}</b> passés « à risque »
+                            <b className="num">
+                                {formatNumber(lifecycle.moves.at_risk)}
+                            </b>{" "}
+                            passés « à risque »
                         </span>
                         <span className="bad">
-                            <b className="num">{formatNumber(lifecycle.moves.churned)}</b> devenus inactifs
+                            <b className="num">
+                                {formatNumber(lifecycle.moves.churned)}
+                            </b>{" "}
+                            devenus inactifs
                         </span>
                     </div>
                 </article>
@@ -740,11 +1259,14 @@ function DashboardIndex() {
                     <div className="mdash-ph">
                         <div>
                             <h2>Évolution des ventes (CA)</h2>
-                            <div className="mdash-sub">Chiffre d'affaires des achats clients, {weekly ? 'par semaine' : 'par jour'}</div>
+                            <div className="mdash-sub">
+                                Chiffre d'affaires des achats clients,{" "}
+                                {weekly ? "par semaine" : "par jour"}
+                            </div>
                         </div>
                         <div className="mdash-keys">
                             <span>
-                                <i style={{ background: 'var(--data)' }} />
+                                <i style={{ background: "var(--data)" }} />
                                 Période
                             </span>
                             <span>
@@ -759,11 +1281,18 @@ function DashboardIndex() {
                             <small>FCFA</small>
                         </span>
                         <span className="mdash-ca-meta">
-                            <Delta value={percentChange(salesTotal, salesPrevious)} />
-                            <span>vs {formatCompact(salesPrevious)} F la période précédente</span>
+                            <Delta
+                                value={percentChange(salesTotal, salesPrevious)}
+                            />
+                            <span>
+                                vs {formatCompact(salesPrevious)} F la période
+                                précédente
+                            </span>
                             {bestBucket && (
                                 <span>
-                                    · meilleur{weekly ? 'e semaine' : ' jour'} : {bucketLabel(bestBucket)} ({formatCompact(bestBucket.revenue)} F)
+                                    · meilleur{weekly ? "e semaine" : " jour"} :{" "}
+                                    {bucketLabel(bestBucket)} (
+                                    {formatCompact(bestBucket.revenue)} F)
                                 </span>
                             )}
                         </span>
@@ -771,15 +1300,18 @@ function DashboardIndex() {
                     <SalesChart series={salesSeries} height={200} />
                 </article>
 
-                <article className={`mdash-panel ${apiEnabled ? 'c7' : 'c12'}`}>
+                <article className={`mdash-panel ${apiEnabled ? "c7" : "c12"}`}>
                     <div className="mdash-ph">
                         <h2>Performance par boutique</h2>
                         <span className="mdash-sub">
-                            {plural(stores.length, 'boutique')} · messages et CA sur la période
+                            {plural(stores.length, "boutique")} · messages et CA
+                            sur la période
                         </span>
                     </div>
                     {stores.length === 0 ? (
-                        <div className="mdash-empty">Aucune boutique dans ce périmètre.</div>
+                        <div className="mdash-empty">
+                            Aucune boutique dans ce périmètre.
+                        </div>
                     ) : (
                         <div className="mdash-tbl">
                             <table>
@@ -789,36 +1321,73 @@ function DashboardIndex() {
                                         <th>WhatsApp</th>
                                         <th className="r">Contacts</th>
                                         <th>Opt-in</th>
-                                        <th className="r" title="Clients VIP de la boutique (top acheteurs de la boutique)">VIP</th>
+                                        <th
+                                            className="r"
+                                            title="Clients VIP de la boutique (top acheteurs de la boutique)"
+                                        >
+                                            VIP
+                                        </th>
                                         <th className="r">Messages</th>
                                         <th className="r">CA achats</th>
                                     </tr>
                                 </thead>
                                 <tbody>
                                     {stores.map((s) => {
-                                        const rate = s.contacts ? (s.opt_in / s.contacts) * 100 : 0;
+                                        const rate = s.contacts
+                                            ? (s.opt_in / s.contacts) * 100
+                                            : 0;
                                         return (
                                             <tr key={s.id}>
                                                 <td className="cell-main wrap">
                                                     <b>{s.name}</b>
-                                                    {s.brand_name && <span>{s.brand_name}</span>}
+                                                    {s.brand_name && (
+                                                        <span>
+                                                            {s.brand_name}
+                                                        </span>
+                                                    )}
                                                 </td>
                                                 <td>
                                                     <span className="mdash-stat">
-                                                        <span className={`mdash-pill ${s.connected ? 'ok' : 'bad'}`}>{s.connected ? 'Connectée' : 'Non connectée'}</span>
-                                                        {s.connected && <span className="mdash-src">{s.shared_account ? 'Compte partagé' : 'Numéro propre'}</span>}
+                                                        <span
+                                                            className={`mdash-pill ${s.connected ? "ok" : "bad"}`}
+                                                        >
+                                                            {s.connected
+                                                                ? "Connectée"
+                                                                : "Non connectée"}
+                                                        </span>
+                                                        {s.connected && (
+                                                            <span className="mdash-src">
+                                                                {s.shared_account
+                                                                    ? "Compte partagé"
+                                                                    : "Numéro propre"}
+                                                            </span>
+                                                        )}
                                                     </span>
                                                 </td>
-                                                <td className="r mono">{formatNumber(s.contacts)}</td>
+                                                <td className="r mono">
+                                                    {formatNumber(s.contacts)}
+                                                </td>
                                                 <td>
                                                     <span className="mdash-minibar">
-                                                        <i style={{ width: `${rate}%` }} />
+                                                        <i
+                                                            style={{
+                                                                width: `${rate}%`,
+                                                            }}
+                                                        />
                                                     </span>
-                                                    <span className="mono">{Math.round(rate)} %</span>
+                                                    <span className="mono">
+                                                        {Math.round(rate)} %
+                                                    </span>
                                                 </td>
-                                                <td className="r mono">{formatNumber(s.vip)}</td>
-                                                <td className="r mono">{formatNumber(s.messages)}</td>
-                                                <td className="r mono">{formatCompact(s.revenue)} F</td>
+                                                <td className="r mono">
+                                                    {formatNumber(s.vip)}
+                                                </td>
+                                                <td className="r mono">
+                                                    {formatNumber(s.messages)}
+                                                </td>
+                                                <td className="r mono">
+                                                    {formatCompact(s.revenue)} F
+                                                </td>
                                             </tr>
                                         );
                                     })}
@@ -834,105 +1403,200 @@ function DashboardIndex() {
                 </article>
 
                 {apiEnabled && (
-                <article className="mdash-panel c5">
-                    <div className="mdash-ph">
-                        <h2>Dernières campagnes</h2>
-                        <Link href="/campaigns" className="mdash-link">
-                            Toutes les campagnes
-                        </Link>
-                    </div>
-                    {recentCampaigns.length === 0 ? (
-                        <div className="mdash-empty">Aucune campagne sur la période.</div>
-                    ) : (
-                        <div className="mdash-tbl">
-                            <table>
-                                <thead>
-                                    <tr>
-                                        <th>Campagne</th>
-                                        <th>Statut</th>
-                                        <th>Envoi</th>
-                                        <th className="r">Échecs</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    {recentCampaigns.map((c) => {
-                                        const [statusLabel, statusClass] = CAMPAIGN_STATUS[c.status] ?? [c.status, 'idle'];
-                                        const done = c.sent_count + c.failed_count;
-                                        const progress = c.total ? (done / c.total) * 100 : 0;
-                                        return (
-                                            <tr key={c.id}>
-                                                <td className="cell-main wrap">
-                                                    <b>{c.name}</b>
-                                                    <span>
-                                                        {c.store_names} · {c.created_at}
-                                                    </span>
-                                                </td>
-                                                <td>
-                                                    <span className={`mdash-pill ${statusClass}`}>{statusLabel}</span>
-                                                </td>
-                                                <td>
-                                                    <span className="mdash-minibar">
-                                                        <i style={{ width: `${progress}%` }} />
-                                                    </span>
-                                                    <span className="mono">
-                                                        {formatNumber(done)}/{formatNumber(c.total)}
-                                                    </span>
-                                                </td>
-                                                <td className="r mono" style={c.failed_count ? { color: 'var(--bad)' } : undefined}>
-                                                    {formatNumber(c.failed_count)}
-                                                </td>
-                                            </tr>
-                                        );
-                                    })}
-                                </tbody>
-                            </table>
+                    <article className="mdash-panel c5">
+                        <div className="mdash-ph">
+                            <h2>Dernières campagnes</h2>
+                            <Link href="/campaigns" className="mdash-link">
+                                Toutes les campagnes
+                            </Link>
                         </div>
-                    )}
-                </article>
+                        {recentCampaigns.length === 0 ? (
+                            <div className="mdash-empty">
+                                Aucune campagne sur la période.
+                            </div>
+                        ) : (
+                            <div className="mdash-tbl">
+                                <table>
+                                    <thead>
+                                        <tr>
+                                            <th>Campagne</th>
+                                            <th>Statut</th>
+                                            <th>Envoi</th>
+                                            <th className="r">Échecs</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {recentCampaigns.map((c) => {
+                                            const [statusLabel, statusClass] =
+                                                CAMPAIGN_STATUS[c.status] ?? [
+                                                    c.status,
+                                                    "idle",
+                                                ];
+                                            const done =
+                                                c.sent_count + c.failed_count;
+                                            const progress = c.total
+                                                ? (done / c.total) * 100
+                                                : 0;
+                                            return (
+                                                <tr key={c.id}>
+                                                    <td className="cell-main wrap">
+                                                        <b>{c.name}</b>
+                                                        <span>
+                                                            {c.store_names} ·{" "}
+                                                            {c.created_at}
+                                                        </span>
+                                                    </td>
+                                                    <td>
+                                                        <span
+                                                            className={`mdash-pill ${statusClass}`}
+                                                        >
+                                                            {statusLabel}
+                                                        </span>
+                                                    </td>
+                                                    <td>
+                                                        <span className="mdash-minibar">
+                                                            <i
+                                                                style={{
+                                                                    width: `${progress}%`,
+                                                                }}
+                                                            />
+                                                        </span>
+                                                        <span className="mono">
+                                                            {formatNumber(done)}
+                                                            /
+                                                            {formatNumber(
+                                                                c.total,
+                                                            )}
+                                                        </span>
+                                                    </td>
+                                                    <td
+                                                        className="r mono"
+                                                        style={
+                                                            c.failed_count
+                                                                ? {
+                                                                      color: "var(--bad)",
+                                                                  }
+                                                                : undefined
+                                                        }
+                                                    >
+                                                        {formatNumber(
+                                                            c.failed_count,
+                                                        )}
+                                                    </td>
+                                                </tr>
+                                            );
+                                        })}
+                                    </tbody>
+                                </table>
+                            </div>
+                        )}
+                    </article>
                 )}
 
                 <article className="mdash-panel c12">
                     <div className="mdash-ph">
                         <div>
                             <h2>Prestations et produits</h2>
-                            <div className="mdash-sub">Ventes encaissées depuis l'agenda sur la période</div>
+                            <div className="mdash-sub">
+                                Ventes encaissées depuis l'agenda sur la période
+                            </div>
                         </div>
                         <Link href="/catalog" className="mdash-link">
                             Catalogue
                         </Link>
                     </div>
                     {catalogMix.visits === 0 ? (
-                        <div className="mdash-empty">Aucun encaissement sur la période. Encaissez un rendez-vous depuis l'agenda pour suivre prestations et produits.</div>
+                        <div className="mdash-empty">
+                            Aucun encaissement sur la période. Encaissez un
+                            rendez-vous depuis l'agenda pour suivre prestations
+                            et produits.
+                        </div>
                     ) : (
                         <div className="mmix">
                             <div className="mmix-split">
                                 {(() => {
-                                    const total = catalogMix.services + catalogMix.products + catalogMix.other || 1;
+                                    const total =
+                                        catalogMix.services +
+                                            catalogMix.products +
+                                            catalogMix.other || 1;
                                     const parts = [
-                                        { key: 'services', label: 'Prestations', value: catalogMix.services, color: 'var(--data)' },
-                                        { key: 'products', label: 'Produits', value: catalogMix.products, color: 'var(--accent)' },
-                                        { key: 'other', label: 'Autres lignes', value: catalogMix.other, color: 'var(--faint)' },
+                                        {
+                                            key: "services",
+                                            label: "Prestations",
+                                            value: catalogMix.services,
+                                            color: "var(--data)",
+                                        },
+                                        {
+                                            key: "products",
+                                            label: "Produits",
+                                            value: catalogMix.products,
+                                            color: "var(--accent)",
+                                        },
+                                        {
+                                            key: "other",
+                                            label: "Autres lignes",
+                                            value: catalogMix.other,
+                                            color: "var(--faint)",
+                                        },
                                     ].filter((p) => p.value > 0);
                                     return (
                                         <>
-                                            <div className="mmix-bar" role="img" aria-label="Répartition du CA entre prestations et produits">
+                                            <div
+                                                className="mmix-bar"
+                                                role="img"
+                                                aria-label="Répartition du CA entre prestations et produits"
+                                            >
                                                 {parts.map((p) => (
-                                                    <i key={p.key} style={{ width: `${(p.value / total) * 100}%`, background: p.color }} />
+                                                    <i
+                                                        key={p.key}
+                                                        style={{
+                                                            width: `${(p.value / total) * 100}%`,
+                                                            background: p.color,
+                                                        }}
+                                                    />
                                                 ))}
                                             </div>
                                             <ul className="mmix-legend">
                                                 {parts.map((p) => (
                                                     <li key={p.key}>
-                                                        <i style={{ background: p.color }} />
+                                                        <i
+                                                            style={{
+                                                                background:
+                                                                    p.color,
+                                                            }}
+                                                        />
                                                         <span>{p.label}</span>
-                                                        <b className="num">{formatNumber(p.value)} F</b>
-                                                        <small>{formatPercent((p.value / total) * 100)}</small>
+                                                        <b className="num">
+                                                            {formatNumber(
+                                                                p.value,
+                                                            )}{" "}
+                                                            F
+                                                        </b>
+                                                        <small>
+                                                            {formatPercent(
+                                                                (p.value /
+                                                                    total) *
+                                                                    100,
+                                                            )}
+                                                        </small>
                                                     </li>
                                                 ))}
                                                 <li>
-                                                    <span>Panier moyen par visite</span>
-                                                    <b className="num">{formatNumber(catalogMix.average)} F</b>
-                                                    <small>{plural(catalogMix.visits, 'visite')}</small>
+                                                    <span>
+                                                        Panier moyen par visite
+                                                    </span>
+                                                    <b className="num">
+                                                        {formatNumber(
+                                                            catalogMix.average,
+                                                        )}{" "}
+                                                        F
+                                                    </b>
+                                                    <small>
+                                                        {plural(
+                                                            catalogMix.visits,
+                                                            "visite",
+                                                        )}
+                                                    </small>
                                                 </li>
                                             </ul>
                                         </>
@@ -942,14 +1606,20 @@ function DashboardIndex() {
                             <div className="mmix-top">
                                 <h3>Prestations les plus demandées</h3>
                                 {catalogMix.top.length === 0 ? (
-                                    <div className="mdash-empty">Aucune prestation encaissée.</div>
+                                    <div className="mdash-empty">
+                                        Aucune prestation encaissée.
+                                    </div>
                                 ) : (
                                     <ol>
                                         {catalogMix.top.map((t) => (
                                             <li key={t.name}>
                                                 <span>{t.name}</span>
-                                                <b className="num">× {formatNumber(t.quantity)}</b>
-                                                <small className="num">{formatNumber(t.revenue)} F</small>
+                                                <b className="num">
+                                                    × {formatNumber(t.quantity)}
+                                                </b>
+                                                <small className="num">
+                                                    {formatNumber(t.revenue)} F
+                                                </small>
                                             </li>
                                         ))}
                                     </ol>
@@ -964,22 +1634,31 @@ function DashboardIndex() {
                         <div>
                             <h2>Top 10 des meilleures catégories</h2>
                             <div className="mdash-sub">
-                                {metric === 'revenue'
+                                {metric === "revenue"
                                     ? "Classées par chiffre d'affaires des achats clients"
-                                    : metric === 'clients'
-                                      ? 'Classées par nombre de clients distincts'
+                                    : metric === "clients"
+                                      ? "Classées par nombre de clients distincts"
                                       : "Classées par nombre d'achats enregistrés"}
                             </div>
                         </div>
-                        <div className="mdash-switch" role="group" aria-label="Classer par">
+                        <div
+                            className="mdash-switch"
+                            role="group"
+                            aria-label="Classer par"
+                        >
                             {(
                                 [
-                                    ['revenue', 'CA'],
-                                    ['clients', 'Clients'],
-                                    ['purchases', 'Achats'],
+                                    ["revenue", "CA"],
+                                    ["clients", "Clients"],
+                                    ["purchases", "Achats"],
                                 ] as const
                             ).map(([key, label]) => (
-                                <button key={key} type="button" aria-pressed={metric === key} onClick={() => setMetric(key)}>
+                                <button
+                                    key={key}
+                                    type="button"
+                                    aria-pressed={metric === key}
+                                    onClick={() => setMetric(key)}
+                                >
                                     {label}
                                 </button>
                             ))}
@@ -987,7 +1666,10 @@ function DashboardIndex() {
                     </div>
                     {top10.length === 0 ? (
                         <div className="mdash-empty">
-                            Aucun achat sur la période. <Link href="/purchases" className="mdash-link">Importer un historique d'achats</Link>
+                            Aucun achat sur la période.{" "}
+                            <Link href="/purchases" className="mdash-link">
+                                Importer un historique d'achats
+                            </Link>
                         </div>
                     ) : (
                         <div className="mdash-top10">
@@ -998,10 +1680,22 @@ function DashboardIndex() {
                                         {c.name}
                                     </span>
                                     <span className="bar">
-                                        <i style={{ width: `${(c[metric] / topMax) * 100}%` }} />
+                                        <i
+                                            style={{
+                                                width: `${(c[metric] / topMax) * 100}%`,
+                                            }}
+                                        />
                                     </span>
-                                    <span className="amt num">{metric === 'revenue' ? `${formatCompact(c.revenue)} F` : formatNumber(c[metric])}</span>
-                                    <span className="cli num">{metric === 'revenue' ? `${formatNumber(c.clients)} cl.` : `${formatCompact(c.revenue)} F`}</span>
+                                    <span className="amt num">
+                                        {metric === "revenue"
+                                            ? `${formatCompact(c.revenue)} F`
+                                            : formatNumber(c[metric])}
+                                    </span>
+                                    <span className="cli num">
+                                        {metric === "revenue"
+                                            ? `${formatNumber(c.clients)} cl.`
+                                            : `${formatCompact(c.revenue)} F`}
+                                    </span>
                                 </div>
                             ))}
                         </div>
@@ -1012,6 +1706,8 @@ function DashboardIndex() {
     );
 }
 
-DashboardIndex.layout = (page: React.ReactNode) => <AppLayout>{page}</AppLayout>;
+DashboardIndex.layout = (page: React.ReactNode) => (
+    <AppLayout>{page}</AppLayout>
+);
 
 export default DashboardIndex;

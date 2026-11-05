@@ -37,39 +37,39 @@
     --text-theme-xs: 12px;
     --text-theme-xs--line-height: 18px;
 
-    /* Marque Menentia bleu-vert (cahier de cadrage du 28/10/2026) : bleu
+    /* Marque NENTIX (charte du 05/11/2026) : bleu #1D4ED8, cyan #06B6D4, bleu nuit #0B1F3A. Ancien bleu-vert Menentia (28/10/2026) : bleu
        #0E7BD6 pour la marque et les boutons, vert #00C896 en accent (logo,
        dégradé), bleu nuit #0B2D4A pour les titres, fond #F4F8FB. En petit
        texte sur fond blanc : bleu foncé #0A66B2 et vert foncé #007A5C. */
-    --color-brand: #0e7bd6; /* logo, grands aplats, titres colorés de 24 px et plus */
-    --color-brand-strong: #0e7bd6; /* boutons principaux, texte blanc dessus */
-    --color-brand-text: #0a66b2; /* petit texte, liens, sur fond clair */
-    --color-brand-green: #00c896; /* accent, dégradé du logo */
-    --color-brand-green-text: #007a5c; /* petit texte vert sur fond blanc */
-    --color-ink-strong: #0b2d4a; /* titres, bleu nuit */
-    --color-ink: #0b2d4a;
-    --color-ink-muted: #4a5d70;
-    --color-accent: #00c896; /* décor, élément actif */
-    --color-tint: #d3e8fa;
-    --color-surface-soft: #f4f8fb;
-    --color-line: #dbe6ef;
-    --color-focus: #0b2d4a;
-    --color-focus-dark: #6fb3ee;
+    --color-brand: #1d4ed8; /* logo, grands aplats, titres colorés de 24 px et plus */
+    --color-brand-strong: #1d4ed8; /* boutons principaux, texte blanc dessus */
+    --color-brand-text: #1d4ed8; /* petit texte, liens, sur fond clair */
+    --color-brand-green: #06b6d4; /* accent, dégradé du logo */
+    --color-brand-green-text: #0e7490; /* petit texte vert sur fond blanc */
+    --color-ink-strong: #0b1f3a; /* titres, bleu nuit */
+    --color-ink: #0b1f3a;
+    --color-ink-muted: #475569;
+    --color-accent: #06b6d4; /* décor, élément actif */
+    --color-tint: #dbe6fe;
+    --color-surface-soft: #f4f7fb;
+    --color-line: #e2e8f0;
+    --color-focus: #0b1f3a;
+    --color-focus-dark: #93b4fd;
 
     /* Échelle brand-* des classes existantes (bg-brand-500 pour les boutons,
        text-brand-text pour les liens…), alignée sur les tokens ci-dessus. */
-    --color-brand-25: #f5faff;
-    --color-brand-50: #eaf4fd;
-    --color-brand-100: #d3e8fa;
-    --color-brand-200: #a8d1f5;
-    --color-brand-300: #6fb3ee;
-    --color-brand-400: #3896e3;
-    --color-brand-500: #0e7bd6;
-    --color-brand-600: #0a66b2;
-    --color-brand-700: #08518e;
-    --color-brand-800: #0a426f;
-    --color-brand-900: #0b2d4a;
-    --color-brand-950: #071d31;
+    --color-brand-25: #f5f8ff;
+    --color-brand-50: #eff4ff;
+    --color-brand-100: #dbe6fe;
+    --color-brand-200: #bfd2fe;
+    --color-brand-300: #93b4fd;
+    --color-brand-400: #5b8cf6;
+    --color-brand-500: #1d4ed8;
+    --color-brand-600: #1b43b8;
+    --color-brand-700: #183a9e;
+    --color-brand-800: #1a3278;
+    --color-brand-900: #0b1f3a;
+    --color-brand-950: #071428;
 
     --color-blue-light-25: #f5fbff;
     --color-blue-light-50: #f0f9ff;
