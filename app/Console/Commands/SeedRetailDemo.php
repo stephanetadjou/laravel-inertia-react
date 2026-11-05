@@ -379,6 +379,17 @@ class SeedRetailDemo extends Command
         }
         unset($person);
 
+        // Petit volume (--tickets) : au moins un retour, le hasard pouvant n'en donner aucun.
+        if (! collect($rows)->contains('Type', 'Retour')) {
+            $line = collect($rows)->first(fn ($row) => $row['_day'] < today()->subDays(3)->toDateString());
+
+            if ($line !== null) {
+                $back = Carbon::parse($line['_day'])->addDay();
+                $rows[] = [...$line, '_day' => $back->toDateString(), 'Date' => $back->format('d/m/Y'), 'N° ticket' => 'R'.$line['N° ticket'], 'Ticket origine' => $line['N° ticket'],
+                    'Qté' => 1, 'Remise' => 0, 'Montant' => -((int) $line['Prix unitaire']), 'Type' => 'Retour', 'Consentement' => ''];
+            }
+        }
+
         // Histoire 8 : ventes anonymes, près de la moitié des tickets à Grand Store, peu ailleurs.
         $nobody = null;
         foreach ($identifiedByBrand as $brand => $count) {
