@@ -331,6 +331,10 @@ Route::middleware('auth')->group(function () {
     Route::post('/sales-imports/{batch}/confirm', [SalesImportController::class, 'confirm'])->name('sales-imports.confirm');
     Route::post('/sales-imports/{batch}/cancel', [SalesImportController::class, 'cancel'])->name('sales-imports.cancel');
     Route::get('/sales-imports/{batch}/errors', [SalesImportController::class, 'errors'])->name('sales-imports.errors');
+    // Reprise de l'historique (gestion complète) et mode d'utilisation.
+    Route::post('/settings/history-import/close', [SalesImportController::class, 'closeHistory'])->name('history-import.close');
+    Route::post('/settings/history-import/reopen', [SalesImportController::class, 'reopenHistory'])->name('history-import.reopen');
+    Route::put('/settings/usage', [SalesImportController::class, 'updateUsage'])->name('settings.usage');
 
     // Libre-service : modèles Excel des imports, liste « Pour bien démarrer », import des personnes suivies.
     Route::get('/modeles/{kind}', [ImportTemplateController::class, 'show'])->name('import-templates.show');

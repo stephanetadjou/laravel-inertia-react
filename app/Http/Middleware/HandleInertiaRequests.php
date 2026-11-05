@@ -60,6 +60,9 @@ class HandleInertiaRequests extends Middleware
                     'whatsapp_api_enabled' => $user->organization->usesWhatsAppApi(),
                     // Secteur : vocabulaire « familles » du commerce ; agenda = module Rendez-vous.
                     'sector' => $user->organization->sector,
+                    // Import des ventes : une seule reprise en gestion complète, régulier en analyse seule.
+                    'usage_mode' => $user->organization->usage_mode ?? 'complete',
+                    'sales_import_open' => $user->organization->salesImportOpen(),
                     'has_agenda' => $user->organization->hasAgenda(),
                     'sells_products' => $user->organization->sellsProducts(),
                     'currency' => $user->organization->currency ?? 'XAF',

@@ -36,7 +36,11 @@ interface PageProps {
 }
 
 function SalesImportsIndex() {
-    const { batches, brands, stores, fields } = usePage<PageProps>().props;
+    const { batches, brands, stores, fields, auth } = usePage<PageProps & { auth?: { user: { can_manage_organization?: boolean } | null; organization?: { usage_mode?: string; sales_import_open?: boolean } | null } }>().props;
+    // Gestion complète : une seule reprise de l'historique, puis imports désactivés.
+    const open = auth?.organization?.sales_import_open ?? true;
+    const historyMode = auth?.organization?.usage_mode !== 'analyse';
+    const isAdmin = auth?.user?.can_manage_organization ?? false;
     const { data, setData, post, processing, errors } = useForm<{ file: File | null; brand_id: string; store_id: string }>({ file: null, brand_id: '', store_id: '' });
     const brandStores = data.brand_id ? stores.filter((s) => String(s.brand_id) === data.brand_id) : stores;
 
@@ -55,6 +59,25 @@ function SalesImportsIndex() {
                 </a>
             }
         >
+            {historyMode && (
+                <div className={`mdash-flash ${open ? 'ok' : 'bad'}`} style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap', marginBottom: 12 }}>
+                    <span style={{ flex: 1 }}>
+                        {open
+                            ? 'Reprise de l’historique : importez vos ventes passées une seule fois. Ensuite, les ventes se saisissent dans NENTIX.'
+                            : 'Reprise de l’historique terminée : les imports de ventes sont désactivés.'}
+                    </span>
+                    {isAdmin && open && (
+                        <button type="button" className="mdash-btn sm" onClick={() => confirm('Terminer la reprise ? Les imports de ventes seront désactivés.') && router.post('/settings/history-import/close')}>
+                            Terminer la reprise
+                        </button>
+                    )}
+                    {isAdmin && !open && (
+                        <button type="button" className="mdash-btn ghost sm" onClick={() => confirm('Rouvrir l’import ? Attention aux doublons avec les ventes déjà saisies.') && router.post('/settings/history-import/reopen')}>
+                            Rouvrir l’import
+                        </button>
+                    )}
+                </div>
+            )}
             <div className="mdash-grid">
                 <Panel title="Nouvel import" sub="CSV ou Excel, une ligne par article vendu (ou par ticket)" className="c5">
                     <form onSubmit={submit} className="mpage-form">
@@ -96,7 +119,7 @@ function SalesImportsIndex() {
                             Fixez le point de vente si le fichier n’en contient qu’un ; sinon il est lu dans une colonne (nom ou code du point de vente).
                         </small>
                         <div className="mpage-form-actions">
-                            <button type="submit" className="mdash-btn brand" disabled={processing || !data.file}>
+                            <button type="submit" className="mdash-btn brand" disabled={!open || processing || !data.file}>
                                 {processing ? 'Envoi…' : 'Déposer et associer les colonnes'}
                             </button>
                         </div>

@@ -41,6 +41,8 @@ class Organization extends Model
         'suspension_reason',
         'modules',
         'onboarding_dismissed_at',
+        'usage_mode',
+        'history_import_closed_at',
     ];
 
     /**
@@ -150,6 +152,7 @@ class Organization extends Model
             'rfm_settings' => 'array',
             'modules' => 'array',
             'onboarding_dismissed_at' => 'datetime',
+            'history_import_closed_at' => 'datetime',
             'trial_ends_at' => 'datetime',
             'suspended_at' => 'datetime',
         ];
@@ -544,6 +547,23 @@ class Organization extends Model
     public function hasAgenda(): bool
     {
         return $this->hasModule('rdv');
+    }
+
+    /** Façon d'utiliser NENTIX : tout gérer, ou seulement analyser les clients (imports réguliers). */
+    public const USAGE_MODES = [
+        'complete' => 'Gestion complète : les ventes se saisissent dans NENTIX, l’historique s’importe une seule fois',
+        'analyse' => 'Analyse client seule : vous importez vos ventes régulièrement depuis votre caisse',
+    ];
+
+    public function isAnalysisOnly(): bool
+    {
+        return ($this->usage_mode ?? 'complete') === 'analyse';
+    }
+
+    /** Import des ventes possible : toujours en analyse seule, sinon tant que la reprise n'est pas terminée. */
+    public function salesImportOpen(): bool
+    {
+        return $this->isAnalysisOnly() || $this->history_import_closed_at === null;
     }
 
     /** Le commerce parle de « familles » de produits, les autres de « catégories ». */

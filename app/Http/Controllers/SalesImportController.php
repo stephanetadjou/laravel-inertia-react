@@ -6,6 +6,7 @@ use App\Http\Controllers\Concerns\ValidatesImportFile;
 use App\Models\Brand;
 use App\Models\Category;
 use App\Models\ImportBatch;
+use App\Models\Organization;
 use App\Models\ImportMapping;
 use App\Models\ImportRow;
 use App\Models\Role;
@@ -55,6 +56,10 @@ class SalesImportController extends Controller
     public function store(Request $request, SalesImport $import): RedirectResponse
     {
         $user = $this->authorizeImport($request);
+        if (! $user->organization->salesImportOpen()) {
+            return back()->with('error', 'La reprise de l’historique est terminée : les ventes se saisissent maintenant dans NENTIX. Un administrateur peut la rouvrir dans Paramètres › Modules.');
+        }
+
         $stores = $this->visibleStores($user);
 
         $data = $this->validateImportFile($request, [
@@ -121,6 +126,10 @@ class SalesImportController extends Controller
     {
         $user = $this->authorizeBatch($request, $batch);
 
+        if (! $user->organization->salesImportOpen()) {
+            return back()->with('error', 'La reprise de l’historique est terminée : les ventes se saisissent maintenant dans NENTIX. Un administrateur peut la rouvrir dans Paramètres › Modules.');
+        }
+
         if (! $batch->isOpen()) {
             return back()->with('error', 'Cet import est déjà confirmé.');
         }
@@ -164,7 +173,11 @@ class SalesImportController extends Controller
 
     public function confirm(Request $request, ImportBatch $batch, SalesImport $import): RedirectResponse
     {
-        $this->authorizeBatch($request, $batch);
+        $user = $this->authorizeBatch($request, $batch);
+
+        if (! $user->organization->salesImportOpen()) {
+            return back()->with('error', 'La reprise de l’historique est terminée : les ventes se saisissent maintenant dans NENTIX. Un administrateur peut la rouvrir dans Paramètres › Modules.');
+        }
 
         if ($batch->status !== ImportBatch::STATUS_VALIDATED) {
             return back()->with('error', 'Vérifiez d’abord le fichier.');
@@ -245,6 +258,33 @@ class SalesImportController extends Controller
             'unclassified_lines' => $batch->unclassified_lines,
             'customers_created' => $batch->customers_created,
         ];
+    }
+
+    /** Gestion complète : l'administrateur termine la reprise de l'historique (imports fermés). */
+    public function closeHistory(Request $request): RedirectResponse
+    {
+        abort_unless($request->user()->canManageOrganization(), 403);
+        $organization = $request->user()->organization;
+        $organization->forceFill(['history_import_closed_at' => now()])->save();
+
+        return redirect('/dashboard')->with('success', 'Reprise de l’historique terminée : vos ventes se saisissent maintenant dans NENTIX.');
+    }
+
+    public function reopenHistory(Request $request): RedirectResponse
+    {
+        abort_unless($request->user()->canManageOrganization(), 403);
+        $request->user()->organization->forceFill(['history_import_closed_at' => null])->save();
+
+        return back()->with('success', 'Import des ventes rouvert. Attention aux doublons avec les ventes déjà saisies.');
+    }
+
+    public function updateUsage(Request $request): RedirectResponse
+    {
+        abort_unless($request->user()->canManageOrganization(), 403);
+        $data = $request->validate(['usage_mode' => ['required', Rule::in(array_keys(Organization::USAGE_MODES))]]);
+        $request->user()->organization->forceFill(['usage_mode' => $data['usage_mode']])->save();
+
+        return back()->with('success', 'Mode d’utilisation enregistré.');
     }
 
     private function authorizeImport(Request $request): User

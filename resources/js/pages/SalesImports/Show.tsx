@@ -48,6 +48,11 @@ interface PageProps {
 
 const OPEN = ['uploaded', 'mapping_required', 'validated'];
 
+/** Import des ventes encore ouvert (fermé après la reprise de l'historique en gestion complète). */
+function useImportOpen(): boolean {
+    return usePage<{ auth?: { organization?: { sales_import_open?: boolean } | null } }>().props.auth?.organization?.sales_import_open ?? true;
+}
+
 function MappingForm() {
     const { batch, sample, fields, categories, familyWord } = usePage<PageProps>().props;
     const formErrors = usePage<{ errors: Record<string, string> }>().props.errors;
@@ -116,7 +121,7 @@ function MappingForm() {
                     </div>
                 </div>
                 <div className="mpage-form-actions" style={{ padding: '0 18px 18px' }}>
-                    <button type="button" className="mdash-btn brand" disabled={busy} onClick={submit}>
+                    <button type="button" className="mdash-btn brand" disabled={busy || !useImportOpen()} onClick={submit}>
                         {busy ? 'Vérification…' : 'Vérifier le fichier'}
                     </button>
                 </div>
@@ -268,7 +273,7 @@ function SalesImportShow() {
                                 <button type="button" className="mdash-btn ghost" onClick={() => router.post(`/sales-imports/${batch.id}/mapping`, { mapping: batch.mapping, default_category_id: batch.default_category_id })}>
                                     Revérifier
                                 </button>
-                                <button type="button" className="mdash-btn brand" disabled={batch.accepted_rows === 0} onClick={() => router.post(`/sales-imports/${batch.id}/confirm`)}>
+                                <button type="button" className="mdash-btn brand" disabled={batch.accepted_rows === 0 || !useImportOpen()} onClick={() => router.post(`/sales-imports/${batch.id}/confirm`)}>
                                     Confirmer l’import de {formatNumber(preview.tickets)} ticket(s)
                                 </button>
                             </>
