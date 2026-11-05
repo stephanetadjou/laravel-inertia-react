@@ -597,3 +597,9 @@
     opacity: 0.55;
     text-decoration: line-through;
 }
+
+/* Vue Tableau de l'agenda. */
+.mcal-empty-table { padding: 32px 16px; text-align: center; color: #64748b; }
+.mcal-status { display: inline-block; padding: 2px 9px; border-radius: 999px; font-size: 12px; font-weight: 600; background: #eff4ff; color: #1d4ed8; }
+.mcal-status.s-cancelled, .mcal-status.s-no_show { background: #fff1f2; color: #be123c; }
+.mcal-status.s-done, .mcal-status.s-completed { background: #ecfdf5; color: #047857; }
