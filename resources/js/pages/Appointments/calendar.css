@@ -603,3 +603,26 @@
 .mcal-status { display: inline-block; padding: 2px 9px; border-radius: 999px; font-size: 12px; font-weight: 600; background: #eff4ff; color: #1d4ed8; }
 .mcal-status.s-cancelled, .mcal-status.s-no_show { background: #fff1f2; color: #be123c; }
 .mcal-status.s-done, .mcal-status.s-completed { background: #ecfdf5; color: #047857; }
+.mcal-table { margin: 0; }
+.mcal-table th, .mcal-table td { padding: 10px 12px; text-align: left; white-space: nowrap; }
+.mcal-table th { font-size: 12px; font-weight: 600; color: #64748b; background: #f8fafc; border-bottom: 1px solid var(--line); }
+.mcal-table td { border-bottom: 1px solid var(--line); font-size: 14px; }
+.mcal-table td.cell-main b, .mcal-table td.cell-main span { display: block; }
+.mcal-table td.cell-main span { font-size: 12px; color: #64748b; }
+.mcal-table th.num, .mcal-table td.num { text-align: right; }
+.mcal-table tbody tr:hover { background: #f5f8ff; }
+
+/* Écran étroit (téléphone, fenêtre réduite) : une carte par rendez-vous. */
+@media (max-width: 900px) {
+    .mcal-toolbar { gap: 8px; }
+    .mcal-nav h2 { min-width: 0; font-size: 15px; }
+    .mcal-tools { margin-left: 0; width: 100%; }
+    .mcal-table table, .mcal-table tbody, .mcal-table tr, .mcal-table td { display: block; width: 100%; }
+    .mcal-table thead { display: none; }
+    .mcal-table tr { padding: 10px 14px; border-bottom: 1px solid var(--line); }
+    .mcal-table td { display: flex; justify-content: space-between; gap: 12px; padding: 3px 0; border: 0; white-space: normal; text-align: right; }
+    .mcal-table td::before { content: attr(data-label); font-size: 12px; color: #64748b; text-align: left; flex-shrink: 0; }
+    .mcal-table td.cell-main { flex-direction: column; text-align: left; padding: 2px 0 6px; }
+    .mcal-table td.cell-main::before { display: none; }
+    .mcal-table td.num { text-align: right; }
+}

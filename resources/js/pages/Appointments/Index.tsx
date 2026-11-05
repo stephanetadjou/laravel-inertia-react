@@ -550,7 +550,7 @@ function AgendaTable({ rows, statuses, onOpen }: { rows: AppointmentRow[]; statu
         return <p className="mcal-empty-table">Aucun rendez-vous sur la période.</p>;
     }
     return (
-        <div className="mdash-tbl">
+        <div className="mdash-tbl mcal-table">
             <table>
                 <thead>
                     <tr>
@@ -567,20 +567,20 @@ function AgendaTable({ rows, statuses, onOpen }: { rows: AppointmentRow[]; statu
                 <tbody>
                     {sorted.map((a) => (
                         <tr key={a.id} onClick={() => onOpen(a)} style={{ cursor: 'pointer' }}>
-                            <td>
+                            <td data-label="Date">
                                 {parseDay(a.starts_at.slice(0, 10)).toLocaleDateString('fr-FR', {
                                     weekday: 'short',
                                     day: 'numeric',
                                     month: 'short',
                                 })}
                             </td>
-                            <td className="mono">{hhmm(a)}</td>
-                            <td className="cell-main">
+                            <td data-label="Heure" className="mono">{hhmm(a)}</td>
+                            <td data-label="Client" className="cell-main">
                                 <b>{a.customer_name ?? '—'}</b>
                                 {a.phone_e164 && <span className="mono">{a.phone_e164}</span>}
                             </td>
-                            <td>{a.items.length ? a.items.map((i) => i.name).join(', ') : (a.service ?? '—')}</td>
-                            <td>
+                            <td data-label="Prestation">{a.items.length ? a.items.map((i) => i.name).join(', ') : (a.service ?? '—')}</td>
+                            <td data-label="Intervenant">
                                 {a.staff_color && (
                                     <span
                                         aria-hidden="true"
@@ -596,11 +596,11 @@ function AgendaTable({ rows, statuses, onOpen }: { rows: AppointmentRow[]; statu
                                 )}
                                 {a.staff_name ?? '—'}
                             </td>
-                            <td>{a.duration_minutes} min</td>
-                            <td>
+                            <td data-label="Durée">{a.duration_minutes} min</td>
+                            <td data-label="Statut">
                                 <span className={`mcal-status s-${a.status}`}>{statuses[a.status] ?? a.status}</span>
                             </td>
-                            <td className="num">{a.price ? a.price.toLocaleString('fr-FR') + ' F' : '—'}</td>
+                            <td data-label="Montant" className="num">{a.price ? a.price.toLocaleString('fr-FR') + ' F' : '—'}</td>
                         </tr>
                     ))}
                 </tbody>
