@@ -34,12 +34,23 @@ export interface NavContext {
     canImport?: boolean;
     /** Super-admin Menentia : rubrique Plateforme (/admin). */
     isPlatformAdmin?: boolean;
+    /** Nom des personnes suivies (clients, patients, adherents, eleves). */
+    customerLabel?: string;
 }
+
+/** Libellés selon le nom choisi : pluriel (« Patients ») et fiches (« Fiches patients »). */
+export const CUSTOMER_LABELS: Record<string, { plural: string; lower: string }> = {
+    clients: { plural: 'Clients', lower: 'clients' },
+    patients: { plural: 'Patients', lower: 'patients' },
+    adherents: { plural: 'Adhérents', lower: 'adhérents' },
+    eleves: { plural: 'Élèves', lower: 'élèves' },
+};
+export const customerLabel = (key?: string | null) => CUSTOMER_LABELS[key ?? ''] ?? CUSTOMER_LABELS.clients;
 
 /** Données partagées par HandleInertiaRequests utiles au menu. */
 export interface NavAuth {
     user: { can_manage_organization?: boolean; can_import?: boolean; is_platform_admin?: boolean } | null;
-    organization?: { whatsapp_api_enabled?: boolean; sells_products?: boolean; modules?: string[] } | null;
+    organization?: { whatsapp_api_enabled?: boolean; sells_products?: boolean; modules?: string[]; customer_label?: string } | null;
 }
 
 export function navContext(auth: NavAuth | undefined): NavContext {
@@ -50,13 +61,15 @@ export function navContext(auth: NavAuth | undefined): NavContext {
         sellsProducts: auth?.organization?.sells_products ?? false,
         canImport: auth?.user?.can_import ?? false,
         isPlatformAdmin: auth?.user?.is_platform_admin ?? false,
+        customerLabel: auth?.organization?.customer_label,
     };
 }
 
 /** Modules d'une organisation historique quand la liste n'est pas fournie. */
 const LEGACY_MODULES = ['rdv', 'catalogue', 'produits', 'lieux', 'fidelite'];
 
-export function buildSections({ canManageOrganization, whatsappApiEnabled, modules = LEGACY_MODULES, sellsProducts = false, canImport = false, isPlatformAdmin = false }: NavContext): NavSection[] {
+export function buildSections({ canManageOrganization, whatsappApiEnabled, modules = LEGACY_MODULES, sellsProducts = false, canImport = false, isPlatformAdmin = false, customerLabel: labelKey }: NavContext): NavSection[] {
+    const people = customerLabel(labelKey);
     const has = (module: string) => modules.includes(module);
     const agenda = has('rdv') || has('seances_groupe');
 
@@ -96,11 +109,11 @@ export function buildSections({ canManageOrganization, whatsappApiEnabled, modul
             : []),
         {
             key: 'customers',
-            name: 'Clients',
+            name: people.plural,
             icon: <UserIcon />,
             path: '/customers',
             tabs: [
-                { name: 'Fiches clients', path: '/customers', alsoActiveOn: ['/contacts'] },
+                { name: `Fiches ${people.lower}`, path: '/customers', alsoActiveOn: ['/contacts'] },
                 ...(has('fidelite') ? [{ name: 'Fidélité', path: '/fidelite' }] : []),
                 ...(has('prospects') ? [{ name: 'Prospects', path: '/prospects' }, { name: 'Objectifs', path: '/sales-team', alsoActiveOn: ['/commissions'] }] : []),
                 { name: 'Groupes', path: '/groups' },

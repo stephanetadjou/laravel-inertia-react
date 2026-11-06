@@ -43,6 +43,7 @@ class Organization extends Model
         'onboarding_dismissed_at',
         'usage_mode',
         'history_import_closed_at',
+        'customer_label',
     ];
 
     /**
@@ -554,6 +555,22 @@ class Organization extends Model
         'complete' => 'Gestion complète : les ventes se saisissent dans NENTIX, l’historique s’importe une seule fois',
         'analyse' => 'Analyse client seule : vous importez vos ventes régulièrement depuis votre caisse',
     ];
+
+    /** Nom des personnes suivies, au pluriel ; choisi dans Paramètres › Modules, sinon selon le secteur. */
+    public const CUSTOMER_LABELS = ['clients' => 'Clients', 'patients' => 'Patients', 'adherents' => 'Adhérents', 'eleves' => 'Élèves'];
+
+    public function customerLabelKey(): string
+    {
+        if ($this->customer_label && isset(self::CUSTOMER_LABELS[$this->customer_label])) {
+            return $this->customer_label;
+        }
+
+        return match ($this->sector) {
+            'sante' => 'patients',
+            'sport' => 'adherents',
+            default => 'clients',
+        };
+    }
 
     public function isAnalysisOnly(): bool
     {

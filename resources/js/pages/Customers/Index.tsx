@@ -1,4 +1,5 @@
 import { Head, Link, router, usePage } from '@inertiajs/react';
+import { customerLabel } from '../../layout/navigation';
 import { useEffect, useMemo, useState } from 'react';
 
 import AppLayout from '../../layout/AppLayout';
@@ -118,6 +119,7 @@ function plural(n: number, word: string, pluralWord = word + 's'): string {
 }
 
 function CustomersIndex() {
+    const people = customerLabel((usePage().props as { auth?: { organization?: { customer_label?: string } | null } }).auth?.organization?.customer_label);
     const { filters, stores, families, properties, stages, vipCount, segments, riskCount, apiEnabled, consentCounts, reachableCount, templates, customers, flash, audienceLabel } = usePage<PageProps>().props;
     const segmentLabel = (key: string | null) => segments.find((s) => s.key === key)?.label ?? '—';
     const [search, setSearch] = useState(filters.q);
@@ -272,13 +274,13 @@ function CustomersIndex() {
 
     return (
         <div className="mdash mcust">
-            <Head title="Fiches clients" />
+            <Head title={`Fiches ${people.lower}`} />
 
             <header className="mdash-top mcust-top">
                 <div className="mdash-top-in">
                     <div className="mcust-title">
                         <div>
-                            <h1>Fiches clients</h1>
+                            <h1>Fiches {people.lower}</h1>
                             <small>Une fiche par personne, pour tous vos établissements</small>
                         </div>
                         <div className="mcust-actions">

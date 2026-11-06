@@ -1,8 +1,9 @@
-import { useForm, usePage } from '@inertiajs/react';
+import { router, useForm, usePage } from '@inertiajs/react';
 import { FormEventHandler } from 'react';
 
 import AppLayout from '../../layout/AppLayout';
 import { Page, Panel } from '../../components/page/Page';
+import { CUSTOMER_LABELS } from '../../layout/navigation';
 import { ModuleSettingsFields, ModuleSettingsValues } from './ModuleSettingsFields';
 
 /*
@@ -28,7 +29,8 @@ interface PageProps {
 }
 
 function ModulesSettings() {
-    const { modules, settings, beneficiaryLabels, sectorLabel } = usePage<PageProps>().props;
+    const { modules, settings, beneficiaryLabels, sectorLabel, auth } = usePage<PageProps & { auth?: { organization?: { customer_label?: string } | null } }>().props;
+    const currentLabel = auth?.organization?.customer_label ?? 'clients';
     const { data, setData, put, processing, errors } = useForm<{ enabled: string[]; settings: ModuleSettingsValues }>({
         enabled: modules.filter((m) => m.enabled).map((m) => m.key),
         settings,
@@ -43,6 +45,21 @@ function ModulesSettings() {
 
     return (
         <Page title="Modules" subtitle="Choisissez les modules utiles à votre activité : le menu et les fiches clients s’adaptent">
+            <div className="mdash-panel" style={{ marginBottom: 14, display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+                <b style={{ flex: 1, minWidth: 220 }}>Comment appelez-vous les personnes que vous suivez ?</b>
+                <div className="mdash-seg" role="group" aria-label="Nom des personnes suivies">
+                    {Object.entries(CUSTOMER_LABELS).map(([key, label]) => (
+                        <button
+                            key={key}
+                            type="button"
+                            aria-pressed={currentLabel === key}
+                            onClick={() => router.put('/settings/customer-label', { customer_label: key }, { preserveScroll: true })}
+                        >
+                            {label.plural}
+                        </button>
+                    ))}
+                </div>
+            </div>
             <form onSubmit={submit} className="mdash-grid">
                 <Panel title="Socle" sub="Toujours actif" className="c4">
                     <ul className="space-y-1.5 text-sm text-gray-700 dark:text-gray-300">

@@ -62,6 +62,7 @@ class HandleInertiaRequests extends Middleware
                     'sector' => $user->organization->sector,
                     // Import des ventes : une seule reprise en gestion complète, régulier en analyse seule.
                     'usage_mode' => $user->organization->usage_mode ?? 'complete',
+                    'customer_label' => $user->organization->customerLabelKey(),
                     'sales_import_open' => $user->organization->salesImportOpen(),
                     'has_agenda' => $user->organization->hasAgenda(),
                     'sells_products' => $user->organization->sellsProducts(),

@@ -11,6 +11,7 @@ import { VIP_PILL, stageInfo } from '../../components/dashboard/stages';
 import './dashboard.css';
 import { customerUrl } from '../../components/common/customerUrl';
 import { NotificationPanel } from '../../components/notifications/Notifications';
+import { customerLabel } from '../../layout/navigation';
 import WelcomeBanner, { QuickAccess } from '../../components/dashboard/WelcomeBanner';
 import OnboardingChecklist, { OnboardingData } from '../../components/common/OnboardingChecklist';
 
@@ -119,7 +120,7 @@ interface PageProps {
     recentCampaigns: CampaignRow[];
     welcomeTemplates: { id: number; name: string; language: string }[];
     flash?: { success: string | null; error: string | null };
-    auth?: { organization?: { whatsapp_api_enabled?: boolean } | null };
+    auth?: { organization?: { whatsapp_api_enabled?: boolean; customer_label?: string } | null };
     [key: string]: unknown;
 }
 
@@ -413,7 +414,7 @@ function DashboardIndex() {
                     <QuickAccess
                         links={[
                             { href: '/actions', label: 'À faire', icon: <TaskIcon /> },
-                            { href: '/customers', label: 'Clients', icon: <UserIcon /> },
+                            { href: '/customers', label: customerLabel(auth?.organization?.customer_label).plural, icon: <UserIcon /> },
                             { href: '/purchases', label: 'Ventes', icon: <DollarLineIcon /> },
                             ...(apiEnabled ? [{ href: '/campaigns', label: 'Campagnes', icon: <PaperPlaneIcon /> }] : []),
                             { href: '/analytics', label: 'Analyses', icon: <PieChartIcon /> },

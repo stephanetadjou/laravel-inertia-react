@@ -287,6 +287,16 @@ class SalesImportController extends Controller
         return back()->with('success', 'Mode d’utilisation enregistré.');
     }
 
+    /** Paramètres › Modules : nom des personnes suivies (Clients, Patients, Adhérents, Élèves). */
+    public function updateCustomerLabel(Request $request): RedirectResponse
+    {
+        abort_unless($request->user()->canManageOrganization(), 403);
+        $data = $request->validate(['customer_label' => ['required', Rule::in(array_keys(Organization::CUSTOMER_LABELS))]]);
+        $request->user()->organization->forceFill(['customer_label' => $data['customer_label']])->save();
+
+        return back()->with('success', 'Nom enregistré : le menu s’adapte.');
+    }
+
     private function authorizeImport(Request $request): User
     {
         $user = $request->user();
