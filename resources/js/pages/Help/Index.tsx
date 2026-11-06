@@ -21,6 +21,130 @@ interface Guide {
     tips?: string[];
 }
 
+const CASES: Record<string, Guide> = {
+    beaute: {
+        key: 'cas',
+        name: 'Cas pratique : beauté',
+        intro: 'Exemple Institut Élégance : comment NENTIX aide un institut à remplir son agenda, fidéliser et faire revenir ses clientes.',
+        steps: [
+            { title: 'Semaine 1 : tout centraliser', text: 'Importez le fichier clientes (nom, téléphone, date de naissance), créez le catalogue (soins, prix, durées) et les intervenantes. Chaque RDV encaissé alimente l’historique de la cliente.', href: '/imports' },
+            { title: 'Remplir l’agenda sans effort', text: 'Partagez le lien de réservation en ligne dans votre statut et votre profil WhatsApp : les clientes réservent seules, même la nuit.', href: '/settings/booking' },
+            { title: 'Réduire les absences', text: 'Chaque matin, « À faire » liste les RDV du jour à confirmer : un clic ouvre le message WhatsApp déjà rédigé.', href: '/actions' },
+            { title: 'Faire revenir les clientes', text: 'Une cliente qui venait chaque mois et n’est pas revenue depuis 45 jours apparaît « à relancer ». Envoyez-lui une offre (ex. -15 % sur son soin habituel).', href: '/actions' },
+            { title: 'Récompenser les fidèles', text: 'Programme de fidélité : 1 point par tranche dépensée, un soin offert au palier. Les clientes proches d’un palier sont la cible idéale d’une relance.', href: '/settings/loyalty' },
+            { title: 'Vendre plus à chaque visite', text: 'Fiche cliente : soins déjà faits, produits achetés. Proposez le soin complémentaire (ex. manucure après pédicure) ou le produit de soin à domicile.', href: '/customers' },
+            { title: 'Animer les temps forts', text: 'Campagnes ciblées : anniversaires, fête des mères, Saint-Valentin, nouvelles prestations, envoyées aux seules clientes qui ont accepté.', href: '/campaigns' },
+            { title: 'Piloter chaque semaine', text: 'Le rapport du soir et le tableau de bord donnent CA, RDV honorés, absences, nouvelles clientes et panier moyen. Comparez avec la semaine précédente.', href: '/dashboard' },
+        ],
+        tips: [
+            'Objectifs réalistes à 3 mois : moins d’absences, plus de clientes qui reviennent, panier moyen en hausse.',
+            'Demandez l’accord WhatsApp dès la première visite (affiche QR code en caisse) : sans accord, pas de campagne.',
+            'Une routine de 10 minutes par jour suffit : « À faire » le matin, rapport du soir le soir.',
+        ],
+    },
+    sante: {
+        key: 'cas',
+        name: 'Cas pratique : santé',
+        intro: 'Exemple d’un cabinet (kiné, dentiste, clinique) : moins de rendez-vous manqués, des patients suivis jusqu’au bout de leur traitement.',
+        steps: [
+            { title: 'Centraliser les patients', text: 'Importez le fichier patients et créez vos actes (consultation, séance, contrôle) avec durée et prix.', href: '/imports' },
+            { title: 'Prise de rendez-vous en ligne', text: 'Partagez le lien de réservation : les patients choisissent un créneau libre, sans appel.', href: '/settings/booking' },
+            { title: 'Réduire les absences', text: 'Chaque matin, « À faire » liste les RDV à confirmer par WhatsApp en un clic.', href: '/actions' },
+            { title: 'Suivre les traitements', text: 'Un patient qui n’a pas fait sa séance suivante apparaît à relancer : rappelez-le avant qu’il abandonne.', href: '/actions' },
+            { title: 'Gérer les proches', text: 'Avec le module bénéficiaires, un parent gère les RDV de ses enfants sur une seule fiche.', href: '/settings/modules' },
+            { title: 'Piloter', text: 'Rapport du soir : RDV honorés, absences, CA, nouveaux patients.', href: '/dashboard' },
+        ],
+        tips: [
+            'Les messages restent informatifs (rappels, suivi) : pas de promotion sur les actes médicaux.',
+            'Objectif à 3 mois : moins d’absences et plus de traitements menés à terme.',
+        ],
+    },
+    sport: {
+        key: 'cas',
+        name: 'Cas pratique : sport et bien-être',
+        intro: 'Exemple d’un club ou d’une salle : abonnements payés à temps, cours remplis, adhérents qui restent.',
+        steps: [
+            { title: 'Créer formules et cours', text: 'Formules (mensuel, trimestriel, carte de séances), cours de groupe avec horaires et capacité.', href: '/plans' },
+            { title: 'Inscrire les adhérents', text: 'Importez les membres et rattachez chacun à sa formule ; les enfants via leurs parents.', href: '/imports' },
+            { title: 'Encaisser sans oubli', text: 'Échéances et tranches : les retards de paiement sortent dans « À faire » avec le message de relance prêt.', href: '/installments' },
+            { title: 'Faire l’appel', text: 'Appel sur mobile à chaque cours : absences repérées, séances décomptées.', href: '/classes' },
+            { title: 'Garder les adhérents', text: 'Un adhérent qui ne vient plus depuis 3 semaines est signalé avant la fin de son abonnement.', href: '/actions' },
+            { title: 'Piloter', text: 'Rapport du soir : présences, impayés, renouvellements à venir.', href: '/dashboard' },
+        ],
+        tips: [
+            'Relancez les renouvellements 7 jours avant l’échéance.',
+            'Annulation pour pluie : prévenez tout le groupe en un clic et proposez un rattrapage.',
+        ],
+    },
+    technique: {
+        key: 'cas',
+        name: 'Cas pratique : services techniques',
+        intro: 'Exemple d’un garage ou d’un dépanneur : clients rappelés au bon moment pour l’entretien.',
+        steps: [
+            { title: 'Centraliser clients et interventions', text: 'Importez les clients, créez vos prestations (vidange, révision, diagnostic) avec prix.', href: '/imports' },
+            { title: 'Planifier', text: 'Agenda des interventions par technicien, réservation en ligne pour les entretiens simples.', href: '/appointments' },
+            { title: 'Rappeler l’entretien', text: 'Un client dont la dernière vidange date de 6 mois apparaît à relancer : message prêt, un clic.', href: '/actions' },
+            { title: 'Fidéliser', text: 'Programme de fidélité : un lavage ou un contrôle offert au palier.', href: '/settings/loyalty' },
+            { title: 'Vendre plus', text: 'La fiche client montre l’historique : proposez pneus, freins ou batterie au bon moment.', href: '/customers' },
+            { title: 'Piloter', text: 'Tableau de bord : CA, interventions, clients revenus.', href: '/dashboard' },
+        ],
+        tips: [
+            'Notez la date de chaque intervention : c’est elle qui déclenche le rappel.',
+            'Objectif à 3 mois : plus de clients qui reviennent pour l’entretien.',
+        ],
+    },
+    pro: {
+        key: 'cas',
+        name: 'Cas pratique : services professionnels',
+        intro: 'Exemple d’un cabinet (comptable, conseil, formation) : prospects suivis, paiements à l’heure, clients qui renouvellent.',
+        steps: [
+            { title: 'Centraliser clients et missions', text: 'Importez les clients et créez vos prestations (mission, forfait, formation).', href: '/imports' },
+            { title: 'Suivre les prospects', text: 'Module prospects : chaque contact a une étape, un commercial et une prochaine action.', href: '/prospects' },
+            { title: 'Encaisser', text: 'Tranches et abonnements : les échéances en retard sortent dans « À faire ».', href: '/installments' },
+            { title: 'Relancer au bon moment', text: 'Renouvellements annuels, déclarations, fins de contrat : listes du jour avec messages prêts.', href: '/actions' },
+            { title: 'Informer vos clients', text: 'Campagnes ciblées : nouvelles obligations, offres, événements.', href: '/campaigns' },
+            { title: 'Piloter', text: 'Rapport commerciaux et tableau de bord : CA, taux de transformation, retards.', href: '/dashboard' },
+        ],
+        tips: [
+            'Une prochaine action datée pour chaque prospect, sinon il est oublié.',
+            'Objectif à 3 mois : moins d’impayés et plus de renouvellements.',
+        ],
+    },
+    commerce: {
+        key: 'cas',
+        name: 'Cas pratique : commerce',
+        intro: 'Exemple d’une enseigne (mode, restauration, distribution) : connaître ses clients à partir des ventes de caisse.',
+        steps: [
+            { title: 'Importer l’historique des ventes', text: 'Imports › Ventes : déposez l’export de caisse, associez les colonnes, vérifiez puis validez.', href: '/sales-imports' },
+            { title: 'Classer les familles', text: 'Analyses › Familles › À classer : rangez les articles inconnus.', href: '/categories' },
+            { title: 'Lire les segments', text: 'Pilotage › Clients et RFM : meilleurs clients, à risque, perdus.', href: '/pilotage' },
+            { title: 'Fidéliser', text: 'Programme de fidélité par enseigne, paliers et récompenses.', href: '/settings/loyalty' },
+            { title: 'Relancer', text: 'Groupes de clients à risque + campagne WhatsApp avec une offre datée.', href: '/groups' },
+            { title: 'Rendre compte', text: 'Rapports PDF mensuels direction et magasin.', href: '/rapports' },
+        ],
+        tips: [
+            'Une vente sans téléphone reste anonyme : demandez le numéro en caisse.',
+            'Objectif à 3 mois : plus de CA identifié et plus de clients actifs.',
+        ],
+    },
+    autre: {
+        key: 'cas',
+        name: 'Cas pratique : votre activité',
+        intro: 'Comment NENTIX aide une entreprise de services à mieux connaître ses clients et à les faire revenir.',
+        steps: [
+            { title: 'Centraliser', text: 'Importez vos clients et créez vos prestations avec leur prix.', href: '/imports' },
+            { title: 'Enregistrer chaque vente', text: 'Chaque vente ou RDV encaissé enrichit l’historique du client.', href: '/purchases' },
+            { title: 'Relancer chaque jour', text: '« À faire » liste les clients à relancer, avec le message WhatsApp prêt.', href: '/actions' },
+            { title: 'Fidéliser', text: 'Points, paliers et récompenses pour vos meilleurs clients.', href: '/settings/loyalty' },
+            { title: 'Communiquer', text: 'Campagnes ciblées aux clients qui ont accepté.', href: '/campaigns' },
+            { title: 'Piloter', text: 'Tableau de bord et rapport du soir.', href: '/dashboard' },
+        ],
+        tips: [
+            '10 minutes par jour suffisent : « À faire » le matin, rapport le soir.',
+        ],
+    },
+};
+
 const GUIDES: Guide[] = [
     {
         key: 'demarrer',
@@ -47,26 +171,6 @@ const GUIDES: Guide[] = [
                 text: 'Clients › Importer : téléchargez le modèle Excel, remplissez-le, déposez-le. Les doublons sont détectés par numéro de téléphone.',
                 href: '/imports',
             },
-        ],
-    },
-    {
-        key: 'institut',
-        name: 'Cas pratique : institut de beauté',
-        intro: 'Exemple Institut Élégance : comment NENTIX aide un institut à remplir son agenda, fidéliser et faire revenir ses clientes.',
-        steps: [
-            { title: 'Semaine 1 : tout centraliser', text: 'Importez le fichier clientes (nom, téléphone, date de naissance), créez le catalogue (soins, prix, durées) et les intervenantes. Chaque RDV encaissé alimente l’historique de la cliente.', href: '/imports' },
-            { title: 'Remplir l’agenda sans effort', text: 'Partagez le lien de réservation en ligne dans votre statut et votre profil WhatsApp : les clientes réservent seules, même la nuit.', href: '/settings/booking' },
-            { title: 'Réduire les absences', text: 'Chaque matin, « À faire » liste les RDV du jour à confirmer : un clic ouvre le message WhatsApp déjà rédigé.', href: '/actions' },
-            { title: 'Faire revenir les clientes', text: 'Une cliente qui venait chaque mois et n’est pas revenue depuis 45 jours apparaît « à relancer ». Envoyez-lui une offre (ex. -15 % sur son soin habituel).', href: '/actions' },
-            { title: 'Récompenser les fidèles', text: 'Programme de fidélité : 1 point par tranche dépensée, un soin offert au palier. Les clientes proches d’un palier sont la cible idéale d’une relance.', href: '/settings/loyalty' },
-            { title: 'Vendre plus à chaque visite', text: 'Fiche cliente : soins déjà faits, produits achetés. Proposez le soin complémentaire (ex. manucure après pédicure) ou le produit de soin à domicile.', href: '/customers' },
-            { title: 'Animer les temps forts', text: 'Campagnes ciblées : anniversaires, fête des mères, Saint-Valentin, nouvelles prestations, envoyées aux seules clientes qui ont accepté.', href: '/campaigns' },
-            { title: 'Piloter chaque semaine', text: 'Le rapport du soir et le tableau de bord donnent CA, RDV honorés, absences, nouvelles clientes et panier moyen. Comparez avec la semaine précédente.', href: '/dashboard' },
-        ],
-        tips: [
-            'Objectifs réalistes à 3 mois : moins d’absences, plus de clientes qui reviennent, panier moyen en hausse.',
-            'Demandez l’accord WhatsApp dès la première visite (affiche QR code en caisse) : sans accord, pas de campagne.',
-            'Une routine de 10 minutes par jour suffit : « À faire » le matin, rapport du soir le soir.',
         ],
     },
     {
@@ -202,10 +306,13 @@ const GUIDES: Guide[] = [
 ];
 
 function HelpIndex() {
-    const { support } = usePage<{ support?: string | null }>().props;
+    const { support, auth } = usePage<{ support?: string | null; auth?: { organization?: { sector?: string | null } | null } }>().props;
+    // Cas pratique du secteur choisi à l'inscription, cas général sinon.
+    const sectorCase = CASES[auth?.organization?.sector ?? ''] ?? CASES.autre;
+    const guides = [GUIDES[0], sectorCase, ...GUIDES.slice(1)];
     const initial = typeof window !== 'undefined' ? window.location.hash.slice(1) : '';
-    const [current, setCurrent] = useState(GUIDES.some((g) => g.key === initial) ? initial : 'demarrer');
-    const guide = GUIDES.find((g) => g.key === current)!;
+    const [current, setCurrent] = useState(guides.some((g) => g.key === initial) ? initial : 'demarrer');
+    const guide = guides.find((g) => g.key === current)!;
 
     return (
         <div className="nx-help">
@@ -224,7 +331,7 @@ function HelpIndex() {
             </section>
 
             <div className="nx-help-tabs" role="tablist">
-                {GUIDES.map((g) => (
+                {guides.map((g) => (
                     <button
                         key={g.key}
                         role="tab"
