@@ -61,7 +61,7 @@ class WhatsAppSettingsController extends Controller
         $this->authorizeStore($request, $store);
 
         if ($store->whatsapp_managed) {
-            return back()->with('error', "Le WhatsApp de {$store->name} est géré par Menentia : contactez l'équipe Menentia pour le modifier.");
+            return back()->with('error', "Le WhatsApp de {$store->name} est géré par NENTIX : contactez l'équipe NENTIX pour le modifier.");
         }
 
         $data = $request->validate([

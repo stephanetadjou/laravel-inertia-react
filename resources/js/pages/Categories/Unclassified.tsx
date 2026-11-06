@@ -88,7 +88,7 @@ function Unclassified() {
                 ]}
             />
             <div className="mpage-note">
-                Cochez des libellés puis rangez-les dans une {familyWord}. Menentia retient la correspondance : les prochains imports les classeront tout seuls. Pour un
+                Cochez des libellés puis rangez-les dans une {familyWord}. NENTIX retient la correspondance : les prochains imports les classeront tout seuls. Pour un
                 classement encore plus automatique, ajoutez des mots-clés à vos {plural} (« coca, fanta » pour Boissons).
             </div>
 

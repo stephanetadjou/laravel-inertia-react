@@ -9,9 +9,9 @@ use Illuminate\Support\Facades\Log;
 use Symfony\Component\HttpFoundation\Response;
 
 /**
- * Webhook unique de l'app Meta de Menentia (URL {APP_URL}/webhooks/whatsapp),
- * pour les numéros « gérés par Menentia » : Meta envoie ici les événements de
- * tous les comptes WhatsApp partagés avec le portefeuille Menentia.
+ * Webhook unique de l'app Meta de NENTIX (URL {APP_URL}/webhooks/whatsapp),
+ * pour les numéros « gérés par NENTIX » : Meta envoie ici les événements de
+ * tous les comptes WhatsApp partagés avec le portefeuille NENTIX.
  * - GET : vérification avec MENENTIA_WHATSAPP_VERIFY_TOKEN ;
  * - POST : signature X-Hub-Signature-256 avec MENENTIA_WHATSAPP_APP_SECRET,
  *   puis chaque changement est confié à l'établissement dont c'est le Phone
@@ -39,7 +39,7 @@ class PlatformWhatsAppWebhookController extends Controller
         $header = (string) $request->header('X-Hub-Signature-256');
 
         if ($secret === '' || ! hash_equals('sha256='.hash_hmac('sha256', $request->getContent(), $secret), $header)) {
-            Log::warning('Webhook WhatsApp Menentia : signature invalide');
+            Log::warning('Webhook WhatsApp NENTIX : signature invalide');
 
             return response('Invalid signature', 403);
         }
@@ -58,7 +58,7 @@ class PlatformWhatsAppWebhookController extends Controller
     }
 
     /**
-     * Regroupe les changements par établissement géré par Menentia, retrouvé
+     * Regroupe les changements par établissement géré par NENTIX, retrouvé
      * par le Phone Number ID du changement. Un numéro inconnu est ignoré :
      * jamais d'événement rattaché à une autre entreprise.
      *
@@ -77,7 +77,7 @@ class PlatformWhatsAppWebhookController extends Controller
                     : null;
 
                 if (! $storeId) {
-                    Log::warning('Webhook WhatsApp Menentia : numéro non géré', [
+                    Log::warning('Webhook WhatsApp NENTIX : numéro non géré', [
                         'waba_id' => $entry['id'] ?? null,
                         'phone_number_id' => $phoneNumberId,
                     ]);

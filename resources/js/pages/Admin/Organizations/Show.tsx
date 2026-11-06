@@ -7,7 +7,7 @@ import { AdminOrganization, fieldClasses, Option, PlatformLogRow, StatusPill } f
 
 /*
  * Back-office plateforme › Fiche entreprise : chiffres, utilisateurs,
- * essai, offre, activation, suspension et journal des actions Menentia.
+ * essai, offre, activation, suspension et journal des actions NENTIX.
  */
 
 interface PageProps {
@@ -41,7 +41,7 @@ interface ManagedStore {
     checked_at: string | null;
 }
 
-/* WhatsApp géré par Menentia : le client a partagé son compte WhatsApp avec le portefeuille Menentia. */
+/* WhatsApp géré par NENTIX : le client a partagé son compte WhatsApp avec le portefeuille NENTIX. */
 function ManagedWhatsAppRow({ organizationId, store }: { organizationId: number; store: ManagedStore }) {
     const form = useForm({
         managed: true,
@@ -60,7 +60,7 @@ function ManagedWhatsAppRow({ organizationId, store }: { organizationId: number;
         <form onSubmit={save} className="space-y-2 border-b border-gray-100 p-5 last:border-0 dark:border-gray-800">
             <div className="flex items-center justify-between gap-2">
                 <b>{store.name}</b>
-                {store.whatsapp_managed ? <span className="mdash-pill ok">Géré par Menentia</span> : <span className="mdash-pill">Géré par l’entreprise</span>}
+                {store.whatsapp_managed ? <span className="mdash-pill ok">Géré par NENTIX</span> : <span className="mdash-pill">Géré par l’entreprise</span>}
             </div>
             <div className="grid gap-2 sm:grid-cols-2">
                 <input
@@ -90,7 +90,7 @@ function ManagedWhatsAppRow({ organizationId, store }: { organizationId: number;
             )}
             <div className="flex gap-2">
                 <button type="submit" className="mdash-btn brand" disabled={form.processing}>
-                    {store.whatsapp_managed ? 'Mettre à jour' : 'Gérer par Menentia'}
+                    {store.whatsapp_managed ? 'Mettre à jour' : 'Gérer par NENTIX'}
                 </button>
                 {store.whatsapp_managed && (
                     <button type="button" className="mdash-btn ghost" onClick={() => router.put(url, { managed: false }, { preserveScroll: true })}>
@@ -209,7 +209,7 @@ function OrganizationShow() {
                     </div>
                 </Panel>
 
-                <Panel title="WhatsApp géré par Menentia" sub="Compte WhatsApp du client partagé avec le portefeuille Menentia" className="c12">
+                <Panel title="WhatsApp géré par NENTIX" sub="Compte WhatsApp du client partagé avec le portefeuille NENTIX" className="c12">
                     {!platform_whatsapp_ready && (
                         <p className="px-5 pt-4 text-sm text-warning-600">MENENTIA_WHATSAPP_TOKEN n’est pas renseigné sur le serveur : les numéros gérés ne pourront pas envoyer.</p>
                     )}
@@ -245,7 +245,7 @@ function OrganizationShow() {
                     )}
                 </Panel>
 
-                <Panel title="Journal" sub="Actions de l’équipe Menentia sur cette entreprise" className="c5">
+                <Panel title="Journal" sub="Actions de l’équipe NENTIX sur cette entreprise" className="c5">
                     {logs.length === 0 ? (
                         <Empty title="Aucune action pour l’instant" />
                     ) : (

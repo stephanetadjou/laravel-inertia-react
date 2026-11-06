@@ -32,7 +32,7 @@ function RfmSettings() {
     };
 
     return (
-        <Page title="Segments RFM" subtitle={`Comment Menentia classe vos clients (règles version ${settings.version}), pour le groupe et pour chaque marque`}>
+        <Page title="Segments RFM" subtitle={`Comment NENTIX classe vos clients (règles version ${settings.version}), pour le groupe et pour chaque marque`}>
             <div className="mdash-grid">
                 <Panel title="Règles" className="c7">
                     <form onSubmit={submit} className="mpage-form" style={{ padding: '0 18px 18px' }}>

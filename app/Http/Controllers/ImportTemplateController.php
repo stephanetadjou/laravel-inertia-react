@@ -71,7 +71,7 @@ class ImportTemplateController extends Controller
             }
 
             $help = $book->createSheet()->setTitle('Aide');
-            $help->fromArray([['Colonne', 'À quoi elle sert'], ...$template['columns'], [], ['Conseil', 'Remplacez les lignes d’exemple par vos données, gardez la première ligne, puis déposez le fichier dans Menentia.']], null, 'A1', true);
+            $help->fromArray([['Colonne', 'À quoi elle sert'], ...$template['columns'], [], ['Conseil', 'Remplacez les lignes d’exemple par vos données, gardez la première ligne, puis déposez le fichier dans NENTIX.']], null, 'A1', true);
             $help->getStyle('1:1')->getFont()->setBold(true);
             $help->getColumnDimension('A')->setAutoSize(true);
             $help->getColumnDimension('B')->setWidth(90);

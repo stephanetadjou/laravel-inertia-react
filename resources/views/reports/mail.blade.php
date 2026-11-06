@@ -35,7 +35,7 @@
                     <a href="{{ $url }}" style="display:inline-block;background:#0e7bd6;color:#ffffff;text-decoration:none;padding:12px 22px;border-radius:8px;font-weight:700">Ouvrir le rapport complet</a>
                 </p>
             </td></tr>
-            <tr><td style="padding:12px 24px;color:#4a5d70;font-size:11px;border-top:1px solid #e6eef5">Généré automatiquement par Menentia chaque soir. Réglages : Paramètres › Rapports.</td></tr>
+            <tr><td style="padding:12px 24px;color:#4a5d70;font-size:11px;border-top:1px solid #e6eef5">Généré automatiquement par NENTIX chaque soir. Réglages : Paramètres › Rapports.</td></tr>
         </table>
     </td></tr>
 </table>

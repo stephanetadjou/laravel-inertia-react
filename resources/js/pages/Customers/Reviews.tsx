@@ -55,7 +55,7 @@ function Reviews() {
             }
         >
             <div className="mpage-note">
-                Menentia ne rattache jamais d’office une vente quand le nom diffère trop de celui de la fiche, ou quand le numéro est partagé (famille, standard). Rattachez
+                NENTIX ne rattache jamais d’office une vente quand le nom diffère trop de celui de la fiche, ou quand le numéro est partagé (famille, standard). Rattachez
                 si c’est la même personne ; sinon gardez la vente séparée : elle reste dans le chiffre d’affaires sans être attribuée à ce client.
             </div>
 

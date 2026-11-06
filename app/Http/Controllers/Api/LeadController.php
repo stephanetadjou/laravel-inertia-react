@@ -64,7 +64,7 @@ class LeadController extends Controller
         return redirect()->away(rtrim((string) config('services.menentia.site_url'), '/').'/contact#merci');
     }
 
-    /** Prévient l'équipe Menentia par email, après la réponse au visiteur. */
+    /** Prévient l'équipe NENTIX par email, après la réponse au visiteur. */
     private function notify(Lead $lead): void
     {
         $to = config('services.menentia.leads_email');

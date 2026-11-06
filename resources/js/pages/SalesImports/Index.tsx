@@ -52,7 +52,7 @@ function SalesImportsIndex() {
     return (
         <Page
             title="Imports de ventes"
-            subtitle="Déposez l’export de votre caisse ou de votre ERP : Menentia range chaque vente sur la bonne fiche client"
+            subtitle="Déposez l’export de votre caisse ou de votre ERP : NENTIX range chaque vente sur la bonne fiche client"
             actions={
                 <a href="/modeles/ventes" className="mdash-btn ghost" title="Modèle Excel avec les bonnes colonnes et une aide">
                     Télécharger le modèle Excel
@@ -126,7 +126,7 @@ function SalesImportsIndex() {
                     </form>
                 </Panel>
 
-                <Panel title="Ce que Menentia sait lire" sub="Les colonnes sont reconnues automatiquement, puis vous vérifiez" className="c7">
+                <Panel title="Ce que NENTIX sait lire" sub="Les colonnes sont reconnues automatiquement, puis vous vérifiez" className="c7">
                     <div className="mdash-tbl mpage-table">
                         <table>
                             <tbody>

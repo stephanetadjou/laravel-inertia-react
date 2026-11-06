@@ -26,7 +26,7 @@ export default function WhatsAppApiCard({ enabled }: { enabled: boolean }) {
             <p className="mdash-scope" style={{ marginTop: 0 }}>
                 {enabled
                     ? 'Campagnes ciblées, modèles Meta, messages de bienvenue et statuts remis / lu passent par l’API WhatsApp Cloud, avec le compte Meta vérifié de chaque établissement.'
-                    : 'Sans compte Meta vérifié, Menentia fonctionne avec des relances manuelles : Actions du jour ouvre WhatsApp avec un message prérempli (lien wa.me), et l’équipe l’envoie depuis le téléphone de l’établissement. Activez l’API quand votre numéro est vérifié chez Meta.'}
+                    : 'Sans compte Meta vérifié, NENTIX fonctionne avec des relances manuelles : Actions du jour ouvre WhatsApp avec un message prérempli (lien wa.me), et l’équipe l’envoie depuis le téléphone de l’établissement. Activez l’API quand votre numéro est vérifié chez Meta.'}
             </p>
             <button type="button" className={`mdash-btn ${enabled ? 'ghost' : 'brand'}`} disabled={busy} onClick={toggle}>
                 {enabled ? 'Désactiver l’API WhatsApp' : 'Activer l’API WhatsApp'}

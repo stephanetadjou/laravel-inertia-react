@@ -158,11 +158,11 @@ class OrganizationController extends Controller
     }
 
     /**
-     * « WhatsApp géré par Menentia » : le client a partagé son compte
-     * WhatsApp Business avec le portefeuille Menentia ; Menentia envoie avec
+     * « WhatsApp géré par NENTIX » : le client a partagé son compte
+     * WhatsApp Business avec le portefeuille NENTIX ; NENTIX envoie avec
      * son token et reçoit les événements sur le webhook unique. Réglé ici
      * seulement, jamais par l'entreprise : un Phone Number ID saisi par un
-     * client ne doit pas lui donner le token de Menentia.
+     * client ne doit pas lui donner le token de NENTIX.
      */
     public function manageWhatsApp(Request $request, Organization $organization, Store $store): RedirectResponse
     {
@@ -177,7 +177,7 @@ class OrganizationController extends Controller
             ],
         ], [
             '*.regex' => 'Identifiant Meta attendu : chiffres uniquement.',
-            '*.required_if' => 'Obligatoire pour un numéro géré par Menentia.',
+            '*.required_if' => 'Obligatoire pour un numéro géré par NENTIX.',
             'phone_number_id.unique' => 'Ce numéro est déjà rattaché à un autre point de vente.',
         ]);
 
@@ -185,7 +185,7 @@ class OrganizationController extends Controller
             $store->update(['whatsapp_managed' => false]);
             PlatformLog::record('store.whatsapp_managed', "{$store->name} : géré par l'entreprise", ['store_id' => $store->id, 'managed' => false], $organization);
 
-            return back()->with('success', "{$store->name} : WhatsApp n'est plus géré par Menentia.");
+            return back()->with('success', "{$store->name} : WhatsApp n'est plus géré par NENTIX.");
         }
 
         $phoneChanged = $data['phone_number_id'] !== $store->whatsapp_phone_number_id;
@@ -194,7 +194,7 @@ class OrganizationController extends Controller
             'whatsapp_managed' => true,
             'whatsapp_business_account_id' => $data['business_account_id'],
             'whatsapp_phone_number_id' => $data['phone_number_id'],
-            // Le token et l'App Secret de Menentia remplacent ceux de l'entreprise.
+            // Le token et l'App Secret de NENTIX remplacent ceux de l'entreprise.
             'whatsapp_access_token' => null,
             'whatsapp_app_secret' => null,
         ]);
@@ -214,7 +214,7 @@ class OrganizationController extends Controller
         $organization->update(['whatsapp_api_enabled' => true]);
         PlatformLog::record('store.whatsapp_managed', "{$store->name} : numéro {$data['phone_number_id']}", ['store_id' => $store->id, 'managed' => true], $organization);
 
-        return back()->with('success', "{$store->name} : WhatsApp géré par Menentia. Lancez « Tester » dans les Paramètres WhatsApp de l'entreprise.");
+        return back()->with('success', "{$store->name} : WhatsApp géré par NENTIX. Lancez « Tester » dans les Paramètres WhatsApp de l'entreprise.");
     }
 
     public function reactivate(Organization $organization): RedirectResponse
@@ -296,7 +296,7 @@ class OrganizationController extends Controller
             'statuses' => $list(self::STATUS_FILTERS),
             'sectors' => $list(Organization::SECTORS),
             'plans' => collect(Organization::PLANS)->map(fn ($p, $key) => ['value' => $key, 'label' => $p['label'].' · '.number_format($p['price'], 0, ',', ' ').' FCFA / mois'])->values()->all(),
-            'offers' => [['value' => 'menentia', 'label' => 'Menentia'], ['value' => 'retail', 'label' => 'Analyse commerciale']],
+            'offers' => [['value' => 'menentia', 'label' => 'NENTIX'], ['value' => 'retail', 'label' => 'Analyse commerciale']],
         ];
     }
 }

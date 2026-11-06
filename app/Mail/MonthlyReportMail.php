@@ -21,7 +21,7 @@ class MonthlyReportMail extends Mailable
 
     public function content(): Content
     {
-        return new Content(htmlString: "<p>Bonjour,</p><p>Voici les rapports de {$this->period} pour ".e($this->organization->name).'.</p><p>Menentia</p>');
+        return new Content(htmlString: "<p>Bonjour,</p><p>Voici les rapports de {$this->period} pour ".e($this->organization->name).'.</p><p>NENTIX</p>');
     }
 
     /** @return array<int, Attachment> */

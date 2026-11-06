@@ -80,7 +80,7 @@ function MappingForm() {
 
     return (
         <>
-            <Panel className="c12" title="1. Associer les colonnes" sub="Chaque champ de Menentia ← une colonne de votre fichier. Les colonnes non associées deviennent des attributs de la vente.">
+            <Panel className="c12" title="1. Associer les colonnes" sub="Chaque champ de NENTIX ← une colonne de votre fichier. Les colonnes non associées deviennent des attributs de la vente.">
                 {formErrors?.mapping && <div className="mdash-flash bad">{formErrors.mapping}</div>}
                 <div className="mpage-form-grid" style={{ padding: '4px 18px 18px' }}>
                     {fields.map((f) => (

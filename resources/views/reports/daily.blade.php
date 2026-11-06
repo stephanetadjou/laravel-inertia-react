@@ -236,7 +236,7 @@
             </tr>
         </table>
     </div>
-    <div class="foot">Menentia · Connaissez mieux vos clients. Faites grandir votre activité.<span>page 1 / 2</span></div>
+    <div class="foot">NENTIX · Connaissez mieux vos clients. Faites grandir votre activité.<span>page 1 / 2</span></div>
 </div>
 
 <div class="sheet">
@@ -254,7 +254,7 @@
                     <tr><td>{{ $c['name'] }} @if ($c['vip'])<span class="tag vip">VIP</span>@endif</td><td>{{ $c['segment'] }}</td><td>{{ $c['last_visit'] ?? '—' }}</td><td>{{ $c['interval'] ? 'tous les '.$c['interval'].' j' : '—' }}</td><td class="r">{{ $money($c['spent_12m']) }}</td><td><span class="tag {{ $c['risk'] }}">{{ $c['risk'] === 'high' ? 'élevé' : 'moyen' }}</span></td></tr>
                 @endforeach
             </table>
-            <p class="muted">Ces {{ count($report['at_risk']['top']) }} clients pèsent {{ $money($report['at_risk']['top_spent']) }} sur 12 mois. La liste complète ({{ $report['at_risk']['count'] }} clients) est dans Menentia, rubrique Clients, filtre « Alerte churn ».</p>
+            <p class="muted">Ces {{ count($report['at_risk']['top']) }} clients pèsent {{ $money($report['at_risk']['top_spent']) }} sur 12 mois. La liste complète ({{ $report['at_risk']['count'] }} clients) est dans NENTIX, rubrique Clients, filtre « Alerte churn ».</p>
         @endif
 
         <table class="two">
@@ -389,7 +389,7 @@
             </ol>
         @endif
     </div>
-    <div class="foot">Généré automatiquement par Menentia chaque soir. Réglages : Paramètres › Rapports.<span>page 2 / 2</span></div>
+    <div class="foot">Généré automatiquement par NENTIX chaque soir. Réglages : Paramètres › Rapports.<span>page 2 / 2</span></div>
 </div>
 @if (! empty($autoPrint))
     <script>window.addEventListener('load', () => window.print());</script>

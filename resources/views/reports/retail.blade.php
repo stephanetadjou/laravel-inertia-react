@@ -36,7 +36,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Rapport de direction · {{ $organization->name }}</title>
     <style>
-        /* Rapport de direction Menentia Retail : A4, tableaux simples (compatible PDF). */
+        /* Rapport de direction NENTIX Retail : A4, tableaux simples (compatible PDF). */
         @page { size: A4; margin: 0; }
         * { box-sizing: border-box; }
         body { margin: 0; background: #f4f8fb; color: #0b2d4a; font-family: 'Outfit', 'DejaVu Sans', Arial, sans-serif; font-size: 11px; line-height: 1.45; }
@@ -71,7 +71,7 @@
 <body @if ($autoPrint) onload="window.print()" @endif>
 <div class="sheet">
     <div class="top">
-        <div class="brand"><i>M</i>Menentia · Analyse commerciale</div>
+        <div class="brand"><i>M</i>NENTIX · Analyse commerciale</div>
         <h1>Rapport de direction</h1>
         <div class="sub">{{ $organization->name }} · {{ $scopeLabel }} · du {{ \Illuminate\Support\Carbon::parse($filters['from'])->format('d/m/Y') }} au {{ \Illuminate\Support\Carbon::parse($filters['to'])->format('d/m/Y') }}</div>
     </div>
@@ -120,7 +120,7 @@
             @if ($retention['kpis']['average_interval'] !== null) Délai moyen entre deux achats : <b>{{ $retention['kpis']['average_interval'] }} jours</b>. @endif</p>
         {!! $table($retention['tables'][0], 12) !!}
 
-        <div class="foot">CA net = ventes − retours − remises, ventes anonymes comprises. Panier moyen = CA des ventes ÷ tickets. Édité le {{ now()->format('d/m/Y à H:i') }} par Menentia.</div>
+        <div class="foot">CA net = ventes − retours − remises, ventes anonymes comprises. Panier moyen = CA des ventes ÷ tickets. Édité le {{ now()->format('d/m/Y à H:i') }} par NENTIX.</div>
     </div>
 </div>
 </body>

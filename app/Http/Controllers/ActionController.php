@@ -78,7 +78,7 @@ class ActionController extends Controller
 
     /**
      * Export d'une liste d'actions (clients, motif, message et lien wa.me),
-     * pour relancer hors de Menentia : droit d'export, journalisé.
+     * pour relancer hors de NENTIX : droit d'export, journalisé.
      */
     public function export(Request $request): StreamedResponse
     {

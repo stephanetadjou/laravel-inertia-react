@@ -29,7 +29,7 @@ function AdminDashboard() {
     const count = (key: string) => statuses.find((s) => s.key === key)?.total ?? 0;
 
     return (
-        <Page title="Plateforme" subtitle="Toutes les entreprises inscrites sur Menentia">
+        <Page title="Plateforme" subtitle="Toutes les entreprises inscrites sur NENTIX">
             <StatStrip
                 items={[
                     { label: 'Entreprises', value: total },
@@ -110,7 +110,7 @@ function AdminDashboard() {
                     )}
                 </Panel>
 
-                <Panel title="Journal de la plateforme" sub="Dernières actions de l’équipe Menentia" className="c5">
+                <Panel title="Journal de la plateforme" sub="Dernières actions de l’équipe NENTIX" className="c5">
                     {logs.length === 0 ? (
                         <Empty title="Aucune action pour l’instant" />
                     ) : (

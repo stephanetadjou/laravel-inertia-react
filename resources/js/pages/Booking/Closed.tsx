@@ -44,7 +44,7 @@ export default function BookingClosed({ organization, reason, isMember }: PagePr
             </div>
 
             <footer className="mbook-foot">
-                <MenentiaSymbol className="h-4 w-4" /> Réservation par Menentia
+                <MenentiaSymbol className="h-4 w-4" /> Réservation par NENTIX
             </footer>
         </div>
     );

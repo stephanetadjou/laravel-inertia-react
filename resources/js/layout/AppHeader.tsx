@@ -68,7 +68,7 @@ const AppHeader: React.FC = () => {
                     )}
                 </button>
 
-                <Link href="/dashboard" className="lg:hidden" aria-label="Menentia, accueil">
+                <Link href="/dashboard" className="lg:hidden" aria-label="NENTIX, accueil">
                     <MenentiaLogo symbolClassName="h-7 w-7" wordmarkClassName="text-lg" />
                 </Link>
 

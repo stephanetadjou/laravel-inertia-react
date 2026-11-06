@@ -1,5 +1,5 @@
 /*
- * Éléments communs du back-office plateforme Menentia (/admin).
+ * Éléments communs du back-office plateforme NENTIX (/admin).
  */
 
 export interface AdminOrganization {

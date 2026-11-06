@@ -2,7 +2,7 @@
  * Logo NENTIX (charte du 05/11/2026) : hexagone bleu #1D4ED8 évidé, cœur
  * cyan #06B6D4, nom NENTIX vectorisé (Outfit Bold) en bleu nuit #0B1F3A.
  * Sur fond sombre : hexagone blanc, cœur cyan, texte blanc.
- * Les noms d'export Menentia* sont gardés pour ne pas toucher aux écrans.
+ * Les noms d'export NENTIX* sont gardés pour ne pas toucher aux écrans.
  */
 
 const HEX_OUTER = 'M50,0 93.3,25 93.3,75 50,100 6.7,75 6.7,25Z M50,15 80.31,32.5 80.31,67.5 50,85 19.69,67.5 19.69,32.5Z';

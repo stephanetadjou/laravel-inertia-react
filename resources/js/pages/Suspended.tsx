@@ -19,7 +19,7 @@ export default function Suspended({ organization, reason, contact }: { organizat
                     </h1>
                     <h2 className="text-lg font-semibold text-gray-800 dark:text-white/90">Compte suspendu</h2>
                     <p className="mt-2 text-sm text-gray-600 dark:text-gray-400">
-                        L’accès de <b>{organization}</b> à Menentia est suspendu{reason ? ` : ${reason}` : ''}. Vos données sont conservées.
+                        L’accès de <b>{organization}</b> à NENTIX est suspendu{reason ? ` : ${reason}` : ''}. Vos données sont conservées.
                     </p>
                     {contact && (
                         <p className="mt-2 text-sm text-gray-600 dark:text-gray-400">

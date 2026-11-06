@@ -153,8 +153,8 @@ function StoreCard({ store }: { store: StoreSettings }) {
                 {store.managed ? (
                     <div className="space-y-4 text-sm">
                         <p className="text-gray-700 dark:text-gray-300">
-                            Ce numéro est <b>géré par Menentia</b> : votre compte WhatsApp est partagé avec Menentia, qui s'occupe du token et du webhook.
-                            Pour changer de numéro, contactez l'équipe Menentia.
+                            Ce numéro est <b>géré par NENTIX</b> : votre compte WhatsApp est partagé avec NENTIX, qui s'occupe du token et du webhook.
+                            Pour changer de numéro, contactez l'équipe NENTIX.
                         </p>
                         <dl className="grid gap-2 sm:grid-cols-2">
                             <div>

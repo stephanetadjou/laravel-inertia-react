@@ -30,9 +30,9 @@ export interface NavContext {
     modules?: string[];
     /** Commerce : vocabulaire « familles », imports des ventes et analyses Retail. */
     sellsProducts?: boolean;
-    /** Droit d'importer des ventes (rubrique Imports de Menentia Retail). */
+    /** Droit d'importer des ventes (rubrique Imports de NENTIX Retail). */
     canImport?: boolean;
-    /** Super-admin Menentia : rubrique Plateforme (/admin). */
+    /** Super-admin NENTIX : rubrique Plateforme (/admin). */
     isPlatformAdmin?: boolean;
     /** Nom des personnes suivies (clients, patients, adherents, eleves). */
     customerLabel?: string;
@@ -138,7 +138,7 @@ export function buildSections({ canManageOrganization, whatsappApiEnabled, modul
         },
     ];
 
-    // Menentia Retail : imports des ventes (fichiers de caisse / ERP) et des clients, puis analyses.
+    // NENTIX Retail : imports des ventes (fichiers de caisse / ERP) et des clients, puis analyses.
     if (sellsProducts) {
         sections.push({
             key: 'imports',
@@ -186,7 +186,7 @@ export function buildSections({ canManageOrganization, whatsappApiEnabled, modul
         tabs: settingsTabs,
     });
 
-    // Équipe Menentia : back-office plateforme.
+    // Équipe NENTIX : back-office plateforme.
     if (isPlatformAdmin) {
         sections.push({
             key: 'platform',

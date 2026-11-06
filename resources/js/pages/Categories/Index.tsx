@@ -325,7 +325,7 @@ function CategoriesIndex() {
 
             <div className="mpage-note">
                 Les ventes importées sont rangées automatiquement par le nom de la {familyWord}, ses mots-clés, ou les correspondances choisies dans « À classer ». Les
-                ventes encaissées dans Menentia prennent la {familyWord} de l’article du catalogue. Cliquez une {familyWord} pour voir les achats liés et les clients à
+                ventes encaissées dans NENTIX prennent la {familyWord} de l’article du catalogue. Cliquez une {familyWord} pour voir les achats liés et les clients à
                 cibler.
             </div>
 
