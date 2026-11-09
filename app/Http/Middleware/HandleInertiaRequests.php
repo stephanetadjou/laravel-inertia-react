@@ -81,6 +81,10 @@ class HandleInertiaRequests extends Middleware
                 : 'mailto:'.config('services.menentia.support_email')) : null,
             // Tarifs indicatifs par message, pour le coût estimé avant envoi d'une campagne.
             'whatsappPricing' => fn () => $user ? config('services.meta_whatsapp.pricing') : null,
+            // Crédits de messages NENTIX (null = sans limite) : estimation et blocage avant une campagne.
+            'messageCredits' => fn () => $user?->organization?->hasCreditLimit()
+                ? ['balance' => (int) $user->organization->message_credits, 'cost' => $user->organization->marketingMessageCost()]
+                : null,
             // Cloche « À traiter » (cf. NotificationService), calculée seulement si la page la demande.
             'notifications' => fn () => $user ? app(NotificationService::class)->forUser($user) : null,
         ];

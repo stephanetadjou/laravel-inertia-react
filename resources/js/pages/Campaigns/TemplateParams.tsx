@@ -13,7 +13,26 @@ interface Pricing {
  * Un message libre, dans la fenêtre de 24 h ouverte par le client, n'est pas facturé.
  */
 export function CostEstimate({ count, category, isText = false }: { count: number | null; category?: string | null; isText?: boolean }) {
-    const pricing = usePage<{ whatsappPricing?: Pricing | null }>().props.whatsappPricing;
+    const { whatsappPricing: pricing, messageCredits: credits } = usePage<{ whatsappPricing?: Pricing | null; messageCredits?: { balance: number; cost: number } | null }>().props;
+
+    // Crédits NENTIX : seuls les messages marketing consomment (session et utilitaire gratuits).
+    if (credits && count !== null) {
+        const marketing = !isText && (category ?? 'marketing').toLowerCase() === 'marketing';
+        const total = marketing ? count * credits.cost : 0;
+        const fcfa = (n: number) => `${new Intl.NumberFormat('fr-FR').format(n)} FCFA`;
+        return (
+            <p className={`rounded-lg px-3 py-2 text-sm ${total > credits.balance ? 'bg-error-50 text-error-700' : 'bg-gray-50 text-gray-700 dark:bg-white/[0.04] dark:text-gray-300'}`}>
+                {marketing ? (
+                    <>
+                        Coût : <b>{fcfa(total)}</b> ({new Intl.NumberFormat('fr-FR').format(count)} × {fcfa(credits.cost)}) · solde {fcfa(credits.balance)}
+                        {total > credits.balance && ' — crédits insuffisants, demandez une recharge à NENTIX.'}
+                    </>
+                ) : (
+                    <>Message utilitaire ou de session : aucun crédit consommé (solde {fcfa(credits.balance)}).</>
+                )}
+            </p>
+        );
+    }
 
     if (!pricing || count === null) return null;
 

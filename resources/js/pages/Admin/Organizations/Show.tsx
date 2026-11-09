@@ -24,6 +24,7 @@ interface PageProps {
     users: { id: number; name: string; email: string; role: string | null; created_at: string | null }[];
     stores: ManagedStore[];
     platform_whatsapp_ready: boolean;
+    credits: { balance: number | null; cost: number; custom_cost: number | null; movements: { id: number; amount: number; balance_after: number; reason: string; user: string | null; at: string | null }[] };
     logs: PlatformLogRow[];
     options: { plans: Option[] };
     errors: Record<string, string>;
@@ -39,6 +40,65 @@ interface ManagedStore {
     verified_name: string | null;
     display_phone_number: string | null;
     checked_at: string | null;
+}
+
+const fcfa = (n: number) => `${new Intl.NumberFormat('fr-FR').format(n)} FCFA`;
+
+/* Crédits de messages : recharge manuelle, coût d'un message marketing, historique. */
+function CreditsPanel({ organizationId, credits }: { organizationId: number; credits: PageProps['credits'] }) {
+    const form = useForm({ amount: '', reason: '', cost: String(credits.cost) });
+    const save: FormEventHandler = (e) => {
+        e.preventDefault();
+        form.post(`/admin/organizations/${organizationId}/credits`, { preserveScroll: true, onSuccess: () => form.reset('amount', 'reason') });
+    };
+
+    return (
+        <Panel title="Crédits de messages" sub="Seuls les messages marketing consomment ; session et utilitaires sont gratuits" className="c12">
+            <div className="grid gap-5 p-5 text-sm lg:grid-cols-2">
+                <form onSubmit={save} className="space-y-3">
+                    <p>
+                        Solde : <b>{credits.balance === null ? 'sans limite (entreprise historique)' : fcfa(credits.balance)}</b>
+                    </p>
+                    <div className="grid gap-2 sm:grid-cols-2">
+                        <input value={form.data.amount} onChange={(e) => form.setData('amount', e.target.value)} className={fieldClasses()} placeholder="Recharge en FCFA (ex. 50000, ou -5000)" aria-label="Montant de la recharge" inputMode="numeric" />
+                        <input value={form.data.reason} onChange={(e) => form.setData('reason', e.target.value)} className={fieldClasses()} placeholder="Motif (ex. paiement Mobile Money du 09/11)" aria-label="Motif" />
+                    </div>
+                    <label className="flex items-center gap-2">
+                        Coût d’un message marketing
+                        <input value={form.data.cost} onChange={(e) => form.setData('cost', e.target.value)} className={`${fieldClasses()} w-28`} inputMode="numeric" aria-label="Coût d’un message marketing" />
+                        FCFA
+                    </label>
+                    {Object.values(form.errors).map((err) => (
+                        <p key={err} className="text-error-500">{err}</p>
+                    ))}
+                    <button type="submit" className="mdash-btn brand" disabled={form.processing}>
+                        Enregistrer
+                    </button>
+                </form>
+                <div className="mdash-tbl mpage-table">
+                    {credits.movements.length === 0 ? (
+                        <Empty title="Aucun mouvement" />
+                    ) : (
+                        <table>
+                            <tbody>
+                                {credits.movements.map((m) => (
+                                    <tr key={m.id}>
+                                        <td>{formatDay(m.at, true)}</td>
+                                        <td>
+                                            {m.reason}
+                                            {m.user && <div className="mpage-muted">{m.user}</div>}
+                                        </td>
+                                        <td className={`num ${m.amount < 0 ? 'text-error-600' : 'text-success-600'}`}>{m.amount > 0 ? '+' : ''}{fcfa(m.amount)}</td>
+                                        <td className="num mpage-muted">{fcfa(m.balance_after)}</td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    )}
+                </div>
+            </div>
+        </Panel>
+    );
 }
 
 /* WhatsApp géré par NENTIX : le client a partagé son compte WhatsApp avec le portefeuille NENTIX. */
@@ -103,7 +163,7 @@ function ManagedWhatsAppRow({ organizationId, store }: { organizationId: number;
 }
 
 function OrganizationShow() {
-    const { organization: o, users, stores, platform_whatsapp_ready, logs, options, errors } = usePage<PageProps>().props;
+    const { organization: o, users, stores, platform_whatsapp_ready, credits, logs, options, errors } = usePage<PageProps>().props;
     const base = `/admin/organizations/${o.id}`;
     const [days, setDays] = useState(14);
     const suspendForm = useForm({ reason: '' });
@@ -208,6 +268,8 @@ function OrganizationShow() {
                         )}
                     </div>
                 </Panel>
+
+                <CreditsPanel organizationId={o.id} credits={credits} />
 
                 <Panel title="WhatsApp géré par NENTIX" sub="Compte WhatsApp du client partagé avec le portefeuille NENTIX" className="c12">
                     {!platform_whatsapp_ready && (

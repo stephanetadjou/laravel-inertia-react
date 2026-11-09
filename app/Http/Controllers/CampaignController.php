@@ -256,6 +256,23 @@ class CampaignController extends Controller
             return back()->with('error', 'Limite d\'envoi WhatsApp dépassée : '.implode(' ; ', $overLimit).'. Réduisez le ciblage ou répartissez l\'envoi sur plusieurs jours.');
         }
 
+        // Crédits de messages : un message marketing consomme le coût réglé dans /admin ; session et utilitaire : gratuits.
+        // Solde relu en base : jamais celui d'un modèle déjà chargé.
+        $organization = $request->user()->organization->fresh();
+        $creditCost = 0;
+        if ($data['message_type'] === 'template' && $organization->hasCreditLimit()) {
+            $category = MessageTemplate::where('organization_id', $organizationId)->where('name', $templateParameters['template_name'])->value('category');
+            if ($category === null || strtoupper((string) $category) === 'MARKETING') {
+                $creditCost = $contactIds->count() * $organization->marketingMessageCost();
+            }
+            if ($creditCost > (int) $organization->message_credits) {
+                return back()->with('error', sprintf(
+                    'Crédits insuffisants : cette campagne coûte %s FCFA (%d messages × %d FCFA), votre solde est de %s FCFA. Demandez une recharge à NENTIX.',
+                    number_format($creditCost, 0, ',', ' '), $contactIds->count(), $organization->marketingMessageCost(), number_format((int) $organization->message_credits, 0, ',', ' '),
+                ));
+            }
+        }
+
         $campaign = Campaign::create([
             'name' => $data['name'],
             'description' => $data['description'] ?? null,
@@ -281,6 +298,10 @@ class CampaignController extends Controller
                 'updated_at' => $now,
             ])->all(),
         );
+
+        if ($creditCost > 0) {
+            $organization->moveCredits(-$creditCost, "Campagne « {$campaign->name} » ({$contactIds->count()} messages marketing)", $request->user()->id, $campaign->id);
+        }
 
         SendCampaignJob::dispatch($campaign);
 

@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\Appointment;
+use App\Models\CreditMovement;
 use App\Models\Customer;
 use App\Models\Organization;
 use App\Models\PlatformLog;
@@ -91,10 +92,39 @@ class OrganizationController extends Controller
                 'checked_at' => $s->whatsapp_checked_at?->toIso8601String(),
             ]),
             'platform_whatsapp_ready' => filled(config('services.meta_whatsapp.platform.token')),
+            'credits' => [
+                'balance' => $organization->message_credits,
+                'cost' => $organization->marketingMessageCost(),
+                'custom_cost' => $organization->marketing_message_cost,
+                'movements' => CreditMovement::where('organization_id', $organization->id)->with('user:id,name')->latest('id')->take(20)->get()
+                    ->map(fn (CreditMovement $m) => ['id' => $m->id, 'amount' => $m->amount, 'balance_after' => $m->balance_after, 'reason' => $m->reason, 'user' => $m->user?->name, 'at' => $m->created_at?->toIso8601String()]),
+            ],
             'logs' => PlatformLog::where('organization_id', $organization->id)->with('user:id,name')->latest('id')->take(30)->get()
                 ->map(fn (PlatformLog $log) => self::presentLog($log)),
             'options' => self::options(),
         ]);
+    }
+
+    /** Crédits de messages : recharge (ou correction) manuelle et coût d'un message marketing. */
+    public function credits(Request $request, Organization $organization): RedirectResponse
+    {
+        $data = $request->validate([
+            'amount' => ['nullable', 'integer', 'between:-100000000,100000000'],
+            'reason' => ['nullable', 'string', 'max:255'],
+            'cost' => ['nullable', 'integer', 'min:0', 'max:100000'],
+        ]);
+
+        if (array_key_exists('cost', $data) && (int) $data['cost'] !== $organization->marketingMessageCost()) {
+            $organization->update(['marketing_message_cost' => $data['cost']]);
+            PlatformLog::record('organization.message_cost', "Coût d’un message marketing : {$data['cost']} FCFA", ['cost' => $data['cost']], $organization);
+        }
+
+        if (! empty($data['amount'])) {
+            $organization->moveCredits((int) $data['amount'], $data['reason'] ?: 'Recharge manuelle', $request->user()->id);
+            PlatformLog::record('organization.credits', ($data['amount'] > 0 ? 'Recharge' : 'Retrait').' de '.abs($data['amount']).' FCFA de crédits', ['amount' => $data['amount']], $organization);
+        }
+
+        return back()->with('success', 'Crédits mis à jour.');
     }
 
     public function extendTrial(Request $request, Organization $organization): RedirectResponse
