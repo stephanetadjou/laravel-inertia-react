@@ -1,4 +1,4 @@
-import { BoxCubeIcon, CalenderIcon, DollarLineIcon, DownloadIcon, GridIcon, PaperPlaneIcon, PieChartIcon, TaskIcon, UserIcon } from '../icons';
+import { BoxCubeIcon, CalenderIcon, ChatIcon, DollarLineIcon, DownloadIcon, GridIcon, PaperPlaneIcon, PieChartIcon, TaskIcon, UserIcon } from '../icons';
 
 /*
  * Menu principal, à la manière d'Odoo : quelques grandes rubriques dans le
@@ -78,6 +78,7 @@ export function buildSections({ canManageOrganization, whatsappApiEnabled, modul
             ? [
                   { name: 'Entreprise', path: '/organisation' },
                   { name: 'Modules', path: '/settings/modules' },
+                  ...(has('reponses_auto') ? [{ name: 'Réponses automatiques', path: '/settings/auto-replies' }] : []),
                   ...(has('rdv') ? [{ name: 'Réservation en ligne', path: '/settings/booking' }] : []),
                   ...(agenda ? [{ name: 'Intervenants', path: '/settings/staff' }] : []),
                   ...(has('rdv') ? [{ name: 'Fermetures', path: '/settings/closures' }] : []),
@@ -96,6 +97,7 @@ export function buildSections({ canManageOrganization, whatsappApiEnabled, modul
     const sections: NavSection[] = [
         { key: 'home', name: 'Accueil', icon: <PieChartIcon />, path: '/dashboard', tabs: [] },
         { key: 'actions', name: 'À faire', icon: <TaskIcon />, path: '/actions', tabs: [] },
+        { key: 'discussions', name: 'Discussions', icon: <ChatIcon />, path: '/discussions', tabs: [] },
         ...(agenda
             ? [
                   {
@@ -159,6 +161,7 @@ export function buildSections({ canManageOrganization, whatsappApiEnabled, modul
             { name: 'Pilotage', path: '/pilotage' },
             { name: 'Rapports', path: '/rapports' },
             { name: 'Tableaux de bord', path: '/analytics' },
+            { name: 'Sources', path: '/sources' },
             ...(sellsProducts && (has('familles') || has('catalogue')) ? [{ name: 'Familles', path: '/categories' }] : []),
             ...(has('lieux') ? [{ name: 'Multimarque', path: '/multibrand' }] : []),
         ],

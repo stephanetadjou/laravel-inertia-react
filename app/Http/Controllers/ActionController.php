@@ -7,6 +7,7 @@ use App\Models\Customer;
 use App\Models\CustomerFollowUp;
 use App\Models\Group;
 use App\Models\Store;
+use App\Models\Task;
 use App\Services\ActionLists;
 use App\Services\Audit;
 use Illuminate\Http\RedirectResponse;
@@ -186,6 +187,11 @@ class ActionController extends Controller
             'message' => $data['message'] ?? null,
             'done_at' => now(),
         ]);
+
+        // Tâche de « Demandes à traiter » : faite.
+        if ($data['action'] === 'tasks' && preg_match('/^task-(\d+)$/', (string) ($data['reference'] ?? ''), $m)) {
+            Task::where('organization_id', $user->organization_id)->whereKey((int) $m[1])->update(['done_at' => now()]);
+        }
 
         return back()->with('success', "Relance de {$customer->name} enregistrée.");
     }

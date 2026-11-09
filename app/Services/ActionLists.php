@@ -12,6 +12,7 @@ use App\Models\Group;
 use App\Models\Installment;
 use App\Models\Store;
 use App\Models\Subscription;
+use App\Models\Task;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Carbon;
@@ -31,6 +32,11 @@ use Illuminate\Support\Facades\DB;
 class ActionLists
 {
     public const LISTS = [
+        'tasks' => [
+            'label' => 'Demandes à traiter',
+            'description' => 'Clients qui veulent parler à quelqu’un, être rappelés ou décaler leur rendez-vous (réponses WhatsApp).',
+            'cooldown_days' => null,
+        ],
         'at_risk' => [
             'label' => 'Clients à risque à relancer',
             'description' => "Bons clients en retard sur leur rythme d'achat habituel.",
@@ -108,6 +114,18 @@ class ActionLists
             'cooldown_days' => null,
             'modules' => ['seances_groupe'],
         ],
+        'service_cycle' => [
+            'label' => 'Clientes à faire revenir',
+            'description' => 'Le délai « revenir après N jours » de leur dernière prestation est passé, sans nouveau rendez-vous.',
+            'cooldown_days' => 14,
+            'modules' => ['relance_cycle'],
+        ],
+        'quote_followup' => [
+            'label' => 'Devis à relancer',
+            'description' => 'Devis envoyés il y a 3 jours ou plus, sans réponse : une relance prête à envoyer.',
+            'cooldown_days' => null,
+            'modules' => ['relance_devis'],
+        ],
         'installment_due' => [
             'label' => 'Échéances à rappeler',
             'description' => 'Tranches à payer bientôt ou en retard, aux dates de relance choisies dans Paramètres › Modules (ex. 2 jours avant, le jour même, 7 jours après).',
@@ -121,6 +139,9 @@ class ActionLists
      * {beneficiaire} = prénom de la personne suivie quand on écrit à son responsable.
      */
     public const DEFAULT_MESSAGES = [
+        'tasks' => 'Bonjour {prenom}, ici {boutique}. Vous nous avez demandé de vous recontacter : comment pouvons-nous vous aider ?',
+        'service_cycle' => 'Bonjour {prenom}, cela fait {jours} jours depuis votre {prestation} chez {boutique}. C’est le bon moment pour revenir : on vous réserve un créneau ?',
+        'quote_followup' => 'Bonjour {prenom}, ici {boutique}. Avez-vous pu regarder notre devis ? Je reste disponible pour en parler ou l’ajuster à votre besoin.',
         'at_risk' => 'Bonjour {prenom}, cela fait un moment que nous ne vous avons pas vu chez {boutique}. Nous avons de nouvelles choses qui devraient vous plaire : passez nous voir, nous serons ravis de vous accueillir !',
         'second_purchase' => 'Bonjour {prenom}, merci encore pour votre visite chez {boutique}. Tout vous convient ? Nous restons à votre disposition, et serons heureux de vous revoir très vite.',
         'win_back' => 'Bonjour {prenom}, vous nous manquez chez {boutique} ! Revenez nous voir, une attention vous attend lors de votre prochaine visite.',
@@ -207,6 +228,9 @@ class ActionLists
             'group' => $this->groupList(),
             'installment_due' => $this->installmentsDue(),
             'prospect_followup' => $this->prospectFollowUps(),
+            'tasks' => $this->openTasks(),
+            'service_cycle' => $this->serviceCycle(),
+            'quote_followup' => $this->quoteFollowUps(),
             'class_cancelled', 'class_makeup' => $this->sessionNotices($key),
             default => $this->customerList($key),
         };
@@ -429,7 +453,9 @@ class ActionLists
     private function prospectFollowUps(): array
     {
         $pipeline = ProspectPipeline::for($this->user->organization);
-        $stages = $pipeline->stages()->filter(fn ($s) => $s['delay_days'] > 0 && ! in_array($s['kind'], ['gagne', 'perdu'], true));
+        $stages = $pipeline->stages()->filter(fn ($s) => $s['delay_days'] > 0 && ! in_array($s['kind'], ['gagne', 'perdu'], true))
+            // Devis envoyés : liste « Devis à relancer » quand le module est actif.
+            ->reject(fn ($s) => $s['key'] === self::QUOTE_STAGE && $this->user->organization->hasModule('relance_devis'));
 
         return $this->customers('prospect_followup')
             ->whereIn('prospect_stage', $stages->pluck('key'))
@@ -440,6 +466,94 @@ class ActionLists
             ->reject(fn (Customer $c) => $c->followUps()->where('action', 'prospect_followup')->where('done_at', '>=', $c->prospect_stage_at)->where('done_at', '>=', now()->subDays($pipeline->stage($c->prospect_stage)['delay_days']))->exists())
             ->take(self::LIMIT)
             ->map(fn (Customer $c) => $this->row('prospect_followup', $c, '« '.$pipeline->stage($c->prospect_stage)['label'].' » depuis '.$pipeline->lateness($c)['days'].' j (relance prévue après '.$pipeline->stage($c->prospect_stage)['delay_days'].' j)'.($c->owner ? ' · '.$c->owner->name : '')))
+            ->filter()
+            ->values()
+            ->all();
+    }
+
+    /** Étape « devis envoyé » des services pro (cf. App\Support\SectorPresets). */
+    public const QUOTE_STAGE = 'devis_envoye';
+
+    /** Tâches ouvertes de « À faire » (parler à quelqu'un, être rappelé, RDV à recaser). @return list<array<string, mixed>> */
+    private function openTasks(): array
+    {
+        return Task::where('organization_id', $this->user->organization_id)
+            ->whereNull('done_at')
+            ->where(fn ($q) => $q->whereNull('store_id')->orWhereIn('store_id', $this->storeIds))
+            ->with(['customer', 'appointment.store'])
+            ->orderBy('created_at')
+            ->limit(self::LIMIT)
+            ->get()
+            ->map(fn (Task $task) => $this->row('tasks', $task->customer, $task->title.($task->details ? ' · '.$task->details : ''), $task->appointment, reference: 'task-'.$task->id))
+            ->filter()
+            ->values()
+            ->all();
+    }
+
+    /**
+     * Cycle de prestation : dernière prestation honorée dont le délai « revenir
+     * après N jours » est passé, sans rendez-vous à venir ni relance depuis.
+     *
+     * @return list<array<string, mixed>>
+     */
+    private function serviceCycle(): array
+    {
+        $last = DB::table('appointment_items')
+            ->join('appointments', 'appointments.id', '=', 'appointment_items.appointment_id')
+            ->join('catalog_items', 'catalog_items.id', '=', 'appointment_items.catalog_item_id')
+            ->whereIn('appointments.store_id', $this->storeIds)
+            ->where('appointments.status', 'done')
+            ->whereNotNull('catalog_items.return_after_days')
+            ->orderByDesc('appointments.starts_at')
+            ->get(['appointments.customer_id', 'appointments.id as appointment_id', 'appointments.starts_at', 'appointment_items.name', 'catalog_items.return_after_days'])
+            ->unique('customer_id');
+
+        $today = today();
+        $due = $last->filter(fn ($r) => Carbon::parse($r->starts_at)->startOfDay()->addDays((int) $r->return_after_days)->lte($today));
+
+        if ($due->isEmpty()) {
+            return [];
+        }
+
+        $customers = $this->customers('service_cycle')->whereIn('id', $due->pluck('customer_id'))
+            ->whereDoesntHave('appointments', fn ($q) => $q->whereIn('status', Appointment::OPEN_STATUSES)->where('starts_at', '>=', now()))
+            ->get()->keyBy('id');
+
+        return $due->filter(fn ($r) => $customers->has($r->customer_id))
+            ->take(self::LIMIT)
+            ->map(function ($r) use ($customers, $today) {
+                $days = (int) Carbon::parse($r->starts_at)->startOfDay()->diffInDays($today);
+                $this->vars = ['{jours}' => (string) $days, '{prestation}' => $r->name];
+                $row = $this->row('service_cycle', $customers[$r->customer_id], "{$r->name} il y a {$days} j (revenir après {$r->return_after_days} j)");
+                $this->vars = [];
+
+                return $row;
+            })
+            ->filter()
+            ->values()
+            ->all();
+    }
+
+    /** Devis envoyés depuis 3 jours ou plus, sans relance depuis l'envoi. @return list<array<string, mixed>> */
+    private function quoteFollowUps(): array
+    {
+        $pipeline = ProspectPipeline::for($this->user->organization);
+        $stage = $pipeline->stage(self::QUOTE_STAGE);
+
+        if ($stage === null) {
+            return [];
+        }
+
+        $delay = (int) $stage['delay_days'] > 0 ? (int) $stage['delay_days'] : 3;
+
+        return $this->customers('quote_followup')
+            ->where('prospect_stage', self::QUOTE_STAGE)
+            ->where('prospect_stage_at', '<=', now()->subDays($delay))
+            ->orderBy('prospect_stage_at')
+            ->limit(self::LIMIT)
+            ->get()
+            ->reject(fn (Customer $c) => $c->followUps()->where('action', 'quote_followup')->where('done_at', '>=', $c->prospect_stage_at)->exists())
+            ->map(fn (Customer $c) => $this->row('quote_followup', $c, 'Devis envoyé il y a '.$pipeline->lateness($c)['days'].' j'))
             ->filter()
             ->values()
             ->all();
@@ -509,6 +623,8 @@ class ActionLists
             ->whereIn('status', Appointment::OPEN_STATUSES)
             ->whereBetween('starts_at', [now(), today()->addDays(2)])
             ->whereNotIn('id', $reminded)
+            // Rappel WhatsApp automatique déjà parti (crm:appointment-reminders) : rien à faire à la main.
+            ->whereNull('reminder_sent_at')
             ->with(['customer', 'store:id,name'])
             ->orderBy('starts_at')
             ->limit(self::LIMIT)

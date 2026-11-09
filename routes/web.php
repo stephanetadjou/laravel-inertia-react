@@ -8,6 +8,7 @@ use App\Http\Controllers\AudienceController;
 use App\Http\Controllers\AuditLogController;
 use App\Http\Controllers\Auth\AuthenticatedSessionController;
 use App\Http\Controllers\Auth\RegisteredOrganizationController;
+use App\Http\Controllers\AutoReplySettingsController;
 use App\Http\Controllers\BeneficiaryController;
 use App\Http\Controllers\BiDashboardController;
 use App\Http\Controllers\BookingController;
@@ -19,6 +20,7 @@ use App\Http\Controllers\CategoryController;
 use App\Http\Controllers\ChatController;
 use App\Http\Controllers\ClassController;
 use App\Http\Controllers\ContactController;
+use App\Http\Controllers\ConversationController;
 use App\Http\Controllers\CustomerController;
 use App\Http\Controllers\CustomerIdentityController;
 use App\Http\Controllers\DashboardController;
@@ -46,6 +48,7 @@ use App\Http\Controllers\SalesImportController;
 use App\Http\Controllers\SalesTeamController;
 use App\Http\Controllers\ScheduleSettingsController;
 use App\Http\Controllers\SelfServiceController;
+use App\Http\Controllers\SourceReportController;
 use App\Http\Controllers\StoreController;
 use App\Http\Controllers\UserController;
 use App\Http\Controllers\WhatsAppSettingsController;
@@ -167,6 +170,15 @@ Route::middleware('auth')->group(function () {
     Route::post('/customers/{customer}/loyalty-cards/{card}/redeem', [LoyaltyProgramController::class, 'redeem'])->middleware('module:fidelite')->name('customers.loyalty-cards.redeem');
     Route::post('/customers/{customer}/loyalty/adjust', [LoyaltyController::class, 'adjust'])->middleware('module:fidelite')->name('customers.loyalty.adjust');
 
+    // Discussions WhatsApp (boîte de réception partagée) et tableau par source de pub.
+    Route::get('/discussions', [ConversationController::class, 'index'])->name('discussions.index');
+    Route::get('/discussions/{contact}', [ConversationController::class, 'show'])->name('discussions.show');
+    Route::post('/discussions/{contact}/reply', [ConversationController::class, 'reply'])->name('discussions.reply');
+    Route::put('/discussions/{contact}/assign', [ConversationController::class, 'assign'])->name('discussions.assign');
+    Route::post('/discussions/{contact}/resolve', [ConversationController::class, 'resolve'])->name('discussions.resolve');
+    Route::get('/sources', [SourceReportController::class, 'index'])->name('sources.index');
+    Route::put('/sources/budgets', [SourceReportController::class, 'updateBudgets'])->middleware('can-manage-organization')->name('sources.budgets');
+
     Route::get('/chat', [ChatController::class, 'index'])->middleware('whatsapp-api')->name('chat.index');
     Route::get('/chat/{contact}', [ChatController::class, 'show'])->middleware('whatsapp-api')->name('chat.show');
 
@@ -216,6 +228,9 @@ Route::middleware('auth')->group(function () {
         Route::put('/actions/messages', [ActionController::class, 'updateMessages'])->name('actions.messages');
 
         Route::get('/settings/modules', [ModuleController::class, 'index'])->name('settings.modules');
+        Route::get('/settings/auto-replies', [AutoReplySettingsController::class, 'edit'])->middleware('module:reponses_auto')->name('settings.auto-replies');
+        Route::put('/settings/auto-replies', [AutoReplySettingsController::class, 'update'])->middleware('module:reponses_auto')->name('settings.auto-replies.update');
+        Route::post('/settings/sector-preset', [AutoReplySettingsController::class, 'applyPreset'])->name('settings.sector-preset');
         Route::get('/settings/prospects', [ProspectController::class, 'settings'])->middleware('module:prospects')->name('settings.prospects');
         Route::put('/settings/prospects', [ProspectController::class, 'updateSettings'])->middleware('module:prospects')->name('settings.prospects.update');
         Route::put('/settings/modules', [ModuleController::class, 'update'])->name('settings.modules.update');
@@ -371,4 +386,5 @@ Route::middleware(['auth', 'platform-admin'])->prefix('admin')->name('admin.')->
     Route::get('/leads/export', [Admin\LeadController::class, 'export'])->name('leads.export');
     Route::put('/leads/{lead}', [Admin\LeadController::class, 'update'])->name('leads.update');
     Route::put('/organizations/{organization}/stores/{store}/whatsapp', [Admin\OrganizationController::class, 'manageWhatsApp'])->name('organizations.stores.whatsapp');
+    Route::post('/organizations/{organization}/credits', [Admin\OrganizationController::class, 'credits'])->name('organizations.credits');
 });

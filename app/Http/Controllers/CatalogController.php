@@ -104,6 +104,8 @@ class CatalogController extends Controller
             'price' => ['required', 'integer', 'min:0', 'max:100000000'],
             'duration_minutes' => ['nullable', 'integer', 'min:5', 'max:600', 'required_if:type,service'],
             'reference' => ['nullable', 'string', 'max:100'],
+            // Cycle de la prestation : « revenir après N jours » (relance dans « À faire »).
+            'return_after_days' => ['nullable', 'integer', 'min:1', 'max:730'],
             'bookable_online' => ['nullable', 'boolean'],
             'store_ids' => ['nullable', 'array'],
             'store_ids.*' => ['integer', Rule::exists('stores', 'id')->where('organization_id', $organizationId)],
@@ -128,6 +130,7 @@ class CatalogController extends Controller
             'price' => $data['price'],
             'duration_minutes' => $service ? $data['duration_minutes'] : null,
             'reference' => $service ? null : ($data['reference'] ?? null),
+            'return_after_days' => $service ? ($data['return_after_days'] ?? null) : null,
             'bookable_online' => $service && ($data['bookable_online'] ?? true),
             'properties' => collect($data['properties'] ?? [])
                 ->mapWithKeys(fn ($p) => [Str::slug((string) ($p['name'] ?? ''), '_') => PurchaseImporter::propertyValue($p['value'] ?? null)])

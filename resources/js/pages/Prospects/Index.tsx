@@ -193,6 +193,13 @@ function Card({ p, stages }: { p: ProspectCard; stages: Stage[] }) {
 function ProspectsIndex() {
     const { stages, prospects, filters, owners } = usePage<PageProps>().props;
     const [creating, setCreating] = useState(false);
+    const [dragOver, setDragOver] = useState<string | null>(null);
+    // Glisser-déposer entre colonnes : même enregistrement que le choix d'étape (« perdu » demande la raison).
+    const moveTo = (id: number, stage: Stage) => {
+        const reason = stage.kind === 'perdu' ? window.prompt('Pourquoi ce prospect est-il perdu ? (prix, concurrent, pas le bon moment…)') : null;
+        if (stage.kind === 'perdu' && !reason) return;
+        router.post(`/prospects/${id}/stage`, { stage: stage.key, lost_reason: reason }, { preserveScroll: true });
+    };
     const visit = useQueryFilters('/prospects', { ...filters, view: filters.view === 'kanban' ? null : filters.view, late: filters.late ? 1 : null });
     const late = prospects.filter((p) => p.late).length;
 
@@ -242,7 +249,23 @@ function ProspectsIndex() {
                     {stages.map((s) => {
                         const cards = prospects.filter((p) => p.stage === s.key);
                         return (
-                            <section key={s.key} className="w-64 shrink-0 rounded-xl bg-gray-100/70 p-2 dark:bg-white/5" aria-label={s.label}>
+                            <section
+                                key={s.key}
+                                className={`w-64 shrink-0 rounded-xl p-2 transition-colors ${dragOver === s.key ? 'bg-brand-50 ring-2 ring-brand-300 dark:bg-white/10' : 'bg-gray-100/70 dark:bg-white/5'}`}
+                                aria-label={s.label}
+                                onDragOver={(e) => {
+                                    e.preventDefault();
+                                    setDragOver(s.key);
+                                }}
+                                onDragLeave={() => setDragOver((k) => (k === s.key ? null : k))}
+                                onDrop={(e) => {
+                                    e.preventDefault();
+                                    setDragOver(null);
+                                    const id = Number(e.dataTransfer.getData('text/plain'));
+                                    const card = prospects.find((p) => p.id === id);
+                                    if (card && card.stage !== s.key) moveTo(card.id, s);
+                                }}
+                            >
                                 <h2 className="mb-2 flex items-center justify-between px-1 text-sm font-semibold">
                                     {s.label}
                                     <span className="text-xs font-normal text-gray-500">
@@ -252,8 +275,11 @@ function ProspectsIndex() {
                                 </h2>
                                 <div className="space-y-2">
                                     {cards.map((p) => (
-                                        <Card key={p.id} p={p} stages={stages} />
+                                        <div key={p.id} draggable onDragStart={(e) => e.dataTransfer.setData('text/plain', String(p.id))} className="cursor-grab active:cursor-grabbing">
+                                            <Card p={p} stages={stages} />
+                                        </div>
                                     ))}
+                                    {cards.length === 0 && <p className="rounded-lg border border-dashed border-gray-300 px-2 py-4 text-center text-xs text-gray-400 dark:border-gray-700">Glissez une carte ici</p>}
                                 </div>
                             </section>
                         );

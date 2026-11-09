@@ -21,6 +21,7 @@ export interface CatalogItem {
     category: string | null;
     price: number;
     duration_minutes: number | null;
+    return_after_days?: number | null;
     reference: string | null;
     active: boolean;
     bookable_online: boolean;
@@ -77,6 +78,7 @@ function ItemModal({
         price: item ? String(item.price) : '',
         duration_minutes: item?.duration_minutes ? String(item.duration_minutes) : '30',
         reference: item?.reference ?? '',
+        return_after_days: item?.return_after_days ? String(item.return_after_days) : '',
         store_ids: item?.store_ids ?? ([] as number[]),
         bookable_online: item?.bookable_online ?? true,
         // Attributs génériques (genre, marque, canal…) : mêmes clés que les colonnes libres de l'import.
@@ -142,6 +144,12 @@ function ItemModal({
                             </label>
                             <input id="cat-duration" type="number" min={5} max={600} step={5} value={data.duration_minutes} onChange={(e) => setData('duration_minutes', e.target.value)} className={fieldClasses()} />
                             {errors.duration_minutes && <p className="mt-1.5 text-sm text-error-500">{errors.duration_minutes}</p>}
+                            <label htmlFor="cat-return" className="mt-3 mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-300">
+                                Revenir après (jours, facultatif)
+                            </label>
+                            <input id="cat-return" type="number" min={1} max={730} value={data.return_after_days} onChange={(e) => setData('return_after_days', e.target.value)} className={fieldClasses()} placeholder="ex. 30 pour une coupe" />
+                            <p className="mt-1 text-xs text-gray-500">Passé ce délai sans nouveau rendez-vous, la cliente arrive dans « À faire ».</p>
+                            {errors.return_after_days && <p className="mt-1.5 text-sm text-error-500">{errors.return_after_days}</p>}
                         </div>
                     ) : (
                         <div>
