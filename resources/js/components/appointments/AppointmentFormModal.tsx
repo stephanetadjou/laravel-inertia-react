@@ -17,7 +17,7 @@ export interface AppointmentRow {
     service: string | null;
     status: string;
     /** rdv, visite ou demo (suivi des prospects). */
-    kind?: 'rdv' | 'visite' | 'demo';
+    kind?: 'rdv' | 'visite' | 'demo' | 'essai';
     kind_label?: string | null;
     has_gps?: boolean;
     notes: string | null;
@@ -128,7 +128,8 @@ export default function AppointmentFormModal({
 }) {
     const isEditing = appointment !== null;
     // Types visite / démo : avec le module « Suivi des prospects ».
-    const withKinds = (usePage<{ auth?: { organization?: { modules?: string[] } | null } }>().props.auth?.organization?.modules ?? []).includes('prospects');
+    const orgModules = usePage<{ auth?: { organization?: { modules?: string[] } | null } }>().props.auth?.organization?.modules ?? [];
+    const withKinds = orgModules.includes('prospects') || orgModules.includes('essai');
     const withCustomer = isEditing || customerId !== undefined;
 
     const { data, setData, post, put, transform, processing, errors } = useForm({
@@ -311,13 +312,14 @@ export default function AppointmentFormModal({
                     <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                         <div>
                             <Label htmlFor="appt-kind">Type</Label>
-                            <select id="appt-kind" value={data.kind} onChange={(e) => setData('kind', e.target.value as 'rdv' | 'visite' | 'demo')} className={fieldClasses()}>
+                            <select id="appt-kind" value={data.kind} onChange={(e) => setData('kind', e.target.value as 'rdv' | 'visite' | 'demo' | 'essai')} className={fieldClasses()}>
                                 <option value="rdv">Rendez-vous</option>
+                                {orgModules.includes('essai') && <option value="essai">Séance d’essai</option>}
                                 <option value="visite">Visite (prospect)</option>
                                 <option value="demo">Démo (prospect)</option>
                             </select>
                         </div>
-                        {data.kind !== 'rdv' && (
+                        {data.kind !== 'rdv' && data.kind !== 'essai' && (
                             <div className="flex items-end">
                                 <button
                                     type="button"

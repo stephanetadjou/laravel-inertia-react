@@ -7,6 +7,9 @@ use App\Models\CampaignMessage;
 use App\Models\Contact;
 use App\Models\Store;
 use App\Models\WhatsAppInboundMessage;
+use App\Services\Acquisition;
+use App\Services\AutoReplies;
+use App\Services\ProspectPipeline;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
 use Illuminate\Support\Carbon;
@@ -68,7 +71,7 @@ class ProcessWhatsAppWebhookJob implements ShouldQueue
                 }
 
                 foreach ($value['messages'] ?? [] as $message) {
-                    $this->recordInboundMessage($store, $message);
+                    $this->recordInboundMessage($store, $message, $value['contacts'] ?? []);
                 }
 
                 foreach ($value['statuses'] ?? [] as $status) {
@@ -130,9 +133,16 @@ class ProcessWhatsAppWebhookJob implements ShouldQueue
     }
 
     /**
+     * Premier message d'un numéro inconnu : la fiche client est créée (nom du
+     * profil WhatsApp), avec sa source d'acquisition (referral d'une pub
+     * « Click to WhatsApp », sinon « Direct ») et, si le suivi des prospects
+     * est actif, le prospect entre à la première étape. Ensuite : réponses
+     * automatiques (accueil, hors horaires, menu, boutons du rappel).
+     *
      * @param  array<string, mixed>  $message
+     * @param  list<array<string, mixed>>  $profiles  value.contacts du webhook (wa_id, profile.name)
      */
-    private function recordInboundMessage(Store $store, array $message): void
+    private function recordInboundMessage(Store $store, array $message, array $profiles = []): void
     {
         $id = $message['id'] ?? null;
         $from = preg_replace('/\D/', '', (string) ($message['from'] ?? ''));
@@ -141,7 +151,14 @@ class ProcessWhatsAppWebhookJob implements ShouldQueue
             return;
         }
 
-        $contactId = Contact::where('store_id', $store->id)->where('phone_e164', $from)->value('id');
+        if (WhatsAppInboundMessage::where('wa_message_id', $id)->exists()) {
+            return;
+        }
+
+        $receivedAt = isset($message['timestamp']) ? Carbon::createFromTimestamp((int) $message['timestamp']) : now();
+        $contact = Contact::where('store_id', $store->id)->where('phone_e164', $from)->first()
+            ?? $this->createContact($store, $from, $profiles, $message['referral'] ?? null);
+        $contactId = $contact->id;
 
         $body = self::bodyOf($message);
 
@@ -153,16 +170,61 @@ class ProcessWhatsAppWebhookJob implements ShouldQueue
             'from_phone' => $from,
             'type' => (string) ($message['type'] ?? 'unknown'),
             'body' => $body,
-            'received_at' => isset($message['timestamp']) ? Carbon::createFromTimestamp((int) $message['timestamp']) : now(),
+            'received_at' => $receivedAt,
             'payload' => json_encode($message),
             'created_at' => now(),
             'updated_at' => now(),
         ]);
 
         // « Stop » : le client retire son accord pour ce numéro de boutique.
-        if ($inserted && $contactId && self::isStopRequest($body)) {
-            Contact::find($contactId)?->update(['consent_status' => 'opt_out', 'consent_source' => 'whatsapp_stop']);
+        if (! $inserted) {
+            return;
         }
+
+        if ($contact->last_inbound_at === null || $contact->last_inbound_at->lt($receivedAt)) {
+            $contact->forceFill(['last_inbound_at' => $receivedAt])->saveQuietly();
+        }
+
+        if (self::isStopRequest($body)) {
+            $contact->update(['consent_status' => 'opt_out', 'consent_source' => 'whatsapp_stop']);
+
+            return;
+        }
+
+        // Pas de réponse automatique à un vieux message rejoué par Meta.
+        if ($receivedAt->gt(now()->subHours(6))) {
+            AutoReplies::handle($contact->fresh(['store.organization', 'customer']), $message);
+        }
+    }
+
+    /**
+     * @param  list<array<string, mixed>>  $profiles
+     * @param  array<string, mixed>|null  $referral
+     */
+    private function createContact(Store $store, string $phone, array $profiles, ?array $referral): Contact
+    {
+        $profileName = collect($profiles)->firstWhere('wa_id', $phone)['profile']['name'] ?? null;
+
+        $contact = Contact::create([
+            'store_id' => $store->id,
+            'phone_e164' => $phone,
+            'name' => filled($profileName) ? trim((string) $profileName) : 'Client +'.$phone,
+            'consent_status' => 'unknown',
+        ]);
+
+        $customer = $contact->customer;
+
+        if ($customer !== null) {
+            Acquisition::record($customer, $referral);
+
+            $organization = $store->organization;
+            $pipeline = ProspectPipeline::for($organization);
+            if ($pipeline->enabled() && $customer->prospect_stage === null && (int) $customer->purchases_count === 0) {
+                $pipeline->start($customer);
+            }
+        }
+
+        return $contact;
     }
 
     /**

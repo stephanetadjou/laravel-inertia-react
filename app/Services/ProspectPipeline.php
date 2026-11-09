@@ -116,17 +116,45 @@ class ProspectPipeline
         }
     }
 
+    /**
+     * Étapes atteintes par l'agenda, selon les préréglages des secteurs
+     * (cf. App\Support\SectorPresets) : rendez-vous réservé, confirmé, venu ;
+     * séance d'essai planifiée, faite. Une étape absente chez l'entreprise
+     * est ignorée.
+     */
+    public const AGENDA_STAGES = [
+        'booked' => ['essai' => 'essai_planifie', 'rdv' => 'rdv_reserve'],
+        'confirmed' => ['essai' => 'essai_planifie', 'rdv' => 'rdv_confirme'],
+        'done' => ['visite' => 'visite', 'demo' => 'demo', 'essai' => 'essai_fait', 'rdv' => 'venue'],
+    ];
+
+    /** Rendez-vous pris, confirmé ou honoré : passage à l'étape correspondante, sans jamais reculer. */
+    public function onAppointmentEvent(Appointment $appointment, string $event): void
+    {
+        $this->advance($appointment, self::AGENDA_STAGES[$event][$appointment->kind ?? 'rdv'] ?? null);
+    }
+
     /** Visite ou démo honorée : passage à l'étape correspondante, sans jamais reculer. */
     public function onAppointmentDone(Appointment $appointment): void
     {
-        $customer = $appointment->customer;
-        $target = $this->stage(match ($appointment->kind) {
-            'visite' => 'visite',
-            'demo' => 'demo',
-            default => null,
-        });
+        $this->onAppointmentEvent($appointment, 'done');
+    }
 
-        if ($customer === null || $target === null || $customer->prospect_stage === null) {
+    private function advance(Appointment $appointment, ?string $stageKey): void
+    {
+        $customer = $appointment->customer;
+        $target = $this->stage($stageKey);
+
+        if ($customer === null || $target === null) {
+            return;
+        }
+
+        // Préréglage de secteur : un premier rendez-vous fait entrer la fiche (sans achat) dans le suivi.
+        if ($customer->prospect_stage === null && $this->organization->sector_preset_applied_at !== null && (int) $customer->purchases_count === 0) {
+            $this->start($customer);
+        }
+
+        if ($customer->prospect_stage === null) {
             return;
         }
 

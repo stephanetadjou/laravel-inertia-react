@@ -194,6 +194,7 @@ class WhatsAppClient
         string $languageCode = 'en_US',
         array $bodyParameters = [],
         ?string $headerImageUrl = null,
+        array $quickReplyPayloads = [],
     ): array {
         $template = [
             'name' => $templateName,
@@ -216,6 +217,16 @@ class WhatsAppClient
                     static fn (string $text) => ['type' => 'text', 'text' => $text],
                     $bodyParameters
                 ),
+            ];
+        }
+
+        // Boutons de réponse rapide du modèle : la charge utile revient dans le webhook (button.payload).
+        foreach (array_values($quickReplyPayloads) as $index => $payload) {
+            $components[] = [
+                'type' => 'button',
+                'sub_type' => 'quick_reply',
+                'index' => (string) $index,
+                'parameters' => [['type' => 'payload', 'payload' => $payload]],
             ];
         }
 
@@ -258,6 +269,32 @@ class WhatsAppClient
             'to' => $to,
             'type' => 'text',
             'text' => ['body' => $message],
+        ]);
+
+        if ($response->failed()) {
+            throw new WhatsAppApiException($to, $response->status(), $response->json());
+        }
+
+        return $response->json();
+    }
+
+    /**
+     * Message interactif (boutons de réponse, 3 au plus, ou liste). Comme le
+     * texte libre, il n'est accepté qu'à l'intérieur de la fenêtre de 24 h.
+     *
+     * @param  array<string, mixed>  $interactive  objet « interactive » de l'API (type button ou list)
+     */
+    public function sendInteractive(string $to, array $interactive): array
+    {
+        if (self::simulated()) {
+            return $this->simulateSend($to, ['type' => 'interactive', 'interactive' => $interactive]);
+        }
+
+        $response = $this->baseRequest()->post("/{$this->phoneNumberId}/messages", [
+            'messaging_product' => 'whatsapp',
+            'to' => $to,
+            'type' => 'interactive',
+            'interactive' => $interactive,
         ]);
 
         if ($response->failed()) {

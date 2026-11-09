@@ -182,6 +182,7 @@ class CustomerController extends Controller
                     'contacts' => $contacts,
                     'can_edit' => $contacts->contains('editable', true),
                     'stage' => $customer->lifecycle_stage,
+                    'source' => $customer->sourceLabel(),
                     'segment' => $customer->rfm_segment,
                     'score' => $customer->score,
                     'churn_risk' => $customer->churn_risk,
@@ -249,6 +250,10 @@ class CustomerController extends Controller
                 'stage' => $customer->lifecycle_stage,
                 'stage_since' => $customer->lifecycle_changed_at?->toIso8601String(),
                 'created_at' => $customer->created_at->toIso8601String(),
+                // Source d'acquisition (premier message WhatsApp : pub Facebook / Instagram ou direct).
+                'source' => $customer->sourceLabel(),
+                'source_headline' => $customer->acquisition_data['headline'] ?? null,
+                'acquired_at' => $customer->acquired_at?->toIso8601String(),
             ],
             'scoped' => $scoped,
             // Référentiel : particulier / entreprise, code client source, numéros, consentements.

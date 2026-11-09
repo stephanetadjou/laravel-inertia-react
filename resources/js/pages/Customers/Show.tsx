@@ -25,6 +25,9 @@ interface CustomerData {
     identity_confirmed: boolean;
     stage: string;
     stage_since: string | null;
+    source?: string | null;
+    source_headline?: string | null;
+    acquired_at?: string | null;
     created_at: string;
 }
 
@@ -500,6 +503,13 @@ function CustomerShow() {
                                 {contacts.length > 1 && <span className="sub">{a.store}</span>}
                             </Field>
                         ))}
+                        {customer.source && (
+                            <Field label="Source">
+                                {customer.source}
+                                {customer.source_headline && <span className="sub">« {customer.source_headline} »</span>}
+                                {customer.acquired_at && <span className="sub">le {formatDate(customer.acquired_at)}</span>}
+                            </Field>
+                        )}
                         {customer.identity_confirmed && <Field label="Identité">✓ confirmée à la main</Field>}
                     </dl>
                 </article>

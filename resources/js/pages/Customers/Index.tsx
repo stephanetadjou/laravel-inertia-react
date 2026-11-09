@@ -60,6 +60,7 @@ interface CustomerRow {
     contacts: EditableContact[];
     can_edit: boolean;
     stage: Stage;
+    source?: string | null;
     segment: string | null;
     score: number | null;
     churn_risk: 'medium' | 'high' | null;
@@ -636,6 +637,7 @@ function CustomersIndex() {
                                             </td>
                                             <td>
                                                 <span className={`mdash-pill ${stage.pill}`}>{stage.label}</span>
+                                                {c.source && c.source !== 'Direct' && <span className="mdash-pill info">{c.source}</span>}
                                                 {c.churn_risk && (
                                                     <span className={`mdash-pill ${c.churn_risk === 'high' ? 'bad' : 'warn'}`} title="Alerte churn">
                                                         {c.churn_risk === 'high' ? 'Risque élevé' : 'Risque moyen'}

@@ -17,6 +17,8 @@ Schedule::command('crm:monthly-report')->monthlyOn(1, '07:00')->withoutOverlappi
 Schedule::command('crm:daily-report')->everyFifteenMinutes()->withoutOverlapping();
 // Rappel du matin aux commerciaux : leurs relances de prospects du jour.
 Schedule::command('crm:sales-morning')->dailyAt('07:30')->withoutOverlapping();
+// Rappel WhatsApp de la veille, avec les boutons « Je confirme » / « Je décale ».
+Schedule::command('crm:appointment-reminders')->dailyAt('17:00')->withoutOverlapping();
 
 Artisan::command('inspire', function () {
     $this->comment(Inspiring::quote());
