@@ -93,7 +93,7 @@ class SectorPresets
         }
 
         $enabled = $first || $resetModules ? $preset['modules'] : $organization->enabledModules();
-        $organization->setModules($enabled, $settings, reviewed: ! $first || ! empty($organization->modules['reviewed']));
+        $organization->setModules($enabled, $settings, reviewed: true);
 
         // Réponses automatiques : activées d'office, textes du secteur (cf. AutoReplyDefaults).
         if ($organization->auto_replies === null) {

@@ -33,8 +33,11 @@ class Onboarding
         $words = $org->hasModule('beneficiaires') ? mb_strtolower($org->beneficiaryLabel(true)) : 'clients';
         $steps = [];
 
-        $steps[] = ['key' => 'modules', 'label' => 'Vérifier vos modules', 'help' => 'Cochez ce que vous utilisez (rendez-vous, cours, abonnements…) : le menu s’adapte.', 'url' => '/settings/modules',
-            'done' => ! empty($org->modules['reviewed'])];
+        // Secteur NENTIX : le choix du secteur suffit, ses modules sont déjà en place.
+        if ($org->sector_preset_applied_at === null) {
+            $steps[] = ['key' => 'modules', 'label' => 'Vérifier vos modules', 'help' => 'Cochez ce que vous utilisez (rendez-vous, cours, abonnements…) : le menu s’adapte.', 'url' => '/settings/modules',
+                'done' => ! empty($org->modules['reviewed'])];
+        }
 
         // Secteurs NENTIX : WhatsApp d'abord (fiche auto, source de la pub, réponses automatiques).
         if ($org->sector_preset_applied_at !== null || $has('reponses_auto')) {
