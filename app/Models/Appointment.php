@@ -54,6 +54,9 @@ class Appointment extends Model
         'kind',
         'latitude',
         'longitude',
+        'reminder_sent_at',
+        'client_response',
+        'client_response_at',
     ];
 
     /** Types de rendez-vous ; visite et démo servent au suivi des prospects et des commerciaux. */
@@ -61,17 +64,26 @@ class Appointment extends Model
         'rdv' => 'Rendez-vous',
         'visite' => 'Visite',
         'demo' => 'Démo',
+        'essai' => 'Séance d’essai',
     ];
 
     protected static function booted(): void
     {
         // Visite ou démo honorée : le prospect avance d'étape (cf. ProspectPipeline).
         static::updated(function (Appointment $appointment) {
-            if ($appointment->wasChanged('status') && $appointment->status === 'done' && $appointment->kind !== 'rdv') {
+            if ($appointment->wasChanged('status') && in_array($appointment->status, ['done', 'confirmed'], true)) {
                 $organization = $appointment->store?->organization;
                 if ($organization?->hasModule('prospects')) {
-                    ProspectPipeline::for($organization)->onAppointmentDone($appointment);
+                    ProspectPipeline::for($organization)->onAppointmentEvent($appointment, $appointment->status);
                 }
+            }
+        });
+
+        // Rendez-vous pris : le prospect passe à « RDV réservé » / « Essai planifié » (si l'entreprise a ces étapes).
+        static::created(function (Appointment $appointment) {
+            $organization = $appointment->store?->organization;
+            if ($organization?->hasModule('prospects') && in_array($appointment->status, Appointment::OPEN_STATUSES, true)) {
+                ProspectPipeline::for($organization)->onAppointmentEvent($appointment, $appointment->status === 'confirmed' ? 'confirmed' : 'booked');
             }
         });
     }
@@ -80,6 +92,8 @@ class Appointment extends Model
     {
         return [
             'starts_at' => 'datetime',
+            'reminder_sent_at' => 'datetime',
+            'client_response_at' => 'datetime',
         ];
     }
 

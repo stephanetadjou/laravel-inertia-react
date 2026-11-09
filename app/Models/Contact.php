@@ -29,6 +29,12 @@ class Contact extends Model
         'birthdate',
         'gender',
         'custom_attributes',
+        'last_inbound_at',
+        'last_greeting_at',
+        'last_away_at',
+        'bot_paused_until',
+        'needs_attention',
+        'assigned_user_id',
     ];
 
     protected function casts(): array
@@ -40,6 +46,11 @@ class Contact extends Model
             'is_vip' => 'boolean',
             'vip_since' => 'datetime',
             'custom_attributes' => 'array',
+            'last_inbound_at' => 'datetime',
+            'last_greeting_at' => 'datetime',
+            'last_away_at' => 'datetime',
+            'bot_paused_until' => 'datetime',
+            'needs_attention' => 'boolean',
         ];
     }
 
@@ -129,6 +140,22 @@ class Contact extends Model
                 Customer::whereKey($contact->customer_id)->delete();
             }
         });
+    }
+
+    public function outboundMessages(): HasMany
+    {
+        return $this->hasMany(WhatsAppOutboundMessage::class);
+    }
+
+    public function inboundMessages(): HasMany
+    {
+        return $this->hasMany(WhatsAppInboundMessage::class);
+    }
+
+    /** Utilisateur à qui la discussion WhatsApp est attribuée. */
+    public function assignee(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'assigned_user_id');
     }
 
     public function store(): BelongsTo

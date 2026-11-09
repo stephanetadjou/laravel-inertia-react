@@ -45,6 +45,11 @@ return [
         'support_whatsapp' => env('MENENTIA_SUPPORT_WHATSAPP'),
     ],
 
+    // NENTIX : coût par défaut d'un message marketing (FCFA), modifiable par entreprise dans /admin.
+    'nentix' => [
+        'marketing_message_cost' => (int) env('NENTIX_MARKETING_MESSAGE_COST', 50),
+    ],
+
     'meta_whatsapp' => [
         'token' => env('META_WHATSAPP_TOKEN'),
         'phone_number_id' => env('META_PHONE_NUMBER_ID'),

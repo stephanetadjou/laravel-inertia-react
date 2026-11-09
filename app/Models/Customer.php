@@ -40,6 +40,18 @@ class Customer extends Model
      * statut VIP n'en fait pas partie : il est propre à chaque boutique
      * (contacts.is_vip), un client pouvant être VIP chez Mango et pas ailleurs.
      */
+    /** Source d'acquisition (premier message WhatsApp reçu, cf. App\Services\Acquisition). */
+    public const SOURCES = [
+        'facebook_ad' => 'Pub Facebook',
+        'instagram_ad' => 'Pub Instagram',
+        'direct' => 'Direct',
+    ];
+
+    public function sourceLabel(): ?string
+    {
+        return self::SOURCES[$this->acquisition_source] ?? null;
+    }
+
     public const STAGES = [
         self::STAGE_CONTACT => 'Contact',
         self::STAGE_PROSPECT => 'Prospect',
@@ -86,6 +98,9 @@ class Customer extends Model
         'prospect_stage_at',
         'lost_reason',
         'owner_user_id',
+        'acquisition_source',
+        'acquisition_data',
+        'acquired_at',
     ];
 
     /** Lien avec le responsable d'une personne suivie (module « beneficiaires »). */
@@ -119,6 +134,8 @@ class Customer extends Model
             'scored_at' => 'datetime',
             'health_note' => 'encrypted',
             'prospect_stage_at' => 'datetime',
+            'acquisition_data' => 'array',
+            'acquired_at' => 'datetime',
         ];
     }
 

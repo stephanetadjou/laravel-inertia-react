@@ -46,13 +46,13 @@ it('pre-checks the modules of the sector and adjusts them with the answers at re
         ->where('auth.organization.beneficiaries_label', 'Élèves'));
 });
 
-it('keeps the sector modules when the questions are not answered', function () {
+it('applies the sector preset when only the sector is chosen', function () {
     $this->post('/register', [
         'organization_name' => 'Salon Beauté', 'sector' => 'beaute', 'store_name' => 'Salon', 'name' => 'Gérante',
         'email' => 'salon@example.com', 'password' => 'Secret-123456', 'password_confirmation' => 'Secret-123456',
     ])->assertRedirect('/dashboard');
 
-    expect(Organization::where('name', 'Salon Beauté')->firstOrFail()->enabledModules())->toBe(['rdv', 'catalogue', 'fidelite']);
+    expect(Organization::where('name', 'Salon Beauté')->firstOrFail()->enabledModules())->toBe(['rdv', 'prospects', 'reponses_auto', 'rappels_rdv', 'relance_cycle', 'catalogue']);
 });
 
 it('gives historical organizations every module that existed before', function () {

@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Organization;
 use App\Models\Role;
 use App\Services\Audit;
+use App\Support\SectorPresets;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
@@ -28,7 +29,10 @@ class ModuleController extends Controller
                 'label' => $module['label'],
                 'description' => $module['description'],
                 'enabled' => $organization->hasModule($key),
-                'suggested' => in_array($key, [...($sector['modules'] ?? []), ...($sector['suggested'] ?? [])], true),
+                'suggested' => in_array($key, [
+                    ...($sector['modules'] ?? []), ...($sector['suggested'] ?? []),
+                    ...(SectorPresets::PRESETS[$organization->sector]['modules'] ?? []), ...(SectorPresets::PRESETS[$organization->sector]['optional'] ?? []),
+                ], true),
             ])->values(),
             'settings' => collect(array_keys(Organization::MODULE_DEFAULTS))->mapWithKeys(fn ($key) => [$key => $organization->moduleSettings($key)]),
             'beneficiaryLabels' => collect(Organization::BENEFICIARY_LABELS)->map(fn ($labels, $key) => ['value' => $key, 'label' => $labels[0]])->values(),

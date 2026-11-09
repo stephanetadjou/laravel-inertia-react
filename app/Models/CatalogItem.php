@@ -39,6 +39,7 @@ class CatalogItem extends Model
         'active',
         'bookable_online',
         'properties',
+        'return_after_days',
     ];
 
     protected function casts(): array
@@ -49,6 +50,7 @@ class CatalogItem extends Model
             'active' => 'boolean',
             'bookable_online' => 'boolean',
             'properties' => 'array',
+            'return_after_days' => 'integer',
         ];
     }
 

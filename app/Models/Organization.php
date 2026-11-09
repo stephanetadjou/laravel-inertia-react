@@ -3,10 +3,12 @@
 namespace App\Models;
 
 use App\Services\ActionLists;
+use App\Support\AutoReplyDefaults;
 use Database\Factories\OrganizationFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 
 class Organization extends Model
@@ -44,6 +46,10 @@ class Organization extends Model
         'usage_mode',
         'history_import_closed_at',
         'customer_label',
+        'auto_replies',
+        'message_credits',
+        'marketing_message_cost',
+        'sector_preset_applied_at',
     ];
 
     /**
@@ -112,11 +118,14 @@ class Organization extends Model
      */
     public function offerLabel(): string
     {
-        return $this->sector === 'commerce' ? 'Menentia · Analyse commerciale' : 'Menentia';
+        return $this->sector === 'commerce' ? 'NENTIX · Boutiques' : 'NENTIX';
     }
 
     /** Secteurs proposés à l'inscription publique : le commerce n'y est plus (organisations existantes inchangées). */
-    public const PUBLIC_SECTORS = ['beaute', 'sante', 'sport', 'technique', 'pro', 'autre'];
+    public const PUBLIC_SECTORS = ['beaute', 'sport', 'pro', 'commerce'];
+
+    /** Anciennes clés acceptées à l'inscription (« boutique » = commerce, cf. docs/nentix-secteurs.md). */
+    public const SECTOR_ALIASES = ['boutique' => 'commerce'];
 
     public function privacyPolicyUrl(): string
     {
@@ -152,6 +161,10 @@ class Organization extends Model
             'loyalty_settings' => 'array',
             'rfm_settings' => 'array',
             'modules' => 'array',
+            'auto_replies' => 'array',
+            'message_credits' => 'integer',
+            'marketing_message_cost' => 'integer',
+            'sector_preset_applied_at' => 'datetime',
             'onboarding_dismissed_at' => 'datetime',
             'history_import_closed_at' => 'datetime',
             'trial_ends_at' => 'datetime',
@@ -178,8 +191,8 @@ class Organization extends Model
      */
     public const SECTORS = [
         'beaute' => [
-            'label' => 'Beauté et soins',
-            'description' => 'Salons, barbiers, onglerie, esthétique, spas : agenda et réservation en ligne, et un rappel quand une cliente dépasse son délai habituel.',
+            'label' => 'Beauté et salons',
+            'description' => 'Salons, barbiers, ongleries, instituts : agenda, rappel la veille avec confirmation, relance quand une cliente dépasse son délai habituel.',
             'modules' => ['rdv', 'catalogue', 'fidelite'],
             'suggested' => ['produits'],
         ],
@@ -191,7 +204,7 @@ class Organization extends Model
         ],
         'sport' => [
             'label' => 'Sport et bien-être',
-            'description' => 'Clubs, écoles de sport, salles, danse, yoga : cours collectifs, abonnements et mensualités, présences, et les membres qui décrochent repérés à temps.',
+            'description' => 'Salles, clubs, coachs, yoga, danse : séance d’essai, abonnements, cours et appel, relances de paiement et alerte d’absence.',
             'modules' => ['seances_groupe', 'abonnements', 'tranches', 'catalogue', 'fidelite'],
             'suggested' => ['rdv', 'beneficiaires', 'lieux'],
         ],
@@ -202,14 +215,14 @@ class Organization extends Model
             'suggested' => [],
         ],
         'pro' => [
-            'label' => 'Services professionnels',
-            'description' => 'Conseil, formation, agences, cabinets : rendez-vous clients, suivi de la relation et relances.',
+            'label' => 'Services pro et agences',
+            'description' => 'Agences, conseil, formation, cabinets : suivi des prospects, relance du devis, commerciaux et objectifs.',
             'modules' => ['rdv', 'catalogue'],
             'suggested' => ['tranches', 'prospects', 'abonnements'],
         ],
         'commerce' => [
-            'label' => 'Commerce et distribution',
-            'description' => 'Boutiques, supermarchés, quincailleries, grossistes : import des ventes, analyse des achats par famille de produits et campagnes ciblées. Sans agenda.',
+            'label' => 'Boutiques',
+            'description' => 'Boutiques, mode, cosmétiques, supermarchés : import des ventes, analyse des clients, fidélité et campagnes par famille de produits. Sans agenda.',
             'modules' => ['familles', 'lieux', 'fidelite'],
             'suggested' => ['catalogue', 'tranches'],
         ],
@@ -321,6 +334,26 @@ class Organization extends Model
         'prospects' => [
             'label' => 'Suivi des prospects',
             'description' => 'Étapes avant le premier achat (à contacter, démo, essai…), relances à date, Kanban ; avec plusieurs utilisateurs : objectifs, résultats et primes des commerciaux.',
+        ],
+        'reponses_auto' => [
+            'label' => 'Réponses automatiques WhatsApp',
+            'description' => 'Message d’accueil, message hors horaires et menu à boutons (prix, horaires, rendez-vous, parler à quelqu’un).',
+        ],
+        'rappels_rdv' => [
+            'label' => 'Rappel de la veille avec confirmation',
+            'description' => 'La veille du rendez-vous, un message avec les boutons « Je confirme » / « Je décale ».',
+        ],
+        'relance_cycle' => [
+            'label' => 'Relance par cycle de prestation',
+            'description' => 'Chaque prestation a son délai (« revenir après N jours ») : les clientes en retard arrivent dans « À faire ».',
+        ],
+        'essai' => [
+            'label' => 'Séance d’essai',
+            'description' => 'Rendez-vous « séance d’essai » et relance automatique après l’essai pour proposer l’abonnement.',
+        ],
+        'relance_devis' => [
+            'label' => 'Relance du devis',
+            'description' => 'Trois jours après l’envoi d’un devis, une relance prête dans « À faire ».',
         ],
         'lieux' => [
             'label' => 'Plusieurs lieux',
@@ -705,6 +738,40 @@ class Organization extends Model
                 ->values()
                 ->all(),
         ];
+    }
+
+    /** Réglages des réponses automatiques (accueil, hors horaires, menu), complétés par ceux du secteur. */
+    public function autoReplySettings(): array
+    {
+        return AutoReplyDefaults::merge($this->sector, $this->auto_replies ?? []);
+    }
+
+    /** Coût d'un message marketing (FCFA) : réglé dans le back-office, sinon config. */
+    public function marketingMessageCost(): int
+    {
+        return $this->marketing_message_cost ?? (int) config('services.nentix.marketing_message_cost', 50);
+    }
+
+    /** Crédits limités : null = sans limite (organisations historiques). */
+    public function hasCreditLimit(): bool
+    {
+        return $this->message_credits !== null;
+    }
+
+    /** Ajoute (montant positif) ou retire (négatif) des crédits et trace le mouvement. */
+    public function moveCredits(int $amount, string $reason, ?int $userId = null, ?int $campaignId = null): CreditMovement
+    {
+        return DB::transaction(function () use ($amount, $reason, $userId, $campaignId) {
+            $fresh = self::whereKey($this->id)->lockForUpdate()->first();
+            $balance = (int) $fresh->message_credits + $amount;
+            $fresh->forceFill(['message_credits' => $balance])->save();
+            $this->message_credits = $balance;
+
+            return CreditMovement::create([
+                'organization_id' => $this->id, 'user_id' => $userId, 'campaign_id' => $campaignId,
+                'amount' => $amount, 'balance_after' => $balance, 'reason' => $reason,
+            ]);
+        });
     }
 
     public function bookingUrl(): string

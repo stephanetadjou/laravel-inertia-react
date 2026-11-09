@@ -9,6 +9,7 @@ use App\Models\Organization;
 use App\Models\Role;
 use App\Models\Store;
 use App\Models\User;
+use App\Support\SectorPresets;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -22,9 +23,11 @@ use Inertia\Response;
  * Inscription d'une entreprise cliente : crée en une fois l'organisation,
  * ses rôles par défaut, son premier établissement (marque + boutique du même
  * nom) et le compte de la personne qui s'inscrit, Super administrateur.
- * Le secteur choisi pré-coche les modules, ajustés par les réponses à
- * « Comment travaillez-vous ? » (cf. Organization::SECTORS et WORK_QUESTIONS).
- * La connexion WhatsApp de l'établissement se fait ensuite dans Paramètres.
+ * L'inscription ne demande que le secteur (4 cartes) : le préréglage du
+ * secteur active modules, étapes de suivi et réponses automatiques
+ * (App\Support\SectorPresets). L'ancien formulaire (réponses à « Comment
+ * travaillez-vous ? », champ `answers`) reste accepté pour les intégrations
+ * existantes. La connexion WhatsApp se fait ensuite dans Paramètres.
  */
 class RegisteredOrganizationController extends Controller
 {
@@ -32,11 +35,12 @@ class RegisteredOrganizationController extends Controller
     {
         return Inertia::render('Auth/Register', [
             // Inscription publique : secteurs de prestations de services (le commerce n'est plus proposé).
-            'sectors' => collect(Organization::SECTORS)->only(Organization::PUBLIC_SECTORS)->map(fn ($sector, $key) => [
+            'sectors' => collect(Organization::PUBLIC_SECTORS)->map(fn ($key) => [
                 'key' => $key,
-                'label' => $sector['label'],
-                'description' => $sector['description'],
-                'modules' => $sector['modules'],
+                'label' => Organization::SECTORS[$key]['label'],
+                'description' => Organization::SECTORS[$key]['description'],
+                'modules' => SectorPresets::PRESETS[$key]['modules'] ?? Organization::SECTORS[$key]['modules'],
+                'module_labels' => collect(SectorPresets::PRESETS[$key]['modules'] ?? [])->map(fn ($m) => Organization::MODULES[$m]['label'])->values(),
             ])->values(),
             // « Comment travaillez-vous ? » : une réponse oui coche le module.
             'questions' => collect(Organization::WORK_QUESTIONS)->map(fn ($question, $module) => ['module' => $module, 'question' => $question])->values(),
@@ -47,6 +51,11 @@ class RegisteredOrganizationController extends Controller
 
     public function store(Request $request): RedirectResponse
     {
+        // « boutique » : nom public du secteur commerce.
+        if (isset(Organization::SECTOR_ALIASES[$request->input('sector')])) {
+            $request->merge(['sector' => Organization::SECTOR_ALIASES[$request->input('sector')]]);
+        }
+
         $validated = $request->validate([
             'organization_name' => ['required', 'string', 'max:255'],
             'sector' => ['required', Rule::in(array_keys(Organization::SECTORS))],
@@ -70,7 +79,9 @@ class RegisteredOrganizationController extends Controller
         // écriture et attend le verrou SQLite au lieu d'échouer (cf. uniqueSlug).
         $slug = Organization::uniqueSlug($validated['organization_name']);
 
-        $user = DB::transaction(function () use ($validated, $slug, $modules, $answers) {
+        $usePreset = ! $request->has('answers') && SectorPresets::has($validated['sector']);
+
+        $user = DB::transaction(function () use ($validated, $slug, $modules, $answers, $usePreset) {
             $organization = Organization::create([
                 'name' => $validated['organization_name'],
                 'slug' => $slug,
@@ -84,6 +95,10 @@ class RegisteredOrganizationController extends Controller
             ]);
             $organization->setModules($modules, $validated['settings'] ?? [], reviewed: $answers !== []);
             $organization->save();
+
+            if ($usePreset) {
+                SectorPresets::apply($organization);
+            }
 
             Role::seedDefaultsFor($organization);
             if ($organization->hasModule('prospects')) {

@@ -36,6 +36,20 @@ class Onboarding
         $steps[] = ['key' => 'modules', 'label' => 'Vérifier vos modules', 'help' => 'Cochez ce que vous utilisez (rendez-vous, cours, abonnements…) : le menu s’adapte.', 'url' => '/settings/modules',
             'done' => ! empty($org->modules['reviewed'])];
 
+        // Secteurs NENTIX : WhatsApp d'abord (fiche auto, source de la pub, réponses automatiques).
+        if ($org->sector_preset_applied_at !== null || $has('reponses_auto')) {
+            $steps[] = ['key' => 'whatsapp', 'label' => 'Connecter WhatsApp', 'help' => 'Le numéro de votre établissement : chaque client qui écrit a sa fiche, avec la pub qui l’a fait venir.', 'url' => $org->usesWhatsAppApi() ? '/settings/whatsapp' : '/organisation',
+                'done' => $org->usesWhatsAppApi() && Store::where('organization_id', $id)->whereNotNull('whatsapp_phone_number_id')->exists()];
+        }
+        if ($has('reponses_auto')) {
+            $steps[] = ['key' => 'auto_replies', 'label' => 'Vérifier les réponses automatiques', 'help' => 'Accueil, hors horaires et menu à boutons : relisez les textes préparés pour votre secteur.', 'url' => '/settings/auto-replies',
+                'done' => ! empty($org->auto_replies['welcome'])];
+        }
+        if ($has('prospects') && $org->sector_preset_applied_at !== null) {
+            $steps[] = ['key' => 'pipeline', 'label' => 'Suivre vos premiers prospects', 'help' => 'Les étapes de votre secteur sont prêtes (renommables dans Paramètres › Prospects) : faites glisser chaque prospect d’une étape à l’autre.', 'url' => '/prospects',
+                'done' => Customer::where('organization_id', $id)->whereNotNull('prospect_stage')->exists()];
+        }
+
         if ($has('lieux')) {
             $steps[] = ['key' => 'places', 'label' => 'Ajouter vos lieux', 'help' => 'Chaque établissement, terrain ou point de vente où vous recevez vos clients.', 'url' => '/stores', 'done' => $storeIds->count() > 1];
         }
