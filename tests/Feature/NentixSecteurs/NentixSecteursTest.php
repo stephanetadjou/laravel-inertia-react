@@ -327,3 +327,15 @@ it('renders the auto replies settings and saves them', function () {
 it('reads keywords of short messages', function (string $text, ?string $option) {
     expect(AutoReplies::keywordOf($text))->toBe($option);
 })->with([['C’est combien la coupe ?', 'prix'], ['Vous êtes ouverts dimanche ?', 'horaires'], ['Je veux un rdv', 'rdv'], ['Merci beaucoup', null]]);
+
+it('creates the four sector demo companies and can replay', function () {
+    Artisan::call('demo:nentix-secteurs');
+    Artisan::call('demo:nentix-secteurs');
+
+    $orgs = Organization::where('slug', 'like', 'demo-nentix-%')->get();
+    expect($orgs)->toHaveCount(4)
+        ->and($orgs->pluck('sector')->sort()->values()->all())->toBe(['beaute', 'commerce', 'pro', 'sport'])
+        ->and(User::where('email', 'beaute@demo-nentix.test')->count())->toBe(1)
+        ->and(Customer::whereIn('organization_id', $orgs->pluck('id'))->whereNotNull('acquisition_source')->count())->toBe(48)
+        ->and(Task::whereIn('organization_id', $orgs->pluck('id'))->whereNull('done_at')->count())->toBe(12);
+});

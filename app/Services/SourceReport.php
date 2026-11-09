@@ -44,32 +44,32 @@ class SourceReport
 
         $prospects = DB::table('customers')->where('organization_id', $orgId)
             ->whereRaw('COALESCE(acquired_at, created_at) >= ?', [$from])
-            ->selectRaw("{$source} as source, substr(COALESCE(acquired_at, created_at), 1, 7) as month, COUNT(*) as n")
-            ->groupBy('source', 'month')->get();
+            ->selectRaw("{$source} as src, substr(COALESCE(acquired_at, created_at), 1, 7) as month, COUNT(*) as n")
+            ->groupBy('src', 'month')->get();
 
         $newCustomers = DB::table('customers')->where('organization_id', $orgId)
             ->where('first_purchase_at', '>=', $from)
-            ->selectRaw("{$source} as source, substr(first_purchase_at, 1, 7) as month, COUNT(*) as n")
-            ->groupBy('source', 'month')->get();
+            ->selectRaw("{$source} as src, substr(first_purchase_at, 1, 7) as month, COUNT(*) as n")
+            ->groupBy('src', 'month')->get();
 
         $appointments = DB::table('appointments')->join('customers', 'customers.id', '=', 'appointments.customer_id')
             ->where('customers.organization_id', $orgId)
             ->where('appointments.created_at', '>=', $from)
             ->where('appointments.status', '!=', 'cancelled')
-            ->selectRaw("{$source} as source, substr(appointments.created_at, 1, 7) as month, COUNT(*) as n")
-            ->groupBy('source', 'month')->get();
+            ->selectRaw("{$source} as src, substr(appointments.created_at, 1, 7) as month, COUNT(*) as n")
+            ->groupBy('src', 'month')->get();
 
         $sales = DB::table('purchases')->join('contacts', 'contacts.id', '=', 'purchases.contact_id')
             ->join('customers', 'customers.id', '=', 'contacts.customer_id')
             ->where('customers.organization_id', $orgId)
             ->where('purchases.status', 'valid')
             ->where('purchases.purchased_at', '>=', $from)
-            ->selectRaw("{$source} as source, substr(purchases.purchased_at, 1, 7) as month, ".Purchase::SQL_SALES_COUNT.' as n, SUM(purchases.amount) as revenue')
-            ->groupBy('source', 'month')->get();
+            ->selectRaw("{$source} as src, substr(purchases.purchased_at, 1, 7) as month, ".Purchase::SQL_SALES_COUNT.' as n, SUM(purchases.amount) as revenue')
+            ->groupBy('src', 'month')->get();
 
         $budgets = AdBudget::where('organization_id', $orgId)->whereIn('month', $months)->get();
 
-        $pick = fn ($rows, $src, $month, $field = 'n') => (int) ($rows->first(fn ($r) => $r->source === $src && $r->month === $month)?->{$field} ?? 0);
+        $pick = fn ($rows, $src, $month, $field = 'n') => (int) ($rows->first(fn ($r) => $r->src === $src && $r->month === $month)?->{$field} ?? 0);
 
         $rows = [];
         foreach (array_keys(self::sources()) as $src) {

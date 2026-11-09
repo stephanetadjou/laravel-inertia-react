@@ -81,7 +81,9 @@ function Bubble({ m }: { m: Message }) {
 function ThreadPanel({ thread, users, templates, apiEnabled }: { thread: Thread; users: PageProps['users']; templates: PageProps['templates']; apiEnabled: boolean }) {
     const form = useForm({ body: '', template_id: '' });
     const end = useRef<HTMLDivElement>(null);
-    useEffect(() => end.current?.scrollIntoView({ block: 'end' }), [thread.id, thread.messages.length]);
+    useEffect(() => {
+        end.current?.scrollIntoView({ block: 'end' });
+    }, [thread.id, thread.messages.length]);
 
     const send: FormEventHandler = (e) => {
         e.preventDefault();
