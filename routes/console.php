@@ -19,6 +19,8 @@ Schedule::command('crm:daily-report')->everyFifteenMinutes()->withoutOverlapping
 Schedule::command('crm:sales-morning')->dailyAt('07:30')->withoutOverlapping();
 // Rappel WhatsApp de la veille, avec les boutons « Je confirme » / « Je décale ».
 Schedule::command('crm:appointment-reminders')->dailyAt('17:00')->withoutOverlapping();
+// Planning des abonnements : prolonge chaque nuit les séances dans l'agenda (horizon de 8 semaines).
+Schedule::command('crm:subscription-planning')->dailyAt('03:00')->withoutOverlapping();
 
 Artisan::command('inspire', function () {
     $this->comment(Inspiring::quote());

@@ -54,6 +54,7 @@ class Appointment extends Model
         'kind',
         'latitude',
         'longitude',
+        'subscription_id',
         'reminder_sent_at',
         'client_response',
         'client_response_at',

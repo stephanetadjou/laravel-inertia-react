@@ -1,11 +1,13 @@
 <?php
 
+use App\Models\Appointment;
 use App\Models\Brand;
 use App\Models\Contact;
 use App\Models\Customer;
 use App\Models\Organization;
 use App\Models\PaymentSchedule;
 use App\Models\Plan;
+use App\Models\StaffMember;
 use App\Models\Store;
 use App\Models\Subscription;
 use App\Models\User;
@@ -96,4 +98,49 @@ it('lists subscriptions ending soon', function () {
 
     expect(Subscription::first()->sessions_left)->toBe(10);
     $this->actingAs($this->admin)->get('/plans?show=ending')->assertInertia(fn (Assert $page) => $page->has('subscriptions.data', 1)->where('counts.ending', 1));
+});
+
+it('fills the agenda with the planned sessions of a subscription, coached or not', function () {
+    $this->organization->setModules(['abonnements', 'tranches', 'beneficiaires', 'seances_groupe', 'rdv']);
+    $this->organization->save();
+    $this->admin->unsetRelation('organization');
+    $coach = StaffMember::create(['organization_id' => $this->organization->id, 'store_id' => $this->store->id, 'name' => 'Coach Rodrigue', 'active' => true]);
+    $plan = judoPlan($this);
+
+    // Mardi 18:00 et jeudi 07:30, suivi par le coach, 90 minutes.
+    $this->actingAs($this->admin)->post('/subscriptions', [
+        'customer_id' => $this->leo->id, 'plan_id' => $plan->id, 'store_id' => $this->store->id, 'starts_on' => '2026-10-07',
+        'planning' => [['weekday' => 2, 'time' => '18:00'], ['weekday' => 4, 'time' => '07:30']],
+        'session_minutes' => 90, 'coached' => true, 'staff_member_id' => $coach->id,
+    ])->assertSessionHas('success');
+
+    $subscription = Subscription::firstOrFail();
+    $sessions = Appointment::where('subscription_id', $subscription->id)->orderBy('starts_at')->get();
+    expect($sessions)->toHaveCount(16)
+        ->and($sessions[0]->starts_at->setTimezone('Africa/Libreville')->format('D H:i'))->toBe('Thu 07:30')
+        ->and($sessions[0]->customer_id)->toBe($this->leo->id)
+        ->and($sessions[0]->staff_member_id)->toBe($coach->id)
+        ->and($sessions[0]->duration_minutes)->toBe(90)
+        ->and($sessions[0]->service)->toContain('séance suivie');
+
+    // Rejouer la nuit ne crée pas de doublon ; une semaine plus tard, l'horizon avance.
+    $this->artisan('crm:subscription-planning');
+    expect(Appointment::where('subscription_id', $subscription->id)->count())->toBe(16);
+    $this->travel(7)->days();
+    $this->artisan('crm:subscription-planning');
+    expect(Appointment::where('subscription_id', $subscription->id)->count())->toBe(18);
+
+    // Nouveau planning en autonomie : les séances à venir sont remplacées.
+    $this->actingAs($this->admin)->put("/subscriptions/{$subscription->id}/planning", ['planning' => [['weekday' => 6, 'time' => '09:00']], 'session_minutes' => 60, 'coached' => false])
+        ->assertSessionHas('success');
+    $future = Appointment::where('subscription_id', $subscription->id)->where('starts_at', '>=', now())->get();
+    expect($future)->toHaveCount(8)->and($future->every(fn ($a) => $a->staff_member_id === null && str_contains($a->service, 'autonomie')))->toBeTrue();
+
+    $this->actingAs($this->admin)->get("/customers/{$this->leo->id}")->assertInertia(fn (Assert $page) => $page
+        ->where('subscriptionModule.subscriptions.0.planning_label', 'sam. 09h00')
+        ->where('subscriptionModule.hasAgenda', true));
+
+    // Abonnement arrêté : ses séances à venir quittent l'agenda.
+    $this->actingAs($this->admin)->post("/subscriptions/{$subscription->id}/cancel");
+    expect(Appointment::where('subscription_id', $subscription->id)->where('starts_at', '>=', now())->count())->toBe(0);
 });

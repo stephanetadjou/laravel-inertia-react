@@ -336,6 +336,7 @@ Route::middleware('auth')->group(function () {
         Route::put('/plans/{plan}', [PlanController::class, 'update'])->name('plans.update');
         Route::post('/subscriptions', [PlanController::class, 'subscribe'])->name('subscriptions.store');
         Route::post('/subscriptions/{subscription}/cancel', [PlanController::class, 'cancel'])->name('subscriptions.cancel');
+        Route::put('/subscriptions/{subscription}/planning', [PlanController::class, 'planning'])->name('subscriptions.planning');
     });
 
     // Import des ventes v2 (Menentia Retail) : dépôt, mapping, vérification, traitement en file, annulation.

@@ -5,9 +5,11 @@ namespace App\Http\Controllers;
 use App\Models\CatalogItem;
 use App\Models\Customer;
 use App\Models\Plan;
+use App\Models\StaffMember;
 use App\Models\Store;
 use App\Models\Subscription;
 use App\Models\User;
+use App\Services\SubscriptionPlanning;
 use App\Services\Subscriptions;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -30,7 +32,7 @@ class PlanController extends Controller
         $endingDays = 30;
 
         $subscriptions = Subscription::whereIn('store_id', $storeIds)
-            ->with(['plan:id,name', 'customer:id,name', 'beneficiary:id,name', 'schedule.installments'])
+            ->with(['plan:id,name', 'customer:id,name', 'beneficiary:id,name', 'schedule.installments', 'staffMember:id,name'])
             ->when($filter === 'current', fn ($q) => $q->current())
             ->when($filter === 'ending', fn ($q) => $q->current()->whereNotNull('ends_on')->where('ends_on', '<', today()->addDays($endingDays + 1)->toDateString()))
             ->orderBy($filter === 'ending' ? 'ends_on' : 'id', $filter === 'ending' ? 'asc' : 'desc')
@@ -81,12 +83,45 @@ class PlanController extends Controller
             'options' => ['nullable', 'array'],
             'options.*' => ['integer', 'min:0'],
             'season_installments' => ['nullable', 'integer', 'min:1', 'max:12'],
+            ...self::planningRules($user),
         ]);
 
         $subscription = $subscriptions->create($user, $data);
         $member = $subscription->member();
+        $sessions = $subscription->planning ? ' Ses séances sont dans l’agenda.' : '';
 
-        return back()->with('success', "Abonnement « {$subscription->plan->name} » enregistré pour {$member->name} : son échéancier est prêt dans Ventes › Échéances.");
+        return back()->with('success', "Abonnement « {$subscription->plan->name} » enregistré pour {$member->name} : son échéancier est prêt dans Ventes › Échéances.{$sessions}");
+    }
+
+    /** Planning des séances d'un abonnement existant : jours, heures, suivi, intervenant. */
+    public function planning(Request $request, Subscription $subscription): RedirectResponse
+    {
+        $user = $request->user();
+        abort_unless($subscription->organization_id === $user->organization_id && in_array($subscription->store_id, self::storeIds($user), true), 404);
+        $data = $request->validate(self::planningRules($user));
+
+        $subscription->update([
+            'planning' => SubscriptionPlanning::normalize($data['planning'] ?? []) ?: null,
+            'session_minutes' => $data['session_minutes'] ?? null,
+            'coached' => (bool) ($data['coached'] ?? false),
+            'staff_member_id' => ! empty($data['coached']) ? ($data['staff_member_id'] ?? null) : null,
+        ]);
+        $count = SubscriptionPlanning::replace($subscription->fresh(['store.organization', 'plan', 'customer', 'beneficiary']));
+
+        return back()->with('success', $subscription->planning ? "Planning enregistré : {$count} séance(s) dans l’agenda pour les ".SubscriptionPlanning::HORIZON_WEEKS.' prochaines semaines.' : 'Planning retiré : les séances à venir ont quitté l’agenda.');
+    }
+
+    /** @return array<string, mixed> */
+    public static function planningRules(User $user): array
+    {
+        return [
+            'planning' => ['nullable', 'array', 'max:14'],
+            'planning.*.weekday' => ['required', 'integer', 'between:1,7'],
+            'planning.*.time' => ['required', 'date_format:H:i'],
+            'session_minutes' => ['nullable', 'integer', 'min:15', 'max:480'],
+            'coached' => ['nullable', 'boolean'],
+            'staff_member_id' => ['nullable', 'required_if:coached,true,1', 'integer', Rule::exists('staff_members', 'id')->where('organization_id', $user->organization_id)],
+        ];
     }
 
     public function cancel(Request $request, Subscription $subscription, Subscriptions $subscriptions): RedirectResponse
@@ -141,6 +176,9 @@ class PlanController extends Controller
             'stores' => Store::whereIn('id', self::storeIds($user))->orderBy('name')->get(['id', 'name']),
             'catalog' => CatalogItem::where('organization_id', $user->organization_id)->where('active', true)->orderBy('name')->get(['id', 'name']),
             'periods' => Plan::PERIODS,
+            // Planning des séances : seulement avec l'agenda ; intervenants actifs du périmètre.
+            'hasAgenda' => $user->organization->hasAgenda(),
+            'staff' => StaffMember::whereIn('store_id', self::storeIds($user))->where('active', true)->orderBy('name')->get(['id', 'name', 'store_id']),
             'season' => ['start' => $settings['season_start'], 'end' => $settings['season_end']],
         ];
     }
@@ -179,6 +217,13 @@ class PlanController extends Controller
             'status' => $status,
             'status_label' => Subscription::STATUSES[$status],
             'sessions_left' => $s->sessions_left,
+            'store_id' => $s->store_id,
+            'planning' => SubscriptionPlanning::normalize($s->planning),
+            'planning_label' => SubscriptionPlanning::summary($s->planning),
+            'session_minutes' => $s->session_minutes,
+            'coached' => (bool) $s->coached,
+            'staff_member_id' => $s->staff_member_id,
+            'staff_name' => $s->staffMember?->name,
             'options' => collect($s->options ?? [])->pluck('label')->all(),
             'paid' => (int) $installments->whereNotNull('paid_at')->sum('amount'),
             'total' => (int) $installments->sum('amount'),
@@ -199,7 +244,7 @@ class PlanController extends Controller
     {
         return Subscription::whereIn('store_id', self::storeIds($user))
             ->where(fn ($q) => $q->where('customer_id', $customer->id)->orWhere('beneficiary_id', $customer->id))
-            ->with(['plan:id,name', 'customer:id,name', 'beneficiary:id,name', 'schedule.installments'])
+            ->with(['plan:id,name', 'customer:id,name', 'beneficiary:id,name', 'schedule.installments', 'staffMember:id,name'])
             ->latest('starts_on')
             ->get()
             ->map(fn (Subscription $s) => self::presentSubscription($s))

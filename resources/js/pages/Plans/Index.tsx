@@ -6,6 +6,7 @@ import { Empty, Page, Pager, Paginated, Panel, PlusIcon, Seg, formatDay, useQuer
 import { formatNumber } from '../../components/dashboard/Charts';
 import { Modal } from '../../components/ui/modal';
 import SubscriptionModal, { PlanOption, SubscriptionFormOptions } from './SubscriptionModal';
+import { PlanningModal, StaffOption } from './PlanningFields';
 
 /*
  * Ventes › Formules : les formules de l'entreprise (mensualité, saison,
@@ -22,6 +23,13 @@ export interface SubscriptionRow {
     status: 'active' | 'ended' | 'cancelled';
     status_label: string;
     sessions_left: number | null;
+    store_id?: number;
+    planning: { weekday: number; time: string }[];
+    planning_label: string | null;
+    session_minutes: number | null;
+    coached: boolean;
+    staff_member_id: number | null;
+    staff_name: string | null;
     options: string[];
     paid: number;
     total: number;
@@ -156,7 +164,8 @@ function PlanModal({ plan, onClose }: { plan: PlanOption | null; onClose: () => 
     );
 }
 
-export function SubscriptionsTable({ rows, showMember = true }: { rows: SubscriptionRow[]; showMember?: boolean }) {
+export function SubscriptionsTable({ rows, showMember = true, staff, hasAgenda = false }: { rows: SubscriptionRow[]; showMember?: boolean; staff?: StaffOption[]; hasAgenda?: boolean }) {
+    const [planning, setPlanning] = useState<SubscriptionRow | null>(null);
     return (
         <div className="mdash-tbl">
             <table className="mpage-table">
@@ -188,6 +197,11 @@ export function SubscriptionsTable({ rows, showMember = true }: { rows: Subscrip
                             <td>
                                 {formatDay(s.starts_on)} → {s.ends_on ? formatDay(s.ends_on) : 'sans fin'}
                                 {s.sessions_left !== null && <span className="block text-xs text-gray-500">{s.sessions_left} séance(s) restante(s)</span>}
+                                {s.planning_label && (
+                                    <span className="block text-xs text-gray-500">
+                                        {s.planning_label} · {s.coached ? `suivi par ${s.staff_name ?? 'un coach'}` : 'en autonomie'}
+                                    </span>
+                                )}
                             </td>
                             <td className="num">
                                 {formatNumber(s.paid)} / {formatNumber(s.total)} F
@@ -197,6 +211,11 @@ export function SubscriptionsTable({ rows, showMember = true }: { rows: Subscrip
                                 <span className={`mdash-pill ${SUB_PILL[s.status]}`}>{s.status_label}</span>
                             </td>
                             <td>
+                                {s.status === 'active' && hasAgenda && (
+                                    <button type="button" className="mdash-btn ghost sm mr-1" onClick={() => setPlanning(s)}>
+                                        Planning
+                                    </button>
+                                )}
                                 {s.status === 'active' && (
                                     <button
                                         type="button"
@@ -211,6 +230,7 @@ export function SubscriptionsTable({ rows, showMember = true }: { rows: Subscrip
                     ))}
                 </tbody>
             </table>
+            {planning && <PlanningModal subscription={planning} staff={staff ?? []} onClose={() => setPlanning(null)} />}
         </div>
     );
 }
@@ -283,7 +303,7 @@ function PlansIndex() {
                     />
                 }
             >
-                {subscriptions.data.length === 0 ? <Empty title="Aucun abonnement">Abonnez un client avec « Nouvel abonnement » : son échéancier est préparé tout seul.</Empty> : <SubscriptionsTable rows={subscriptions.data} />}
+                {subscriptions.data.length === 0 ? <Empty title="Aucun abonnement">Abonnez un client avec « Nouvel abonnement » : son échéancier est préparé tout seul.</Empty> : <SubscriptionsTable rows={subscriptions.data} staff={props.staff} hasAgenda={props.hasAgenda} />}
                 <Pager page={subscriptions} onPage={(page) => visit({ page })} unit="abonnements" />
             </Panel>
 

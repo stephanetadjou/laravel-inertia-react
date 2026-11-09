@@ -251,7 +251,7 @@ function SubscriptionsTab() {
             {subscriptionModule.subscriptions.length === 0 ? (
                 <p className="text-sm text-gray-500">Aucun abonnement. « Nouvel abonnement » prépare aussi l’échéancier.</p>
             ) : (
-                <SubscriptionsTable rows={subscriptionModule.subscriptions} />
+                <SubscriptionsTable rows={subscriptionModule.subscriptions} staff={subscriptionModule.staff} hasAgenda={subscriptionModule.hasAgenda} />
             )}
             {open && <SubscriptionModal options={subscriptionModule} customer={{ id: customer.id, name: customer.name, phone: customer.phone_e164 }} onClose={() => setOpen(false)} />}
         </section>

@@ -46,6 +46,9 @@ Le préréglage crée aussi les réponses automatiques du secteur, les messages 
 ### Agenda et étapes
 Un RDV pris fait passer à « RDV réservé » (ou « Essai planifié » pour une séance d’essai), une confirmation à « RDV confirmé », un RDV honoré à « Venue » (ou « Essai fait »). Jamais de retour en arrière ; la première vente passe à l’étape gagnée.
 
+### Abonnement avec planning des séances (sport, et tout secteur avec agenda)
+À la création d’un abonnement (Ventes › Formules ou fiche client › Abonnements), le bloc « Séances dans l’agenda » demande les jours et heures (ex. mardi 18h et jeudi 7h30), la durée, et si la séance est **suivie par un coach** (lequel) ou **en autonomie**. Chaque séance devient un rendez-vous dans l’agenda (avec le coach), sur 8 semaines glissantes prolongées chaque nuit (`crm:subscription-planning`, 03:00). Le bouton « Planning » d’un abonnement modifie les jours, heures et le suivi : les séances à venir non honorées sont remplacées. Arrêter l’abonnement retire ses séances à venir. Limite : pas de contrôle de capacité du créneau ni des horaires du coach (l’agenda montre les chevauchements).
+
 ### « À faire »
 Nouvelles listes : **Demandes à traiter** (tâches : parler à quelqu’un, être rappelé, RDV à recaser), **Clientes à faire revenir** (champ « Revenir après N jours » de chaque prestation du catalogue), **Devis à relancer** (étape « Devis envoyé » depuis 3 jours, message prêt). Sport : « Essai fait » a un délai de relance d’1 jour (liste « Prospects à relancer », message pour proposer l’abonnement). Chaque étape garde son délai de relance réglable (Paramètres › Prospects).
 

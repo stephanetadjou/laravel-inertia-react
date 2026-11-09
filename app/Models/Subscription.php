@@ -38,6 +38,10 @@ class Subscription extends Model
         'options',
         'payment_schedule_id',
         'created_by',
+        'planning',
+        'session_minutes',
+        'coached',
+        'staff_member_id',
     ];
 
     protected function casts(): array
@@ -46,7 +50,15 @@ class Subscription extends Model
             'starts_on' => 'date',
             'ends_on' => 'date',
             'options' => 'array',
+            'planning' => 'array',
+            'coached' => 'boolean',
         ];
+    }
+
+    /** Intervenant qui suit les séances (coach), si elles sont suivies. */
+    public function staffMember(): BelongsTo
+    {
+        return $this->belongsTo(StaffMember::class);
     }
 
     public function plan(): BelongsTo

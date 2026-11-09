@@ -4,6 +4,7 @@ import { FormEventHandler, useState } from 'react';
 import { Modal } from '../../components/ui/modal';
 import { formatNumber } from '../../components/dashboard/Charts';
 import CustomerPicker, { PickedCustomer } from '../../components/common/CustomerPicker';
+import { emptyPlanning, PlanningFields, StaffOption } from './PlanningFields';
 
 /*
  * Nouvel abonnement : la personne (une personne suivie fait payer son
@@ -29,6 +30,8 @@ export interface SubscriptionFormOptions {
     planOptions: PlanOption[];
     stores: { id: number; name: string }[];
     season: { start: string; end: string };
+    hasAgenda?: boolean;
+    staff?: StaffOption[];
 }
 
 const field = 'w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-800 focus:border-brand-300 focus:outline-hidden dark:border-gray-700 dark:bg-white/[0.03] dark:text-white/90';
@@ -43,6 +46,7 @@ export default function SubscriptionModal({ options, customer: initial, onClose 
         ends_on: '',
         options: [] as number[],
         season_installments: '1',
+        ...emptyPlanning(),
     });
     const plan = options.planOptions.find((p) => String(p.id) === data.plan_id);
     const recurring = plan ? data.options.reduce((sum, i) => sum + (plan.options[i]?.recurring ? plan.options[i].amount : 0), 0) : 0;
@@ -141,6 +145,15 @@ export default function SubscriptionModal({ options, customer: initial, onClose 
                             </label>
                         ))}
                     </fieldset>
+                )}
+                {options.hasAgenda && (
+                    <PlanningFields
+                        value={{ planning: data.planning, session_minutes: data.session_minutes, coached: data.coached, staff_member_id: data.staff_member_id }}
+                        onChange={(v) => setData((d) => ({ ...d, ...v }))}
+                        staff={options.staff ?? []}
+                        storeId={data.store_id ? Number(data.store_id) : null}
+                        errors={errors as Record<string, string>}
+                    />
                 )}
                 {plan && (
                     <p className="rounded-lg bg-gray-50 px-3 py-2 text-xs text-gray-600 dark:bg-white/5 dark:text-gray-300">

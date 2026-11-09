@@ -61,7 +61,7 @@ class Subscriptions
             default => [['label' => $plan->name, 'amount' => (int) $plan->price + $recurring, 'due_on' => $start->toDateString()]],
         }];
 
-        return DB::transaction(function () use ($user, $data, $plan, $member, $payer, $start, $end, $chosen, $lines) {
+        $subscription = DB::transaction(function () use ($user, $data, $plan, $member, $payer, $start, $end, $chosen, $lines) {
             $subscription = Subscription::create([
                 'organization_id' => $user->organization_id,
                 'store_id' => $data['store_id'],
@@ -74,6 +74,10 @@ class Subscriptions
                 'price' => (int) $plan->price,
                 'options' => $chosen->all(),
                 'created_by' => $user->id,
+                'planning' => SubscriptionPlanning::normalize($data['planning'] ?? []) ?: null,
+                'session_minutes' => $data['session_minutes'] ?? null,
+                'coached' => (bool) ($data['coached'] ?? false),
+                'staff_member_id' => ! empty($data['coached']) ? ($data['staff_member_id'] ?? null) : null,
             ]);
 
             $schedule = $this->installments->createSchedule($user, [
@@ -91,6 +95,11 @@ class Subscriptions
 
             return $subscription;
         });
+
+        // Séances planifiées : elles remplissent l'agenda.
+        SubscriptionPlanning::sync($subscription->fresh(['store.organization', 'plan', 'customer', 'beneficiary']));
+
+        return $subscription;
     }
 
     /** Arrêt d'un abonnement : les tranches non payées sont annulées avec l'échéancier. */
@@ -103,6 +112,9 @@ class Subscriptions
                 $this->installments->cancel($subscription->schedule, $user);
             }
         });
+
+        // Abonnement arrêté : ses séances à venir quittent l'agenda.
+        SubscriptionPlanning::replace($subscription->fresh());
     }
 
     /** @return list<array{label: string, amount: int, due_on: string}> */
