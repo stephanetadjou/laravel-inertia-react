@@ -53,6 +53,12 @@ class WhatsAppSettingsController extends Controller
                 'webhook_url' => $store->webhookUrl(),
                 'webhook_verify_token' => $store->webhook_verify_token,
             ]),
+            // Guide pas à pas : bouton « Me faire aider par NENTIX » (WhatsApp prérempli, sinon email).
+            'help' => [
+                'whatsapp' => preg_replace('/\D+/', '', (string) config('services.menentia.support_whatsapp')) ?: null,
+                'email' => config('services.menentia.support_email'),
+                'organization' => $request->user()->organization?->name,
+            ],
         ]);
     }
 

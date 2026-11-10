@@ -41,7 +41,7 @@ class Onboarding
 
         // Secteurs NENTIX : WhatsApp d'abord (fiche auto, source de la pub, réponses automatiques).
         if ($org->sector_preset_applied_at !== null || $has('reponses_auto')) {
-            $steps[] = ['key' => 'whatsapp', 'label' => 'Connecter WhatsApp', 'help' => 'Le numéro de votre établissement : chaque client qui écrit a sa fiche, avec la pub qui l’a fait venir.', 'url' => $org->usesWhatsAppApi() ? '/settings/whatsapp' : '/organisation',
+            $steps[] = ['key' => 'whatsapp', 'label' => 'Connecter WhatsApp', 'help' => 'Le numéro de votre établissement : chaque client qui écrit a sa fiche, avec la pub qui l’a fait venir.', 'url' => $org->usesWhatsAppApi() ? '/settings/whatsapp?guide=1' : '/organisation',
                 'done' => $org->usesWhatsAppApi() && Store::where('organization_id', $id)->whereNotNull('whatsapp_phone_number_id')->exists()];
         }
         if ($has('reponses_auto')) {

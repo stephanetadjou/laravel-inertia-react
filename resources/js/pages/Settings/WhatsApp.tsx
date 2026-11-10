@@ -4,6 +4,7 @@ import { FormEventHandler, useState } from 'react';
 import AppLayout from '../../layout/AppLayout';
 import Button from '../../components/ui/button/Button';
 import '../Dashboard/dashboard.css';
+import WhatsAppGuide, { HelpButton, SupportHelp } from './WhatsAppGuide';
 
 interface StoreSettings {
     id: number;
@@ -55,6 +56,7 @@ function CopyField({ label, value }: { label: string; value: string }) {
 
 interface PageProps {
     stores: StoreSettings[];
+    help: SupportHelp;
     flash?: { success: string | null; error: string | null };
     [key: string]: unknown;
 }
@@ -347,7 +349,8 @@ function StoreCard({ store }: { store: StoreSettings }) {
 }
 
 function WhatsAppSettings() {
-    const { stores, flash } = usePage<PageProps>().props;
+    const { stores, flash, help } = usePage<PageProps>().props;
+    const selfService = stores.filter((s) => !s.managed);
 
     return (
         <div className="mdash">
@@ -363,7 +366,14 @@ function WhatsAppSettings() {
             </header>
 
             {flash?.success && <div className="mdash-flash ok">{flash.success}</div>}
-            {flash?.error && <div className="mdash-flash bad">{flash.error}</div>}
+            {flash?.error && (
+                <div className="mdash-flash bad flex flex-wrap items-center justify-between gap-2">
+                    <span>{flash.error}</span>
+                    <HelpButton help={help} step="le test de connexion échoue" className="mdash-btn ghost sm" />
+                </div>
+            )}
+
+            {selfService.length > 0 && <WhatsAppGuide help={help} defaultOpen={selfService.every((s) => !s.connected)} />}
 
             {stores.length === 0 ? (
                 <div className="mdash-panel p-6 text-sm text-gray-500">Aucun établissement : créez-en un dans Marques & boutiques.</div>
