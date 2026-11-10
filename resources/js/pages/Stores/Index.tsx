@@ -181,6 +181,8 @@ function StoresIndex() {
                                         <tr>
                                             <th>Boutique</th>
                                             <th className="r">Contacts</th>
+                                            <th className="r">Opt-in</th>
+                                            <th className="r" title="Clients VIP de la boutique (top acheteurs)">VIP</th>
                                             <th>WhatsApp</th>
                                             <th>Phone Number ID</th>
                                             <th className="r">Actions</th>
@@ -195,6 +197,11 @@ function StoresIndex() {
                                                         <b>{store.name}</b>
                                                     </td>
                                                     <td className="r mono">{formatNumber(store.contacts_count)}</td>
+                                                    <td className="r mono">
+                                                        {formatNumber(store.opt_in_count ?? 0)}
+                                                        {store.contacts_count > 0 && <span className="block text-xs text-gray-500">{Math.round(((store.opt_in_count ?? 0) / store.contacts_count) * 100)} %</span>}
+                                                    </td>
+                                                    <td className="r mono">{formatNumber(store.vip_count ?? 0)}</td>
                                                     <td>
                                                         <span className="mdash-stat">
                                                             <span className={`mdash-pill ${c.pill}`}>{c.label}</span>

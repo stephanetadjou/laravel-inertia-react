@@ -85,3 +85,22 @@ Vue **Tableau** : glisser-déposer natif HTML5 entre les colonnes (« Perdu » d
 
 ## 6. Site vitrine
 La dernière version du site NENTIX (`docs/Menentia doc/nentix-site.zip`, du 05/11) est désormais suivie dans `docs/nentix-site/` (Next.js, même `package.json` que l’ancien site). Mises à jour : les 4 secteurs (Beauté et salons, Sport et bien-être, Services pro et agences, Boutiques ; pages Santé et Services techniques retirées), solutions de chaque secteur réécrites autour des nouveaux workflows, fonctionnalités désormais disponibles (fiche au premier message et source de la pub, réponses automatiques, rappel à boutons, boîte de réception partagée, crédits de messages, tableau par source). `npx tsc` et `next build` passent. Lancement : `cd docs/nentix-site && npm install && npm run dev`.
+
+## 7. Accueil épuré (10/11/2026)
+L'Accueil ne garde que l'essentiel : bannière, « Pour bien démarrer » (tant qu'il n'est pas terminé), 4 chiffres clés selon le secteur, actions du jour (discussions et demandes à traiter, puis les listes de « À faire » les plus chargées) et, avec l'agenda, les prochains rendez-vous du jour.
+
+| Secteur | Chiffres clés |
+|---|---|
+| Beauté | RDV du jour · RDV à confirmer · Clientes à relancer · CA du mois |
+| Sport | Séances du jour · Abonnés actifs · Paiements en retard · Nouveaux contacts |
+| Services pro | Prospects en cours · Devis à relancer · Prospects à relancer · CA du mois |
+| Boutiques | CA du mois · Clients acheteurs · Clientes à risque · Nouveaux contacts |
+
+Ce qui a quitté l'Accueil et où le retrouver :
+- CA, tickets et panier par marque et par boutique : Analyses › Tableaux de bord › Réseau ;
+- Contacts, opt-in (ancien bloc « Contacts par marque ») et VIP par établissement, avec sa marque et sa connexion WhatsApp : Paramètres › Établissements (`/stores`, nouvelles colonnes Opt-in et VIP) ;
+- Prestations et produits (CA, quantités, panier moyen par visite) : Analyses › Tableaux de bord (tableau « Prestations et produits ») ;
+- Courbes de ventes et top catégories : Analyses › Pilotage et Tableaux de bord ;
+- Parcours client (entonnoir) : Clients (étapes en tête de la liste) ;
+- Messages, campagnes récentes, taux d'échec : Campagnes ; sources des clients : Analyses › Sources ;
+- Envoi groupé du message de bienvenue aux nouveaux contacts : retiré de l'écran (la route `/contacts/send-welcome-bulk` reste), remplacé par le message d'accueil automatique des Réponses automatiques.

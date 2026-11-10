@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Models\Brand;
+use App\Models\CatalogItem;
 use App\Models\Category;
 use App\Models\Customer;
 use App\Models\CustomerMatchReview;
@@ -129,7 +130,49 @@ class RetailAnalytics
             'active_days' => $this->activeDays,
             'insights' => $this->insights(8),
             'monthly' => $this->monthly(),
-            'tables' => [$this->brandsTable(), $this->monthlyTable()],
+            'tables' => array_values(array_filter([$this->brandsTable(), $this->catalogTable(), $this->monthlyTable()])),
+        ];
+    }
+
+    /**
+     * Prestations et produits (ancien bloc de l'Accueil) : CA par type de
+     * ligne et prestations les plus vendues sur la période. Seulement pour
+     * une entreprise qui a un catalogue (ventes à lignes).
+     */
+    private function catalogTable(): ?array
+    {
+        if (! $this->organization->hasModule('catalogue') && ! $this->organization->hasModule('produits')) {
+            return null;
+        }
+
+        $lines = DB::table('purchase_items')
+            ->join('purchases', 'purchases.id', '=', 'purchase_items.purchase_id')
+            ->whereIn('purchases.store_id', $this->storeIds ?: [0])
+            ->where('purchases.status', 'valid')
+            ->whereDate('purchases.purchased_at', '>=', $this->from->toDateString())
+            ->whereDate('purchases.purchased_at', '<=', $this->to->toDateString());
+        $visits = (clone $lines)->distinct()->count('purchase_items.purchase_id');
+        $total = (int) (clone $lines)->sum('purchase_items.amount');
+        $types = [CatalogItem::TYPE_SERVICE => 'Prestation', CatalogItem::TYPE_PRODUCT => 'Produit'];
+
+        $rows = (clone $lines)
+            ->selectRaw('purchase_items.name as name, purchase_items.type as type, SUM(purchase_items.quantity) as quantity, SUM(purchase_items.amount) as revenue')
+            ->groupBy('purchase_items.name', 'purchase_items.type')
+            ->orderByDesc('revenue')
+            ->limit(15)
+            ->get();
+
+        return [
+            'key' => 'catalog',
+            'title' => 'Prestations et produits'.($visits > 0 ? ' · panier moyen par visite : '.number_format(intdiv($total, $visits), 0, ',', ' ').' '.$this->organization->currencySymbol() : ''),
+            'columns' => ['Prestation ou produit', 'Type', 'Quantité', 'CA', 'Part du CA'],
+            'rows' => $rows->map(fn ($r) => [
+                (string) $r->name,
+                $types[$r->type] ?? 'Autre',
+                (int) $r->quantity,
+                (int) $r->revenue,
+                $total > 0 ? round($r->revenue / $total * 100, 1).' %' : '—',
+            ])->all(),
         ];
     }
 

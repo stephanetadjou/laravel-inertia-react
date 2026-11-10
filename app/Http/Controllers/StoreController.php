@@ -35,18 +35,22 @@ class StoreController extends Controller
         $canManage = $user->canManageOrganization();
 
         return Inertia::render('Stores/Index', [
-            'stores' => $query->withCount('contacts')->orderBy('name')->get()->map(fn (Store $store) => [
-                'id' => $store->id,
-                'name' => $store->name,
-                'brand_id' => $store->brand_id,
-                'brand_name' => $store->brand?->name,
-                'contacts_count' => $store->contacts_count,
-                'whatsapp_phone_number_id' => $store->whatsapp_phone_number_id,
-                'has_token' => filled($store->whatsapp_access_token),
-                // own : identifiants propres à la boutique ; shared : repli sur le
-                // compte Meta partagé (.env) ; none : aucun envoi possible.
-                'connection' => ! $store->canSendWhatsApp() ? 'none' : ($store->usesSharedWhatsAppAccount() ? 'shared' : 'own'),
-            ]),
+            // Contacts, opt-in et VIP par établissement (anciennement « Performance par boutique » de l'Accueil).
+            'stores' => $query->withCount(['contacts', 'contacts as opt_in_count' => fn ($q) => $q->where('consent_status', 'opt_in'), 'contacts as vip_count' => fn ($q) => $q->where('is_vip', true)])
+                ->orderBy('name')->get()->map(fn (Store $store) => [
+                    'id' => $store->id,
+                    'name' => $store->name,
+                    'brand_id' => $store->brand_id,
+                    'brand_name' => $store->brand?->name,
+                    'contacts_count' => $store->contacts_count,
+                    'opt_in_count' => $store->opt_in_count,
+                    'vip_count' => $store->vip_count,
+                    'whatsapp_phone_number_id' => $store->whatsapp_phone_number_id,
+                    'has_token' => filled($store->whatsapp_access_token),
+                    // own : identifiants propres à la boutique ; shared : repli sur le
+                    // compte Meta partagé (.env) ; none : aucun envoi possible.
+                    'connection' => ! $store->canSendWhatsApp() ? 'none' : ($store->usesSharedWhatsAppAccount() ? 'shared' : 'own'),
+                ]),
             // Marques proposées dans la fenêtre de modification / création
             // (seuls les rôles qui gèrent l'organisation peuvent changer la marque).
             'brands' => $canManage

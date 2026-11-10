@@ -10,6 +10,8 @@ export interface StoreRow {
     brand_id: number | null;
     brand_name: string | null;
     contacts_count: number;
+    opt_in_count?: number;
+    vip_count?: number;
     whatsapp_phone_number_id: string | null;
     has_token: boolean;
     connection: 'own' | 'shared' | 'none';

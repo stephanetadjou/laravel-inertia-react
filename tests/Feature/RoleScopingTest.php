@@ -175,11 +175,14 @@ it('scopes the dashboard counters to a brand_manager\'s own brand', function () 
         'brand_id' => $adidas->id,
     ]);
 
-    $response = $this->actingAs($brandManager)->get('/dashboard');
-
-    $response->assertInertia(fn ($page) => $page
-        ->where('kpis.contacts.current', 1)
-        ->has('stores', 1),
+    // Contacts par établissement : Paramètres › Établissements (anciennement sur l'Accueil).
+    $this->actingAs($brandManager)->get('/stores')->assertInertia(fn ($page) => $page
+        ->has('stores', 1)
+        ->where('stores.0.contacts_count', 1)
+        ->where('stores.0.opt_in_count', 1),
+    );
+    $this->actingAs($brandManager)->get('/dashboard')->assertInertia(fn ($page) => $page
+        ->where('kpis', fn ($kpis) => collect($kpis)->firstWhere('key', 'new_contacts') === null || collect($kpis)->firstWhere('key', 'new_contacts')['value'] === 1),
     );
 });
 

@@ -107,14 +107,14 @@ it('checks out an appointment into a sale with lines', function () {
     ])->assertSessionHasErrors('lines');
     expect(Purchase::count())->toBe(1);
 
-    $this->actingAs($this->admin)->get('/dashboard')
-        ->assertInertia(fn ($page) => $page
-            ->where('catalogMix.services', 8000)
-            ->where('catalogMix.products', 12000)
-            ->where('catalogMix.other', 1000)
-            ->where('catalogMix.visits', 1)
-            ->where('catalogMix.average', 21000)
-            ->where('catalogMix.top.0.name', 'Coupe'));
+    // Prestations et produits : Analyses › Tableaux de bord (anciennement sur l'Accueil).
+    $this->actingAs($this->admin)->get('/analytics?period=30d')
+        ->assertInertia(fn ($page) => $page->where('data.tables', function ($tables) {
+            $catalog = collect($tables)->firstWhere('key', 'catalog');
+
+            return $catalog !== null && str_contains($catalog['title'], '21 000')
+                && collect($catalog['rows'])->contains(fn ($r) => $r[0] === 'Coupe' && $r[1] === 'Prestation' && $r[3] === 8000);
+        }));
 });
 
 it('creates the store contact when the customer is checked out in another store', function () {

@@ -67,8 +67,8 @@ export function Kpi({
             </span>
             <span className="k-foot">
                 {delta}
-                <span>vs période préc.</span>
-                {foot && <span>· {foot}</span>}
+                {delta !== null && delta !== undefined && <span>vs période préc.</span>}
+                {foot && <span>{delta !== null && delta !== undefined ? '· ' : ''}{foot}</span>}
             </span>
             {href && (
                 <Link href={href} className="nx-kpi-link">

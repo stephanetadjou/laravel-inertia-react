@@ -276,7 +276,7 @@ it('limits the send-to-all welcome to the stores of a brand manager', function (
     Queue::assertPushed(SendWelcomeMessageJob::class, fn ($job) => $job->contact->is($adidasClient));
 });
 
-it('counts stores relying on the shared account as connected on the dashboard', function () {
+it('counts stores relying on the shared account as connected', function () {
     config([
         'services.meta_whatsapp.token' => 'shared-token',
         'services.meta_whatsapp.phone_number_id' => '999000111',
@@ -290,10 +290,9 @@ it('counts stores relying on the shared account as connected on the dashboard', 
         'consent_status' => 'unknown',
     ]);
 
-    $this->actingAs($user)->get('/dashboard')->assertInertia(fn ($page) => $page
+    $this->actingAs($user)->get('/stores')->assertInertia(fn ($page) => $page
         ->has('stores', 3)
-        ->where('stores', fn ($stores) => collect($stores)->every(fn ($store) => $store['connected']))
-        ->where('pendingWelcome', 3),
+        ->where('stores', fn ($stores) => collect($stores)->every(fn ($store) => $store['connection'] !== 'none')),
     );
 });
 
