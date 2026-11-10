@@ -626,3 +626,83 @@
     .mcal-table td.cell-main::before { display: none; }
     .mcal-table td.num { text-align: right; }
 }
+
+/* En-tête de l'agenda : 4 cartes de chiffres, barre d'affichage, recherche et rappels. */
+.mag-cards {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 14px;
+    margin-top: 16px;
+}
+@media (max-width: 1100px) {
+    .mag-cards { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (max-width: 560px) {
+    .mag-cards { grid-template-columns: minmax(0, 1fr); }
+}
+.mag-card {
+    --tone: #0e7bd6;
+    --tone-soft: rgba(14, 123, 214, 0.1);
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    padding: 16px 18px;
+    border: 1px solid #e2e8f0;
+    border-radius: 16px;
+    background: linear-gradient(135deg, var(--tone-soft), #fff 70%);
+    box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+    min-width: 0;
+}
+.mag-card.t-cyan { --tone: #0891b2; --tone-soft: rgba(8, 145, 178, 0.1); }
+.mag-card.t-green { --tone: #00a77d; --tone-soft: rgba(0, 200, 150, 0.12); }
+.mag-card.t-navy { --tone: #0b2d4a; --tone-soft: rgba(11, 45, 74, 0.08); }
+.mag-card-top { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+.mag-card-label { font-size: 13px; font-weight: 600; color: #475569; }
+.mag-card-icon {
+    display: flex; align-items: center; justify-content: center;
+    width: 34px; height: 34px; border-radius: 10px;
+    background: var(--tone-soft); color: var(--tone); flex-shrink: 0;
+}
+.mag-card-mid { display: flex; align-items: flex-end; justify-content: space-between; gap: 10px; }
+.mag-card-mid b { font-size: 26px; font-weight: 800; color: #0b2d4a; line-height: 1.1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.mag-spark { flex-shrink: 0; }
+.mag-spark .line { fill: none; stroke: var(--tone); stroke-width: 2; stroke-linejoin: round; stroke-linecap: round; }
+.mag-spark .area { fill: var(--tone-soft); stroke: none; }
+.mag-card-foot { display: flex; align-items: center; gap: 6px; font-size: 12px; color: #64748b; flex-wrap: wrap; }
+
+.mag-bar {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+    margin-top: 16px;
+}
+.mag-display button { display: inline-flex; align-items: center; gap: 6px; padding: 7px 12px; }
+.mag-display svg { width: 15px; height: 15px; }
+.mag-search {
+    flex: 1 1 260px;
+    display: flex; align-items: center; gap: 8px;
+    padding: 0 12px;
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    background: var(--surface);
+    color: #64748b;
+}
+.mag-search input { flex: 1; min-width: 0; border: 0; background: transparent; padding: 9px 0; font: inherit; font-size: 14px; color: var(--ink); outline: none; }
+.mag-search:focus-within { outline: 2px solid var(--focus); outline-offset: 1px; }
+.mag-bar select { padding: 8px 10px; border: 1px solid var(--line); border-radius: 10px; background: var(--surface); color: var(--ink); font: inherit; font-size: 14px; }
+.mag-switch { display: inline-flex; align-items: center; gap: 8px; font-size: 14px; font-weight: 600; color: var(--ink); cursor: pointer; white-space: nowrap; }
+.mag-switch input { position: absolute; opacity: 0; width: 1px; height: 1px; }
+.mag-switch i { position: relative; width: 38px; height: 22px; border-radius: 999px; background: #cbd5e1; transition: background 0.15s; }
+.mag-switch i::after { content: ''; position: absolute; top: 3px; left: 3px; width: 16px; height: 16px; border-radius: 50%; background: #fff; box-shadow: 0 1px 2px rgba(0, 0, 0, 0.2); transition: transform 0.15s; }
+.mag-switch input:checked + i { background: #00c896; }
+.mag-switch input:checked + i::after { transform: translateX(16px); }
+.mag-switch input:focus-visible + i { outline: 2px solid var(--focus); outline-offset: 2px; }
+.mag-switch input:disabled + i { opacity: 0.6; }
+.mpage-actions .mdash-btn svg { width: 16px; height: 16px; }
+
+.dark .mag-card { background: linear-gradient(135deg, var(--tone-soft), #111a2e 70%); border-color: rgba(255, 255, 255, 0.08); }
+.dark .mag-card-label, .dark .mag-card-foot { color: #94a3b8; }
+.dark .mag-card-mid b { color: #e2e8f0; }
+.dark .mag-card.t-navy { --tone: #7cc4ff; --tone-soft: rgba(124, 196, 255, 0.1); }
+.mdash .mag-search input:focus-visible { outline: none; }

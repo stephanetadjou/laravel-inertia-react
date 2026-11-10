@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Jobs\AiAgentReplyJob;
 use App\Models\Appointment;
 use App\Models\CatalogItem;
 use App\Models\Contact;
@@ -54,11 +55,18 @@ class AutoReplies
             return;
         }
 
-        if (! $this->organization->hasModule('reponses_auto') || ! $this->settings['enabled']) {
+        if ($this->contact->bot_paused_until !== null && $this->contact->bot_paused_until->isFuture()) {
             return;
         }
 
-        if ($this->contact->bot_paused_until !== null && $this->contact->bot_paused_until->isFuture()) {
+        // Agent IA actif : il répond aux messages écrits (les boutons du menu restent au robot à règles).
+        if ($reply === null && ($message['type'] ?? null) === 'text' && ($agent = AiAgents::agentFor($this->contact)) !== null) {
+            AiAgentReplyJob::dispatch($agent->id, $this->contact->id)->delay(now()->addSeconds(4));
+
+            return;
+        }
+
+        if (! $this->organization->hasModule('reponses_auto') || ! $this->settings['enabled']) {
             return;
         }
 

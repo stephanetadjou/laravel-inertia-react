@@ -6,6 +6,7 @@ import { Page, PlusIcon } from '../../components/page/Page';
 import AppointmentFormModal, { AppointmentRow, CatalogEntry, StaffOption, formatPrice } from '../../components/appointments/AppointmentFormModal';
 import CheckoutModal from '../../components/appointments/CheckoutModal';
 import WhatsAppIcon from '../../components/common/WhatsAppIcon';
+import { Delta, percentChange } from '../../components/dashboard/Kpi';
 import './calendar.css';
 
 /*
@@ -50,7 +51,22 @@ interface PageProps {
     upcoming: AppointmentRow[];
     catalog: CatalogEntry[];
     paymentMethods: Record<string, string>;
+    stats: AgendaStats | null;
+    bookingUrl: string | null;
+    bookingEnabled: boolean;
+    reminders: { available: boolean; enabled: boolean; canManage: boolean };
     [key: string]: unknown;
+}
+
+/** Chiffres des cartes : 6 derniers mois (mois en cours en dernier). */
+interface AgendaStats {
+    months: string[];
+    total: number[];
+    done: number[];
+    revenue: number[];
+    upcoming: number;
+    toConfirm: number;
+    upcomingWeeks: number[];
 }
 
 const WEEKDAYS = ['Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam', 'Dim'];
@@ -609,8 +625,92 @@ function AgendaTable({ rows, statuses, onOpen }: { rows: AppointmentRow[]; statu
     );
 }
 
+/** Petite courbe d'évolution (6 points) à côté du chiffre d'une carte. */
+function Sparkline({ values }: { values: number[] }) {
+    const w = 96;
+    const h = 34;
+    const max = Math.max(...values, 1);
+    const step = w / Math.max(values.length - 1, 1);
+    const line = values.map((v, i) => `${i ? 'L' : 'M'}${(i * step).toFixed(1)} ${(h - 3 - (v / max) * (h - 8)).toFixed(1)}`).join(' ');
+    return (
+        <svg className="mag-spark" viewBox={`0 0 ${w} ${h}`} width={w} height={h} aria-hidden="true">
+            <path d={`${line} L${w} ${h} L0 ${h} Z`} className="area" />
+            <path d={line} className="line" />
+        </svg>
+    );
+}
+
+function StatCard({ tone, label, value, foot, delta, series, icon }: { tone: string; label: string; value: string; foot: string; delta?: number | null; series: number[]; icon: React.ReactNode }) {
+    return (
+        <div className={`mag-card t-${tone}`}>
+            <div className="mag-card-top">
+                <span className="mag-card-label">{label}</span>
+                <span className="mag-card-icon" aria-hidden="true">
+                    {icon}
+                </span>
+            </div>
+            <div className="mag-card-mid">
+                <b className="num">{value}</b>
+                <Sparkline values={series} />
+            </div>
+            <div className="mag-card-foot">
+                {delta !== undefined && <Delta value={delta} missing="Aucun chiffre le mois dernier" />}
+                <span>{foot}</span>
+            </div>
+        </div>
+    );
+}
+
+const icon = (d: string) => (
+    <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <path d={d} />
+    </svg>
+);
+const ICONS = {
+    calendar: icon('M8 2v4M16 2v4M3 10h18M5 4h14a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2z'),
+    clock: icon('M12 22a10 10 0 1 0 0-20 10 10 0 0 0 0 20zM12 6v6l4 2'),
+    check: icon('M20 6 9 17l-5-5'),
+    money: icon('M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6'),
+    link: icon('M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71'),
+    search: icon('M11 19a8 8 0 1 0 0-16 8 8 0 0 0 0 16zM21 21l-4.35-4.35'),
+    list: icon('M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01'),
+};
+
+/** Les 4 cartes du haut : mois en cours comparé au mois précédent. */
+function AgendaStatsRow({ stats }: { stats: AgendaStats }) {
+    const last = (a: number[]) => a[a.length - 1] ?? 0;
+    const prev = (a: number[]) => a[a.length - 2] ?? 0;
+    const trend = (a: number[]) => percentChange(last(a), prev(a));
+    return (
+        <div className="mag-cards">
+            <StatCard tone="blue" label="Rendez-vous du mois" value={last(stats.total).toLocaleString('fr-FR')} foot="vs mois dernier" delta={trend(stats.total)} series={stats.total} icon={ICONS.calendar} />
+            <StatCard
+                tone="cyan"
+                label="À venir"
+                value={stats.upcoming.toLocaleString('fr-FR')}
+                foot={stats.toConfirm > 0 ? `dont ${stats.toConfirm} à confirmer` : 'sur les 6 prochaines semaines'}
+                series={stats.upcomingWeeks}
+                icon={ICONS.clock}
+            />
+            <StatCard tone="green" label="Terminés ce mois" value={last(stats.done).toLocaleString('fr-FR')} foot="vs mois dernier" delta={trend(stats.done)} series={stats.done} icon={ICONS.check} />
+            <StatCard tone="navy" label="CA encaissé ce mois" value={formatPrice(last(stats.revenue))} foot="vs mois dernier" delta={trend(stats.revenue)} series={stats.revenue} icon={ICONS.money} />
+        </div>
+    );
+}
+
 function AppointmentsIndex() {
-    const { view, date, from, store, stores, staff, staffFilter, closures, breaks, statuses, appointments, upcoming, catalog, paymentMethods, rdvEnabled, classSessions } = usePage<PageProps>().props;
+    const { view, date, from, store, stores, staff, staffFilter, closures, breaks, statuses, appointments: allAppointments, upcoming, catalog, paymentMethods, rdvEnabled, classSessions, stats, bookingUrl, bookingEnabled, reminders } =
+        usePage<PageProps>().props;
+    const [search, setSearch] = useState('');
+    const [statusFilter, setStatusFilter] = useState('');
+    const [copied, setCopied] = useState(false);
+    // Recherche (client, numéro, prestation, intervenant) et statut : sur les rendez-vous de la période.
+    const appointments = useMemo(() => {
+        const q = search.trim().toLowerCase();
+        return allAppointments.filter(
+            (a) => (!statusFilter || a.status === statusFilter) && (!q || [a.customer_name, a.phone_e164, a.service, a.staff_name].some((v) => (v ?? '').toLowerCase().includes(q))),
+        );
+    }, [allAppointments, search, statusFilter]);
     // Jour fermé (férié, congés) : libellé, sinon null.
     const closedOn = (day: string) => closures.find((c) => c.starts_on <= day && c.ends_on >= day)?.label ?? null;
     const [checkout, setCheckout] = useState<AppointmentRow | null>(null);
@@ -636,9 +736,23 @@ function AppointmentsIndex() {
 
     // Fiche rapide ouverte : suit les mises à jour (changement de statut).
     useEffect(() => {
-        if (opened) setOpened(appointments.find((a) => a.id === opened.id) ?? upcoming.find((a) => a.id === opened.id) ?? null);
+        if (opened) setOpened(allAppointments.find((a) => a.id === opened.id) ?? upcoming.find((a) => a.id === opened.id) ?? null);
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [appointments, upcoming]);
+    }, [allAppointments, upcoming]);
+
+    function copyBookingLink() {
+        if (!bookingUrl) return;
+        const fallback = () => window.prompt('Lien de réservation à partager', bookingUrl);
+        if (!navigator.clipboard) return fallback();
+        navigator.clipboard.writeText(bookingUrl).then(() => {
+            setCopied(true);
+            setTimeout(() => setCopied(false), 2000);
+        }, fallback);
+    }
+
+    function toggleReminders(enabled: boolean) {
+        router.put('/appointments/settings/reminders', { enabled }, { preserveScroll: true });
+    }
 
     const byDay = useMemo(
         () =>
@@ -658,18 +772,31 @@ function AppointmentsIndex() {
     }
 
     const weekDays = Array.from({ length: 7 }, (_, i) => iso(addDays(mondayOf(parseDay(date)), i)));
-    const active = appointments.filter((a) => a.status !== 'cancelled').length;
 
     return (
         <Page
             title="Agenda"
-            subtitle={[rdvEnabled ? `${active} rendez-vous` : null, classSessions.length ? `${classSessions.filter((s) => s.status !== 'cancelled').length} séance(s) de cours` : null].filter(Boolean).join(' · ') + ' sur la période'}
+            subtitle={rdvEnabled ? 'Consultez et organisez vos rendez-vous.' : `${classSessions.filter((s) => s.status !== 'cancelled').length} séance(s) de cours sur la période`}
             actions={
                 rdvEnabled ? (
-                    <button type="button" className="mdash-btn brand" onClick={() => setModal({ appointment: null })} disabled={stores.length === 0}>
-                        <PlusIcon />
-                        Nouveau rendez-vous
-                    </button>
+                    <>
+                        {bookingUrl && bookingEnabled && (
+                            <button type="button" className="mdash-btn ghost" onClick={copyBookingLink} title={bookingUrl}>
+                                {ICONS.link}
+                                {copied ? 'Lien copié' : 'Lien de réservation'}
+                            </button>
+                        )}
+                        {bookingUrl && !bookingEnabled && reminders.canManage && (
+                            <Link href="/settings/booking" className="mdash-btn ghost" title="Activez la réservation en ligne pour partager votre lien">
+                                {ICONS.link}
+                                Lien de réservation
+                            </Link>
+                        )}
+                        <button type="button" className="mdash-btn brand" onClick={() => setModal({ appointment: null })} disabled={stores.length === 0}>
+                            <PlusIcon />
+                            Ajouter un RDV
+                        </button>
+                    </>
                 ) : (
                     <Link href="/classes" className="mdash-btn brand">
                         Cours et appel
@@ -677,6 +804,42 @@ function AppointmentsIndex() {
                 )
             }
         >
+            {stats && <AgendaStatsRow stats={stats} />}
+
+            {rdvEnabled && (
+                <div className="mag-bar">
+                    <div className="mdash-seg mag-display" role="group" aria-label="Type d'affichage">
+                        <button type="button" aria-pressed={display === 'table'} onClick={() => chooseDisplay('table')}>
+                            {ICONS.list}
+                            Liste
+                        </button>
+                        <button type="button" aria-pressed={display === 'calendar'} onClick={() => chooseDisplay('calendar')}>
+                            {ICONS.calendar}
+                            Calendrier
+                        </button>
+                    </div>
+                    <label className="mag-search">
+                        {ICONS.search}
+                        <input type="search" value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Rechercher un client, un numéro, une prestation…" aria-label="Rechercher" />
+                    </label>
+                    <select aria-label="Statut" value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}>
+                        <option value="">Tous les statuts</option>
+                        {Object.entries(statuses).map(([key, label]) => (
+                            <option key={key} value={key}>
+                                {label}
+                            </option>
+                        ))}
+                    </select>
+                    {reminders.available && (
+                        <label className="mag-switch" title="La veille, chaque client reçoit un message WhatsApp pour confirmer ou décaler">
+                            <input type="checkbox" role="switch" checked={reminders.enabled} disabled={!reminders.canManage} onChange={(e) => toggleReminders(e.target.checked)} />
+                            <i aria-hidden="true" />
+                            Rappels automatiques
+                        </label>
+                    )}
+                </div>
+            )}
+
             <div className="mcal">
                 <section className="mcal-main mdash-panel">
                     <div className="mcal-toolbar">
@@ -713,14 +876,6 @@ function AppointmentsIndex() {
                                     ))}
                                 </select>
                             )}
-                            <div className="mdash-seg" role="group" aria-label="Type d'affichage">
-                                <button type="button" aria-pressed={display === 'calendar'} onClick={() => chooseDisplay('calendar')}>
-                                    Calendrier
-                                </button>
-                                <button type="button" aria-pressed={display === 'table'} onClick={() => chooseDisplay('table')}>
-                                    Tableau
-                                </button>
-                            </div>
                             <div className="mdash-seg" role="group" aria-label="Période affichée">
                                 {(
                                     [

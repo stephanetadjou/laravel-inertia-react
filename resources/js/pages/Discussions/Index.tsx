@@ -60,7 +60,7 @@ interface PageProps {
     [key: string]: unknown;
 }
 
-const ORIGIN: Record<string, string> = { auto: 'Réponse automatique', reminder: 'Rappel', campaign: 'Campagne' };
+const ORIGIN: Record<string, string> = { auto: 'Réponse automatique', ai: 'Agent IA', reminder: 'Rappel', campaign: 'Campagne' };
 
 function Bubble({ m }: { m: Message }) {
     const out = m.direction === 'out';

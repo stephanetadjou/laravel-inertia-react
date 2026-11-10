@@ -97,7 +97,13 @@ export function buildSections({ canManageOrganization, whatsappApiEnabled, modul
     const sections: NavSection[] = [
         { key: 'home', name: 'Accueil', icon: <PieChartIcon />, path: '/dashboard', tabs: [] },
         { key: 'actions', name: 'À faire', icon: <TaskIcon />, path: '/actions', tabs: [] },
-        { key: 'discussions', name: 'Discussions', icon: <ChatIcon />, path: '/discussions', tabs: [] },
+        {
+            key: 'discussions',
+            name: 'Discussions',
+            icon: <ChatIcon />,
+            path: '/discussions',
+            tabs: canManageOrganization && has('agents_ia') ? [{ name: 'Discussions', path: '/discussions' }, { name: 'Agents IA', path: '/ai-agents' }] : [],
+        },
         ...(agenda
             ? [
                   {

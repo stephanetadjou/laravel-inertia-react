@@ -9,11 +9,13 @@ use App\Models\ClassSession;
 use App\Models\Closure;
 use App\Models\Contact;
 use App\Models\Customer;
+use App\Models\Organization;
 use App\Models\Purchase;
 use App\Models\StaffMember;
 use App\Models\Store;
 use App\Models\User;
 use App\Services\ActionLists;
+use App\Services\Audit;
 use App\Services\CustomerScoring;
 use App\Services\GroupClasses;
 use App\Services\PhoneNormalizer;
@@ -106,6 +108,15 @@ class AppointmentController extends Controller
                 ->take(6)
                 ->get()
                 ->map(fn (Appointment $a) => $this->present($a, $messages)),
+            'stats' => $rdv ? $this->stats($storeIds) : null,
+            'bookingUrl' => $rdv ? $user->organization->bookingUrl() : null,
+            'bookingEnabled' => $user->organization->bookingSettings()['enabled'],
+            // Rappel WhatsApp de la veille : interrupteur visible si l'API est branchée.
+            'reminders' => [
+                'available' => $rdv && $user->organization->usesWhatsAppApi(),
+                'enabled' => $user->organization->hasModule('rappels_rdv'),
+                'canManage' => $user->canManageOrganization(),
+            ],
             'counts' => [
                 'total' => $appointments->where('status', '!=', 'cancelled')->count(),
                 'confirmed' => $appointments->where('status', 'confirmed')->count(),
@@ -113,6 +124,74 @@ class AppointmentController extends Controller
                 'no_show' => $appointments->where('status', 'no_show')->count(),
             ],
         ]);
+    }
+
+    /**
+     * Chiffres des cartes de l'agenda : rendez-vous, terminés et CA encaissé
+     * des 6 derniers mois (mois en cours en dernier), et rendez-vous à venir
+     * des 6 prochaines semaines. Indépendants de la période affichée.
+     *
+     * @param  array<int, int>  $storeIds
+     * @return array<string, mixed>
+     */
+    private function stats(array $storeIds): array
+    {
+        $months = collect(range(5, 0))->map(fn (int $i) => today()->startOfMonth()->subMonths($i)->format('Y-m'));
+        $since = today()->startOfMonth()->subMonths(5);
+        $until = today()->startOfMonth()->addMonth();
+
+        // substr : SQL portable SQLite / MySQL.
+        $rows = DB::table('appointments')
+            ->whereIn('store_id', $storeIds)
+            ->where('starts_at', '>=', $since)
+            ->where('starts_at', '<', $until)
+            ->where('status', '!=', 'cancelled')
+            ->selectRaw("substr(starts_at, 1, 7) as month, count(*) as total, sum(case when status = 'done' then 1 else 0 end) as done")
+            ->groupBy('month')
+            ->get()
+            ->keyBy('month');
+
+        $revenue = DB::table('appointments')
+            ->join('purchases', 'purchases.id', '=', 'appointments.purchase_id')
+            ->whereIn('appointments.store_id', $storeIds)
+            ->where('appointments.starts_at', '>=', $since)
+            ->where('appointments.starts_at', '<', $until)
+            ->where('purchases.status', 'valid')
+            ->selectRaw('substr(appointments.starts_at, 1, 7) as month, sum(purchases.amount) as amount')
+            ->groupBy('month')
+            ->pluck('amount', 'month');
+
+        $upcoming = Appointment::whereIn('store_id', $storeIds)
+            ->whereIn('status', Appointment::OPEN_STATUSES)
+            ->where('starts_at', '>=', now())
+            ->where('starts_at', '<', today()->startOfWeek()->addWeeks(6))
+            ->pluck('starts_at');
+
+        return [
+            'months' => $months->values(),
+            'total' => $months->map(fn ($m) => (int) ($rows[$m]->total ?? 0))->values(),
+            'done' => $months->map(fn ($m) => (int) ($rows[$m]->done ?? 0))->values(),
+            'revenue' => $months->map(fn ($m) => (int) ($revenue[$m] ?? 0))->values(),
+            'upcoming' => Appointment::whereIn('store_id', $storeIds)->whereIn('status', Appointment::OPEN_STATUSES)->where('starts_at', '>=', now())->count(),
+            'toConfirm' => Appointment::whereIn('store_id', $storeIds)->where('status', 'requested')->where('starts_at', '>=', now())->count(),
+            'upcomingWeeks' => collect(range(0, 5))->map(fn (int $w) => $upcoming->filter(fn (Carbon $d) => $d->copy()->startOfWeek()->equalTo(today()->startOfWeek()->addWeeks($w)))->count())->values(),
+        ];
+    }
+
+    /** Interrupteur « Rappels automatiques » de l'agenda (module rappels_rdv). */
+    public function updateReminders(Request $request): RedirectResponse
+    {
+        $enabled = $request->validate(['enabled' => ['required', 'boolean']])['enabled'];
+        $organization = $request->user()->organization;
+        $modules = array_values(array_diff($organization->modules['enabled'] ?? Organization::defaultModulesFor($organization->sector), ['rappels_rdv']));
+        $organization->setModules($enabled ? [...$modules, 'rappels_rdv'] : $modules);
+        $organization->save();
+
+        Audit::record('settings.updated', $organization, $enabled ? 'Rappels automatiques activés' : 'Rappels automatiques désactivés', $organization->modules);
+
+        return back()->with('success', $enabled
+            ? 'Rappels automatiques activés : la veille, chaque client reçoit un message pour confirmer ou décaler.'
+            : 'Rappels automatiques désactivés.');
     }
 
     /**

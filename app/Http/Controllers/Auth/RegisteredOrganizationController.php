@@ -65,6 +65,7 @@ class RegisteredOrganizationController extends Controller
             'password' => ['required', 'confirmed', Password::defaults()],
             'answers' => ['nullable', 'array'],
             'answers.*' => ['boolean'],
+            'ai_agents' => ['nullable', 'boolean'],
             ...ModuleController::settingsRules(),
         ]);
 
@@ -98,6 +99,12 @@ class RegisteredOrganizationController extends Controller
 
             if ($usePreset) {
                 SectorPresets::apply($organization);
+            }
+
+            // Case « Agents IA » cochée à l'inscription.
+            if (! empty($validated['ai_agents'])) {
+                $organization->setModules([...$organization->enabledModules(), 'agents_ia']);
+                $organization->save();
             }
 
             Role::seedDefaultsFor($organization);

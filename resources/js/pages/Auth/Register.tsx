@@ -27,6 +27,7 @@ interface RegisterForm {
     email: string;
     password: string;
     password_confirmation: string;
+    ai_agents: boolean;
 }
 
 const inputClass =
@@ -42,6 +43,7 @@ export default function Register() {
         email: '',
         password: '',
         password_confirmation: '',
+        ai_agents: false,
     });
 
     // Un seul choix : le secteur prépare modules, étapes de suivi et réponses automatiques.
@@ -112,6 +114,20 @@ export default function Register() {
                                 {errors.sector && <p className="mt-1.5 text-sm text-error-500">Choisissez votre secteur d’activité.</p>}
                             </div>
                             {field('store_name', 'Premier établissement', 'text', 'Vous pourrez en ajouter d’autres plus tard.')}
+                            <label className="flex cursor-pointer items-start gap-3 rounded-xl border border-gray-200 p-3 text-sm hover:border-gray-300 dark:border-gray-700">
+                                <input
+                                    type="checkbox"
+                                    checked={data.ai_agents}
+                                    onChange={(e) => setData('ai_agents', e.target.checked)}
+                                    className="mt-0.5 h-4 w-4 rounded border-gray-300 text-brand-500"
+                                />
+                                <span>
+                                    <span className="block font-semibold text-gray-800 dark:text-white/90">Activer les Agents IA</span>
+                                    <span className="block text-xs leading-snug text-gray-500 dark:text-gray-400">
+                                        Un assistant IA répond à vos clients sur WhatsApp, 24 h/24, et passe la main à votre équipe si besoin.
+                                    </span>
+                                </span>
+                            </label>
                         </fieldset>
 
                         <fieldset className="space-y-4">

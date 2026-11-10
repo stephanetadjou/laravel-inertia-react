@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\ActionController;
 use App\Http\Controllers\Admin;
+use App\Http\Controllers\AiAgentController;
 use App\Http\Controllers\AnalyticsController;
 use App\Http\Controllers\AppointmentController;
 use App\Http\Controllers\AudienceController;
@@ -226,6 +227,7 @@ Route::middleware('auth')->group(function () {
         Route::put('/organisation/privacy', [OrganizationController::class, 'updatePrivacy'])->name('organisation.privacy');
         Route::put('/organisation/whatsapp-api', [OrganizationController::class, 'updateWhatsAppApi'])->name('organisation.whatsapp-api');
         Route::put('/actions/messages', [ActionController::class, 'updateMessages'])->name('actions.messages');
+        Route::put('/appointments/settings/reminders', [AppointmentController::class, 'updateReminders'])->middleware('module:rdv')->name('appointments.reminders');
 
         Route::get('/settings/modules', [ModuleController::class, 'index'])->name('settings.modules');
         Route::get('/settings/auto-replies', [AutoReplySettingsController::class, 'edit'])->middleware('module:reponses_auto')->name('settings.auto-replies');
@@ -234,6 +236,17 @@ Route::middleware('auth')->group(function () {
         Route::get('/settings/prospects', [ProspectController::class, 'settings'])->middleware('module:prospects')->name('settings.prospects');
         Route::put('/settings/prospects', [ProspectController::class, 'updateSettings'])->middleware('module:prospects')->name('settings.prospects.update');
         Route::put('/settings/modules', [ModuleController::class, 'update'])->name('settings.modules.update');
+
+        Route::middleware('module:agents_ia')->group(function () {
+            Route::get('/ai-agents', [AiAgentController::class, 'index'])->name('ai-agents.index');
+            Route::get('/ai-agents/create', [AiAgentController::class, 'create'])->name('ai-agents.create');
+            Route::post('/ai-agents', [AiAgentController::class, 'store'])->name('ai-agents.store');
+            Route::post('/ai-agents/test', [AiAgentController::class, 'test'])->middleware('throttle:10,1')->name('ai-agents.test');
+            Route::get('/ai-agents/{agent}/edit', [AiAgentController::class, 'edit'])->name('ai-agents.edit');
+            Route::put('/ai-agents/{agent}', [AiAgentController::class, 'update'])->name('ai-agents.update');
+            Route::post('/ai-agents/{agent}/toggle', [AiAgentController::class, 'toggle'])->name('ai-agents.toggle');
+            Route::delete('/ai-agents/{agent}', [AiAgentController::class, 'destroy'])->name('ai-agents.destroy');
+        });
 
         Route::middleware('module:fidelite')->group(function () {
             Route::redirect('/settings/loyalty-programs', '/settings/loyalty')->name('settings.loyalty.programs');

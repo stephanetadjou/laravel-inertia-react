@@ -339,6 +339,10 @@ class Organization extends Model
             'label' => 'Réponses automatiques WhatsApp',
             'description' => 'Message d’accueil, message hors horaires et menu à boutons (prix, horaires, rendez-vous, parler à quelqu’un).',
         ],
+        'agents_ia' => [
+            'label' => 'Agents IA',
+            'description' => 'Des assistants IA (Claude, ChatGPT ou Gemini, avec votre clé) répondent aux messages WhatsApp et passent la main à l’équipe si besoin.',
+        ],
         'rappels_rdv' => [
             'label' => 'Rappel de la veille avec confirmation',
             'description' => 'La veille du rendez-vous, un message avec les boutons « Je confirme » / « Je décale ».',
