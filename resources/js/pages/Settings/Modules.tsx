@@ -1,4 +1,4 @@
-import { router, useForm, usePage } from '@inertiajs/react';
+import { Link, router, useForm, usePage } from '@inertiajs/react';
 import { FormEventHandler } from 'react';
 
 import AppLayout from '../../layout/AppLayout';
@@ -96,6 +96,21 @@ function ModulesSettings() {
                     </div>
                     {data.enabled.includes('campagnes') && (
                         <p className="mt-3 text-xs text-gray-500">Les campagnes demandent un compte WhatsApp Cloud API vérifié par Meta : renseignez-le dans Paramètres › WhatsApp.</p>
+                    )}
+                    {data.enabled.includes('agents_ia') && (
+                        <p className="mt-3 text-xs text-gray-500">
+                            {modules.find((m) => m.key === 'agents_ia')?.enabled ? (
+                                <>
+                                    Agents IA actif :{' '}
+                                    <Link href="/ai-agents" className="font-medium text-brand-text underline">
+                                        créer et paramétrer un agent
+                                    </Link>{' '}
+                                    (aussi dans Paramètres › Agents IA).
+                                </>
+                            ) : (
+                                'Enregistrez les modules : l’onglet Agents IA apparaîtra dans Paramètres et dans Discussions.'
+                            )}
+                        </p>
                     )}
                 </Panel>
 

@@ -79,6 +79,7 @@ export function buildSections({ canManageOrganization, whatsappApiEnabled, modul
                   { name: 'Entreprise', path: '/organisation' },
                   { name: 'Modules', path: '/settings/modules' },
                   ...(has('reponses_auto') ? [{ name: 'Réponses automatiques', path: '/settings/auto-replies' }] : []),
+                  ...(has('agents_ia') ? [{ name: 'Agents IA', path: '/ai-agents' }] : []),
                   ...(has('rdv') ? [{ name: 'Réservation en ligne', path: '/settings/booking' }] : []),
                   ...(agenda ? [{ name: 'Intervenants', path: '/settings/staff' }] : []),
                   ...(has('rdv') ? [{ name: 'Fermetures', path: '/settings/closures' }] : []),
