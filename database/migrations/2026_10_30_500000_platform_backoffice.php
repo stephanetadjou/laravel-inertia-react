@@ -6,7 +6,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 
 /**
- * Back-office plateforme Menentia : super-admins, offre et essai de chaque
+ * Back-office plateforme ClientlyX : super-admins, offre et essai de chaque
  * entreprise, suivi des demandes de démo, journal plateforme. Migration
  * additive : les entreprises existantes passent « actives ».
  */

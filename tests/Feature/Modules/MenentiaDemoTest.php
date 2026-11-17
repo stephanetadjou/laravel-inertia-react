@@ -7,7 +7,7 @@ use App\Services\ActionLists;
 use App\Services\SalesTeam;
 use Inertia\Testing\AssertableInertia as Assert;
 
-it('loads the fictional Menentia company with prospects, sales reps and commissions', function () {
+it('loads the fictional ClientlyX company with prospects, sales reps and commissions', function () {
     $this->artisan('demo:menentia')->assertSuccessful();
 
     $organization = Organization::where('slug', 'demo-menentia')->sole();

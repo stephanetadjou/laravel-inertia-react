@@ -29,7 +29,7 @@ class ModuleController extends Controller
                 'label' => $module['label'],
                 'description' => $module['description'],
                 'enabled' => $organization->hasModule($key),
-                'suggested' => in_array($key, [
+                'suggested' => $key === 'carte_digitale' || in_array($key, [
                     ...($sector['modules'] ?? []), ...($sector['suggested'] ?? []),
                     ...(SectorPresets::PRESETS[$organization->sector]['modules'] ?? []), ...(SectorPresets::PRESETS[$organization->sector]['optional'] ?? []),
                 ], true),
@@ -50,6 +50,8 @@ class ModuleController extends Controller
 
         $organization = $request->user()->organization;
         $organization->setModules($data['enabled'], $data['settings'] ?? [], reviewed: true);
+        // Carte digitale décochée : le menu disparaît, les cartes déjà partagées restent en ligne.
+        $organization->modules = [...$organization->modules, 'card_off' => ! in_array('carte_digitale', $data['enabled'], true)];
         $organization->whatsapp_api_enabled = in_array('campagnes', $data['enabled'], true);
         $organization->save();
 
@@ -83,6 +85,8 @@ class ModuleController extends Controller
             'settings.beneficiaires.label' => ['nullable', Rule::in(array_keys(Organization::BENEFICIARY_LABELS))],
             'settings.beneficiaires.minor_needs_responsible' => ['nullable', 'boolean'],
             'settings.fidelite.points_per_attendance' => ['nullable', 'integer', 'min:0', 'max:1000'],
+            'settings.formation.dropout_days' => ['nullable', 'integer', 'min:3', 'max:120'],
+            'settings.formation.behind_percent' => ['nullable', 'integer', 'min:5', 'max:100'],
         ];
     }
 }

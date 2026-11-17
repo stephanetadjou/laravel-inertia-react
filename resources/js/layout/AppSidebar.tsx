@@ -24,7 +24,7 @@ interface SidebarProps {
     [key: string]: unknown;
 }
 
-/** Menu latéral NENTIX, bleu nuit (inspiré du portail NEXUS), court : une entrée par grande rubrique (cf. navigation.tsx). */
+/** Menu latéral ClientlyX, bleu nuit (inspiré du portail NEXUS), court : une entrée par grande rubrique (cf. navigation.tsx). */
 const AppSidebar: React.FC = () => {
     const { isExpanded, isMobileOpen, isHovered, setIsHovered } = useSidebar();
     const { url, props } = usePage<SidebarProps>();
@@ -51,7 +51,7 @@ const AppSidebar: React.FC = () => {
             onMouseLeave={() => setIsHovered(false)}
         >
             <div className={`flex h-16 shrink-0 items-center ${showLabels ? 'px-2' : 'justify-center'}`}>
-                <Link href="/dashboard" className="flex items-center gap-2.5" aria-label="NENTIX, accueil">
+                <Link href="/dashboard" className="flex items-center gap-2.5" aria-label="ClientlyX, accueil">
                     <MenentiaSymbol className="h-8 w-8" onDark />
                     {showLabels && <MenentiaWordmark onDark className="text-[24px]" />}
                 </Link>
@@ -86,11 +86,11 @@ const AppSidebar: React.FC = () => {
                             title={showLabels ? undefined : section.name}
                             className={`${itemBase} ${
                                 isActive
-                                    ? 'border-white/25 bg-white font-semibold text-[#0B1F3A] shadow-lg shadow-black/20'
+                                    ? 'border-white/25 bg-white font-semibold text-[#2b1a3d] shadow-lg shadow-black/20'
                                     : 'border-white/10 bg-white/[0.04] hover:border-white/25 hover:bg-white/10 hover:text-white'
                             } ${section.key === 'settings' ? 'mt-3' : ''}`}
                         >
-                            <span className={`shrink-0 [&_svg]:size-[18px] ${isActive ? 'text-[#1D4ED8]' : 'text-cyan-200/90 group-hover:text-white'}`}>{section.icon}</span>
+                            <span className={`shrink-0 [&_svg]:size-[18px] ${isActive ? 'text-[#e8590c]' : 'text-cyan-200/90 group-hover:text-white'}`}>{section.icon}</span>
                             {showLabels && <span>{section.name}</span>}
                         </Link>
                     );

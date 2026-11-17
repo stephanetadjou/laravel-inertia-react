@@ -18,10 +18,10 @@ function leadForm(array $overrides = []): array
 }
 
 it('stores a demo request from the website and sends the visitor back to it', function () {
-    config(['services.menentia.site_url' => 'https://menentia.com']);
+    config(['services.menentia.site_url' => 'https://clientlyx.com']);
 
     $this->post('/api/public/v1/leads', leadForm())
-        ->assertRedirect('https://menentia.com/contact#merci');
+        ->assertRedirect('https://clientlyx.com/contact#merci');
 
     $lead = Lead::sole();
     expect($lead->name)->toBe('Awa Mba')
@@ -66,7 +66,7 @@ it('silently ignores robots that fill the hidden field', function () {
 
 it('still stores the request when a notification address is configured', function () {
     Mail::fake();
-    config(['services.menentia.leads_email' => 'ventes@menentia.com']);
+    config(['services.menentia.leads_email' => 'ventes@clientlyx.com']);
 
     $this->postJson('/api/public/v1/leads', leadForm())->assertCreated();
 

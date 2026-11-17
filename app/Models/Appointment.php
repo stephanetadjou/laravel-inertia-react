@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Services\Learners;
 use App\Services\ProspectPipeline;
 use Database\Factories\AppointmentFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -39,6 +40,7 @@ class Appointment extends Model
 
     protected $fillable = [
         'store_id',
+        'address',
         'customer_id',
         'staff_user_id',
         'created_by',
@@ -58,6 +60,8 @@ class Appointment extends Model
         'reminder_sent_at',
         'client_response',
         'client_response_at',
+        'learner_training_id',
+        'resource_id',
     ];
 
     /** Types de rendez-vous ; visite et démo servent au suivi des prospects et des commerciaux. */
@@ -83,6 +87,10 @@ class Appointment extends Model
         // Rendez-vous pris : le prospect passe à « RDV réservé » / « Essai planifié » (si l'entreprise a ces étapes).
         static::created(function (Appointment $appointment) {
             $organization = $appointment->store?->organization;
+            // Centre de formation : la leçon compte dans le parcours en cours de l'apprenant.
+            if ($organization?->hasModule('formation')) {
+                Learners::linkAppointment($appointment);
+            }
             if ($organization?->hasModule('prospects') && in_array($appointment->status, Appointment::OPEN_STATUSES, true)) {
                 ProspectPipeline::for($organization)->onAppointmentEvent($appointment, $appointment->status === 'confirmed' ? 'confirmed' : 'booked');
             }
@@ -117,6 +125,18 @@ class Appointment extends Model
     public function staffMember(): BelongsTo
     {
         return $this->belongsTo(StaffMember::class);
+    }
+
+    /** Véhicule, salle ou matériel réservé (module « ressources »). */
+    public function resource(): BelongsTo
+    {
+        return $this->belongsTo(BookableResource::class, 'resource_id');
+    }
+
+    /** Parcours de formation dans lequel la leçon est comptée (module « formation »). */
+    public function learnerTraining(): BelongsTo
+    {
+        return $this->belongsTo(LearnerTraining::class);
     }
 
     public function items(): HasMany

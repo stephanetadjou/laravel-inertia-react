@@ -14,6 +14,9 @@ import { formatCompact, formatNumber } from "../../components/dashboard/Charts";
 import { Kpi } from "../../components/dashboard/Kpi";
 import { useHeaderHeight } from "../../components/dashboard/useHeaderHeight";
 import WelcomeBanner from "../../components/dashboard/WelcomeBanner";
+import OccupationPanel, {
+    OccupationData,
+} from "../../components/dashboard/OccupationPanel";
 import OnboardingChecklist, {
     OnboardingData,
 } from "../../components/common/OnboardingChecklist";
@@ -62,6 +65,7 @@ interface PageProps {
     todo: { discussions: number; tasks: number };
     actions: ActionCount[];
     today: TodayAppointment[];
+    occupation: OccupationData | null;
     flash?: { success?: string; error?: string };
     auth?: { organization?: { has_agenda?: boolean } | null };
     [key: string]: unknown;
@@ -82,7 +86,7 @@ const ICONS: Record<string, React.ReactNode> = {
 };
 
 function DashboardIndex() {
-    const { onboarding, kpis, todo, actions, today, flash, auth } =
+    const { onboarding, kpis, todo, actions, today, occupation, flash, auth } =
         usePage<PageProps>().props;
     const hasAgenda = auth?.organization?.has_agenda ?? true;
     const headerHeight = useHeaderHeight();
@@ -253,6 +257,8 @@ function DashboardIndex() {
                     </article>
                 )}
             </section>
+
+            {occupation && <OccupationPanel data={occupation} />}
         </div>
     );
 }

@@ -105,8 +105,20 @@
 /* Liens d'action dans une ligne de tableau. */
 .mpage-rowlinks {
     display: inline-flex;
-    gap: 12px;
+    align-items: center;
+    gap: 10px;
     justify-content: flex-end;
+}
+.mpage-rowlinks > a {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    white-space: nowrap;
+}
+.mpage-rowlinks svg {
+    width: 15px;
+    height: 15px;
+    flex-shrink: 0;
 }
 .mpage-rowlinks a,
 .mpage-rowlinks button {

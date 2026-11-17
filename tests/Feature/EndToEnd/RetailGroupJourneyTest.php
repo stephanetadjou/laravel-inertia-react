@@ -14,7 +14,7 @@ use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Storage;
 
 /*
- * Parcours complet d'une entreprise Menentia Retail (commerce multimarque) :
+ * Parcours complet d'une entreprise ClientlyX Retail (commerce multimarque) :
  * inscription, marques et points de vente, fidélité, import de caisse,
  * fiche client, segments, export, relance par groupe, responsable de marque.
  */

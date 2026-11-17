@@ -4,7 +4,7 @@ import { useState } from 'react';
 import AppLayout from '../../layout/AppLayout';
 
 /*
- * Centre d'aide NENTIX : un guide pas à pas par module, ouvert par
+ * Centre d'aide ClientlyX : un guide pas à pas par module, ouvert par
  * « Besoin d'aide ? ». Contenu statique, à enrichir au fil de l'eau.
  */
 
@@ -25,7 +25,7 @@ const CASES: Record<string, Guide> = {
     beaute: {
         key: 'cas',
         name: 'Cas pratique : beauté',
-        intro: 'Exemple Institut Élégance : comment NENTIX aide un institut à remplir son agenda, fidéliser et faire revenir ses clientes.',
+        intro: 'Exemple Institut Élégance : comment ClientlyX aide un institut à remplir son agenda, fidéliser et faire revenir ses clientes.',
         steps: [
             { title: 'Semaine 1 : tout centraliser', text: 'Importez le fichier clientes (nom, téléphone, date de naissance), créez le catalogue (soins, prix, durées) et les intervenantes. Chaque RDV encaissé alimente l’historique de la cliente.', href: '/imports' },
             { title: 'Remplir l’agenda sans effort', text: 'Partagez le lien de réservation en ligne dans votre statut et votre profil WhatsApp : les clientes réservent seules, même la nuit.', href: '/settings/booking' },
@@ -61,7 +61,7 @@ const CASES: Record<string, Guide> = {
     },
     sport: {
         key: 'cas',
-        name: 'Cas pratique : sport et bien-être',
+        name: 'Cas pratique : fitness et bien-être',
         intro: 'Exemple d’un club ou d’une salle : abonnements payés à temps, cours remplis, adhérents qui restent.',
         steps: [
             { title: 'Créer formules et cours', text: 'Formules (mensuel, trimestriel, carte de séances), cours de groupe avec horaires et capacité.', href: '/plans' },
@@ -75,6 +75,20 @@ const CASES: Record<string, Guide> = {
             'Relancez les renouvellements 7 jours avant l’échéance.',
             'Annulation pour pluie : prévenez tout le groupe en un clic et proposez un rattrapage.',
         ],
+    },
+    formation: {
+        key: 'cas',
+        name: 'Cas pratique : centre de formation (auto-école)',
+        intro: 'Exemple d’une auto-école : chaque élève suivi heure par heure jusqu’au permis, paiements en plusieurs fois, aucun abandon silencieux.',
+        steps: [
+            { title: 'Créer les formations', text: 'Permis B : 20 h de conduite, 12 séances de code, examens Code puis Conduite, formule payée en 3 fois.', href: '/trainings' },
+            { title: 'Ajouter moniteurs et véhicules', text: 'Les moniteurs dans Intervenants, les voitures dans Véhicules et salles : jamais deux leçons sur la même voiture.', href: '/resources' },
+            { title: 'Inscrire les élèves', text: 'Une inscription prépare l’échéancier : les tranches en retard sortent dans « À faire ».', href: '/learners' },
+            { title: 'Réserver les leçons', text: 'Leçon dans l’agenda avec moniteur et véhicule ; honorée, elle compte dans les heures de l’élève.', href: '/appointments' },
+            { title: 'Suivre les examens', text: 'Date, tentative, résultat : tous les examens réussis, le parcours se termine tout seul.', href: '/learners?exam=1' },
+            { title: 'Retenir les élèves', text: 'Plus de leçon depuis 14 jours, retard sur le rythme ou échecs répétés : l’élève est signalé avec un message prêt.', href: '/actions?list=learners_dropping' },
+        ],
+        tips: ['Démo : php artisan demo:auto-ecole (Auto-école Horizon).', 'Le délai de décrochage se règle dans Paramètres › Modules.'],
     },
     technique: {
         key: 'cas',
@@ -130,7 +144,7 @@ const CASES: Record<string, Guide> = {
     autre: {
         key: 'cas',
         name: 'Cas pratique : votre activité',
-        intro: 'Comment NENTIX aide une entreprise de services à mieux connaître ses clients et à les faire revenir.',
+        intro: 'Comment ClientlyX aide une entreprise de services à mieux connaître ses clients et à les faire revenir.',
         steps: [
             { title: 'Centraliser', text: 'Importez vos clients et créez vos prestations avec leur prix.', href: '/imports' },
             { title: 'Enregistrer chaque vente', text: 'Chaque vente ou RDV encaissé enrichit l’historique du client.', href: '/purchases' },
@@ -178,17 +192,17 @@ const GUIDES: Guide[] = [
         name: 'WhatsApp Business API',
         intro: 'Envoyer des campagnes depuis votre propre numéro avec l’API officielle de Meta. Comptez 1 à 3 jours, surtout pour la vérification de l’entreprise.',
         steps: [
-            { title: 'Option la plus rapide : WhatsApp géré par NENTIX', text: 'Écrivez au support : nous connectons votre numéro à notre compte Meta, vous n’avez rien de technique à faire. Sinon, suivez les étapes ci-dessous.' },
+            { title: 'Option la plus rapide : WhatsApp géré par ClientlyX', text: 'Écrivez au support : nous connectons votre numéro à notre compte Meta, vous n’avez rien de technique à faire. Sinon, suivez les étapes ci-dessous.' },
             { title: 'Préparer', text: 'Un numéro dédié qui reçoit SMS ou appels et n’est pas utilisé dans l’application WhatsApp (sinon supprimez-le de l’app), un compte Facebook, et les documents de l’entreprise (RCCM, NIF) pour la vérification Meta.' },
             { title: 'Créer le portefeuille business', text: 'Sur business.facebook.com, créez le portefeuille de l’entreprise, puis lancez la vérification dans Centre de sécurité.' },
             { title: 'Créer l’application Meta', text: 'Sur developers.facebook.com : Créer une app › type Business › ajoutez le produit WhatsApp et rattachez-le à votre portefeuille.' },
             { title: 'Ajouter le numéro', text: 'WhatsApp › Configuration de l’API : ajoutez votre numéro, validez le code reçu, choisissez le nom affiché. Notez l’ID du numéro (Phone number ID).' },
             { title: 'Créer un token permanent', text: 'Paramètres business › Utilisateurs système : créez un utilisateur admin, donnez-lui l’app et le compte WhatsApp, puis « Générer un token » avec whatsapp_business_messaging et whatsapp_business_management.' },
-            { title: 'Coller dans NENTIX', text: 'Paramètres › WhatsApp : collez l’ID du numéro, le token et l’App Secret (Paramètres › Général de l’app Meta). NENTIX affiche l’URL de webhook et le jeton de vérification.', href: '/settings/whatsapp' },
-            { title: 'Brancher le webhook', text: 'Dans Meta, WhatsApp › Configuration › Webhook : collez l’URL et le jeton, validez, puis abonnez-vous au champ « messages ». Les statuts (remis, lu) et les réponses « Stop » remontent alors dans NENTIX.' },
+            { title: 'Coller dans ClientlyX', text: 'Paramètres › WhatsApp : collez l’ID du numéro, le token et l’App Secret (Paramètres › Général de l’app Meta). ClientlyX affiche l’URL de webhook et le jeton de vérification.', href: '/settings/whatsapp' },
+            { title: 'Brancher le webhook', text: 'Dans Meta, WhatsApp › Configuration › Webhook : collez l’URL et le jeton, validez, puis abonnez-vous au champ « messages ». Les statuts (remis, lu) et les réponses « Stop » remontent alors dans ClientlyX.' },
             { title: 'Paiement, modèles, test', text: 'Ajoutez un moyen de paiement dans Meta, créez vos premiers modèles (Campagnes › Modèles de messages, validation Meta sous 24 h) et envoyez une campagne test à vous-même.', href: '/templates' },
         ],
-        tips: ['Les campagnes marketing sont facturées par Meta par message : NENTIX affiche le coût estimé avant l’envoi.', 'Les relances une par une par lien WhatsApp restent gratuites et ne demandent aucune API.'],
+        tips: ['Les campagnes marketing sont facturées par Meta par message : ClientlyX affiche le coût estimé avant l’envoi.', 'Les relances une par une par lien WhatsApp restent gratuites et ne demandent aucune API.'],
     },
     {
         key: 'campagnes',
@@ -320,7 +334,7 @@ function HelpIndex() {
             <section className="nx-banner" aria-label="Centre d’aide">
                 <div className="nx-banner-in">
                     <span className="nx-chip nx-chip-glow">Centre d’aide</span>
-                    <h1>Comment utiliser NENTIX ?</h1>
+                    <h1>Comment utiliser ClientlyX ?</h1>
                     <p>Choisissez un module : les étapes à suivre, dans l’ordre, avec un lien direct vers chaque écran.</p>
                 </div>
                 {support && (

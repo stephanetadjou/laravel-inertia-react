@@ -1,0 +1,1124 @@
+diff --git a/CLAUDE.md b/CLAUDE.md
+index 04241ed..ef3fa9a 100755
+--- a/CLAUDE.md
++++ b/CLAUDE.md
+@@ -149,6 +149,6 @@ Règle absolue, quel que soit le projet : ne jamais utiliser `migrate:fresh` ou
+ - Modules : `factures` (Devis et factures, `/invoices`, page publique `/d/{token}`), `caisse` (`/cash`), `depenses` (`/expenses`), `stock` (`/stock`, baisse à chaque `PurchaseItem`, remis en stock si la vente est annulée). Les modules historiques sont décrits dans `app/Modules/Socle/module.php`.
+ - Packs : `config/nentix.php` (gratuit, solo, equipe, premium, entreprise). `Organization::pack()`, `packAllows()`, `automationAllowed()`. Le contrôle par pack n'est appliqué que si `NENTIX_ENFORCE_PACKS=true` (désactivé par défaut pour ne pas retirer de modules aux comptes existants).
+ - Payer une facture crée une vente (`Purchase`, source `invoice`) : fiche client, RFM, caisse et stock restent alignés.
+-- UI façon Odoo : pas de barre latérale, barre du haut `AppHeader` (grille d'applications, menus de l'application courante, onglet « Automatisations »), lanceur `/apps`. Menus déclarés dans `resources/js/layout/navigation.tsx`, styles des tuiles dans `resources/js/layout/apps.tsx`.
++- Interface NENTIX (signature propre, pas une copie d'Odoo) : rail d'hexagones à gauche (barre du bas sur téléphone), en-tête clair de l'application avec onglets soulignés, « pouls client » (`/apps/pulse?app=`, `App\Modules\Socle\Services\CustomerPulse::forApp`, 1 à 3 signaux clients par application), recherche rapide Ctrl+K (`/apps/search`, clients du périmètre + applications), accueil « Ma journée » `/apps` (fil des clients du jour `CustomerPulse::day` + applications en nid d'abeilles). Menus dans `resources/js/layout/navigation.tsx`, couleurs et icônes hexagonales dans `resources/js/layout/apps.tsx`, styles `.nx-hex`, `.nx-rail`, `.nx-pulse`, `.nx-comb` dans `resources/css/nentix.css`.
+ - Secteur `optique` (opticiens : RDV d'examen, devis avec acompte, stock). Démo : `php artisan demo:optique` (gerante@demo-optique.test / Demo-Optique-2026).
+ - Stock seulement pour les métiers de services qui vendent des produits en complément ; boutiques et retail : module Analyse (RFM, IA) sans stock.
+diff --git a/app/Modules/Socle/Http/AppsController.php b/app/Modules/Socle/Http/AppsController.php
+index cb167ac..d3298d4 100644
+--- a/app/Modules/Socle/Http/AppsController.php
++++ b/app/Modules/Socle/Http/AppsController.php
+@@ -9,9 +9,11 @@ use App\Models\Purchase;
+ use App\Models\Store;
+ use App\Modules\Depenses\Models\Expense;
+ use App\Modules\Facturation\Models\Invoice;
++use App\Modules\Socle\Services\CustomerPulse;
+ use App\Modules\Stock\Models\StockItem;
+ use App\Services\NotificationService;
+ use App\Support\Modules\ModuleRegistry;
++use Illuminate\Http\JsonResponse;
+ use Illuminate\Http\Request;
+ use Inertia\Inertia;
+ use Inertia\Response;
+@@ -59,9 +61,33 @@ class AppsController extends Controller
+             'badges' => $badges,
+             'locked' => $this->lockedApps($organization),
+             'greeting' => $this->greeting(),
++            'day' => app(CustomerPulse::class)->day($user),
+         ]);
+     }
+ 
++    /** Pouls client de l'application ouverte (bandeau sous l'en-tête). */
++    public function pulse(Request $request): JsonResponse
++    {
++        return response()->json(['items' => app(CustomerPulse::class)->forApp($request->user(), (string) $request->query('app', ''))]);
++    }
++
++    /** Recherche rapide (Ctrl+K) : clients par nom ou téléphone. */
++    public function search(Request $request): JsonResponse
++    {
++        $q = trim((string) $request->query('q', ''));
++        if (mb_strlen($q) < 2) {
++            return response()->json(['customers' => []]);
++        }
++        $digits = preg_replace('/\D+/', '', $q);
++        $visible = $request->user()->visibleStoreIds();
++        $customers = Customer::where('organization_id', $request->user()->organization_id)
++            ->when($visible !== null, fn ($w) => $w->whereHas('contacts', fn ($c) => $c->whereIn('store_id', $visible)))
++            ->where(fn ($w) => $w->where('name', 'like', '%'.$q.'%')->when(strlen($digits) >= 3, fn ($x) => $x->orWhere('phone_e164', 'like', '%'.$digits.'%')))
++            ->orderBy('name')->limit(6)->get(['id', 'name', 'phone_e164', 'lifecycle_stage']);
++
++        return response()->json(['customers' => $customers]);
++    }
++
+     /** Automatisations WhatsApp et IA d'une application, avec leur état. */
+     public function automations(Request $request): Response
+     {
+diff --git a/app/Modules/Socle/Services/CustomerPulse.php b/app/Modules/Socle/Services/CustomerPulse.php
+new file mode 100644
+index 0000000..cac2b66
+--- /dev/null
++++ b/app/Modules/Socle/Services/CustomerPulse.php
+@@ -0,0 +1,137 @@
++<?php
++
++namespace App\Modules\Socle\Services;
++
++use App\Models\Appointment;
++use App\Models\Customer;
++use App\Models\Purchase;
++use App\Models\Store;
++use App\Models\User;
++use App\Modules\Depenses\Models\Expense;
++use App\Modules\Facturation\Models\Invoice;
++use App\Modules\Stock\Models\StockItem;
++use App\Services\NotificationService;
++use Illuminate\Database\Eloquent\Builder;
++
++/**
++ * « Pouls client » : dans chaque application, 1 à 3 signaux sur les clients
++ * (devis sans réponse, solde à encaisser, client qui s'éloigne…), et le fil
++ * « Ma journée » de l'écran d'accueil. Signature NENTIX : le client d'abord.
++ */
++class CustomerPulse
++{
++    /** @return array<int, array{tone: string, text: string, href: string}> */
++    public function forApp(User $user, string $app): array
++    {
++        $organization = $user->organization;
++        $storeIds = $this->storeIds($user);
++        $orgId = $organization->id;
++        $items = [];
++        $push = function (int $count, string $tone, string $text, string $href) use (&$items) {
++            if ($count > 0) {
++                $items[] = compact('tone', 'text', 'href');
++            }
++        };
++
++        switch ($app) {
++            case 'invoices':
++                if (! $organization->hasModule('factures')) {
++                    break;
++                }
++                $silent = Invoice::where('organization_id', $orgId)->whereIn('store_id', $storeIds)->where('type', Invoice::TYPE_QUOTE)->where('status', 'sent')
++                    ->where('sent_at', '<', now()->subDays(3))->count();
++                $push($silent, 'warn', $silent.' devis sans réponse depuis 3 jours', '/invoices?type=quote&status=pending');
++                $late = $this->overdue($orgId, $storeIds)->count();
++                $push($late, 'bad', $late.' facture'.($late > 1 ? 's' : '').' en retard de paiement', '/invoices?type=invoice&status=overdue');
++                $accepted = Invoice::where('organization_id', $orgId)->whereIn('store_id', $storeIds)->where('type', Invoice::TYPE_QUOTE)->where('status', 'accepted')->count();
++                $push($accepted, 'good', $accepted.' devis accepté'.($accepted > 1 ? 's' : '').' à facturer', '/invoices?type=quote&status=accepted');
++                break;
++
++            case 'cash':
++                $served = Purchase::whereIn('store_id', $storeIds)->where('status', Purchase::STATUS_VALID)->where('purchased_at', '>=', today())->distinct('contact_id')->count('contact_id');
++                $push($served, 'good', $served.' client'.($served > 1 ? 's' : '').' servi'.($served > 1 ? 's' : '').' : un merci sur WhatsApp les fera revenir', '/cash');
++                if ($organization->hasModule('factures')) {
++                    $balances = Invoice::where('organization_id', $orgId)->whereIn('store_id', $storeIds)->where('type', Invoice::TYPE_INVOICE)->where('status', 'partial')->get();
++                    $push($balances->count(), 'warn', number_format($balances->sum(fn ($i) => $i->balance()), 0, ',', ' ').' F de soldes à encaisser au retrait', '/invoices?type=invoice&status=unpaid');
++                }
++                break;
++
++            case 'stock':
++                $low = StockItem::with('product:id,name')->where('organization_id', $orgId)->whereColumn('quantity', '<=', 'min_quantity')->orderBy('quantity')->limit(2)->get();
++                foreach ($low as $item) {
++                    $push(1, $item->quantity <= 0 ? 'bad' : 'warn', ($item->product?->name ?? 'Produit').' : '.$item->quantity.' restant'.($item->quantity > 1 ? 's' : '').', vos clients vont le demander', '/stock?level=low');
++                }
++                break;
++
++            case 'expenses':
++                $spent = (int) Expense::where('organization_id', $orgId)->whereIn('store_id', $storeIds)->where('spent_on', '>=', today()->startOfMonth())->sum('amount');
++                $revenue = (int) Purchase::whereIn('store_id', $storeIds)->where('status', Purchase::STATUS_VALID)->where('purchased_at', '>=', today()->startOfMonth())->sum('amount');
++                if ($revenue > 0) {
++                    $ratio = (int) round($spent * 100 / $revenue);
++                    $push(1, $ratio > 80 ? 'bad' : ($ratio > 50 ? 'warn' : 'good'), "Vos dépenses font {$ratio} % de ce que vos clients ont payé ce mois", '/expenses');
++                }
++                break;
++
++            case 'agenda':
++                $tomorrow = Appointment::whereIn('store_id', $storeIds)->whereIn('status', Appointment::OPEN_STATUSES)->whereBetween('starts_at', [today()->addDay(), today()->addDays(2)])->count();
++                $push($tomorrow, 'warn', $tomorrow.' client'.($tomorrow > 1 ? 's' : '').' à rappeler pour demain', '/appointments?view=day');
++                break;
++
++            case 'customers':
++            case 'sales':
++                $risk = Customer::where('organization_id', $orgId)->where('lifecycle_stage', Customer::STAGE_AT_RISK)->count();
++                $push($risk, 'warn', $risk.' client'.($risk > 1 ? 's' : '').' s’éloigne'.($risk > 1 ? 'nt' : ''), '/actions');
++                break;
++        }
++
++        if ($items === []) {
++            $total = (int) (app(NotificationService::class)->forUser($user)['total'] ?? 0);
++            $push($total, 'warn', $total.' action'.($total > 1 ? 's' : '').' client à faire aujourd’hui', '/actions');
++        }
++
++        return array_slice($items, 0, 3);
++    }
++
++    /** Fil « Ma journée » : les clients du jour, dans l'ordre où l'on s'en occupe. */
++    public function day(User $user): array
++    {
++        $organization = $user->organization;
++        $storeIds = $this->storeIds($user);
++        $customer = fn ($c) => $c ? ['id' => $c->id, 'name' => $c->name ?: $c->phone_e164] : null;
++
++        $appointments = Appointment::with('customer:id,name,phone_e164')->whereIn('store_id', $storeIds)->whereIn('status', Appointment::OPEN_STATUSES)
++            ->whereBetween('starts_at', [today(), today()->addDay()])->orderBy('starts_at')->limit(6)->get()
++            ->map(fn ($a) => ['time' => $a->starts_at->format('H:i'), 'customer' => $customer($a->customer), 'what' => $a->service ?: 'Rendez-vous'])->all();
++
++        $quotes = $balances = [];
++        if ($organization->hasModule('factures')) {
++            $quotes = Invoice::with('customer:id,name,phone_e164')->where('organization_id', $organization->id)->whereIn('store_id', $storeIds)
++                ->where('type', Invoice::TYPE_QUOTE)->where('status', 'sent')->orderBy('sent_at')->limit(4)->get()
++                ->map(fn ($i) => ['id' => $i->id, 'customer' => $customer($i->customer), 'what' => $i->title ?: $i->number, 'amount' => $i->total, 'days' => (int) $i->sent_at?->diffInDays(now())])->all();
++            $balances = Invoice::with('customer:id,name,phone_e164')->where('organization_id', $organization->id)->whereIn('store_id', $storeIds)
++                ->where('type', Invoice::TYPE_INVOICE)->whereIn('status', ['open', 'partial'])->orderBy('due_on')->limit(4)->get()
++                ->map(fn ($i) => ['id' => $i->id, 'customer' => $customer($i->customer), 'what' => $i->title ?: $i->number, 'amount' => $i->balance(), 'late' => (bool) ($i->due_on?->lt(today()))])->all();
++        }
++
++        $drifting = Customer::where('organization_id', $organization->id)->where('lifecycle_stage', Customer::STAGE_AT_RISK)
++            ->when($user->visibleStoreIds() !== null, fn ($w) => $w->whereHas('contacts', fn ($c) => $c->whereIn('store_id', $storeIds)))
++            ->orderByDesc('total_spent')->limit(4)->get(['id', 'name', 'phone_e164', 'last_purchase_at'])
++            ->map(fn ($c) => ['customer' => $customer($c), 'since' => $c->last_purchase_at ? (int) $c->last_purchase_at->diffInDays(now()) : null])->all();
++
++        return compact('appointments', 'quotes', 'balances', 'drifting');
++    }
++
++    /** @return Builder<Invoice> */
++    private function overdue(int $orgId, array $storeIds)
++    {
++        return Invoice::where('organization_id', $orgId)->whereIn('store_id', $storeIds)->where('type', Invoice::TYPE_INVOICE)->whereIn('status', ['open', 'partial'])->where('due_on', '<', today());
++    }
++
++    /** @return array<int, int> */
++    private function storeIds(User $user): array
++    {
++        $visible = $user->visibleStoreIds();
++
++        return Store::where('organization_id', $user->organization_id)->when($visible !== null, fn ($q) => $q->whereIn('id', $visible))->pluck('id')->all();
++    }
++}
+diff --git a/app/Modules/Socle/routes.php b/app/Modules/Socle/routes.php
+index f2701a6..6f72772 100644
+--- a/app/Modules/Socle/routes.php
++++ b/app/Modules/Socle/routes.php
+@@ -6,5 +6,7 @@ use Illuminate\Support\Facades\Route;
+ // Lanceur d'applications (façon Odoo) et automatisations d'une application.
+ Route::middleware('auth')->group(function () {
+     Route::get('/apps', [AppsController::class, 'index'])->name('apps.index');
++    Route::get('/apps/pulse', [AppsController::class, 'pulse'])->name('apps.pulse');
++    Route::get('/apps/search', [AppsController::class, 'search'])->middleware('throttle:60,1')->name('apps.search');
+     Route::get('/apps/automations', [AppsController::class, 'automations'])->name('apps.automations');
+ });
+diff --git a/resources/css/nentix.css b/resources/css/nentix.css
+index dfc9dda..dbfd657 100755
+--- a/resources/css/nentix.css
++++ b/resources/css/nentix.css
+@@ -93,3 +93,28 @@
+ .dark .nx-help-steps b, .dark .nx-help-tabs button:not([aria-selected='true']) { color: #fff; }
+ .dark .nx-help-tabs button:not([aria-selected='true']) { background: transparent; }
+ .dark .nx-help-tips { background: rgba(6,182,212,.1); border-color: rgba(6,182,212,.3); color: #e2e8f0; }
++
++/* Signature NENTIX : hexagones (forme du logo), rail de gauche, pouls client. */
++.nx-hex { clip-path: polygon(50% 0, 100% 25%, 100% 75%, 50% 100%, 0 75%, 0 25%); }
++.nx-hex-wrap { display: inline-flex; position: relative; filter: drop-shadow(0 6px 10px rgba(11, 31, 58, 0.18)); }
++.nx-hex-wrap.is-active { filter: drop-shadow(0 0 10px rgba(34, 211, 238, 0.75)); }
++.nx-rail { background: #0b1f3a; background-image: radial-gradient(140% 50% at 0% 0%, rgba(29, 78, 216, 0.45), transparent 70%); }
++.nx-rail-item { position: relative; display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 6px 2px; border-radius: 14px; color: rgba(255, 255, 255, 0.72); font-size: 10.5px; line-height: 1.1; text-align: center; transition: background 0.15s, color 0.15s; }
++.nx-rail-item:hover { background: rgba(255, 255, 255, 0.07); color: #fff; }
++.nx-rail-item[aria-current='page'] { color: #fff; font-weight: 600; }
++.nx-rail-item[aria-current='page']::before { content: ''; position: absolute; left: -8px; top: 14px; bottom: 22px; width: 3px; border-radius: 3px; background: #22d3ee; }
++.nx-tab { position: relative; padding: 14px 2px 12px; font-size: 14px; color: #64748b; white-space: nowrap; }
++.nx-tab:hover { color: #0b1f3a; }
++.nx-tab[aria-current='page'] { color: #0b1f3a; font-weight: 600; }
++.nx-tab[aria-current='page']::after { content: ''; position: absolute; left: 0; right: 0; bottom: -1px; height: 3px; border-radius: 3px 3px 0 0; background: linear-gradient(90deg, #1d4ed8, #06b6d4); }
++.dark .nx-tab { color: #94a3b8; } .dark .nx-tab[aria-current='page'], .dark .nx-tab:hover { color: #fff; }
++.nx-pulse { display: inline-flex; align-items: center; gap: 8px; border-radius: 999px; padding: 5px 12px 5px 8px; font-size: 13px; font-weight: 500; border: 1px solid; transition: transform 0.15s; }
++.nx-pulse:hover { transform: translateY(-1px); }
++.nx-pulse i { width: 8px; height: 8px; border-radius: 99px; flex-shrink: 0; animation: nx-beat 1.8s ease-in-out infinite; }
++.nx-pulse.bad { background: #fef2f2; border-color: #fecaca; color: #991b1b; } .nx-pulse.bad i { background: #ef4444; }
++.nx-pulse.warn { background: #fffbeb; border-color: #fde68a; color: #92400e; } .nx-pulse.warn i { background: #f59e0b; }
++.nx-pulse.good { background: #ecfdf5; border-color: #a7f3d0; color: #065f46; } .nx-pulse.good i { background: #10b981; }
++@keyframes nx-beat { 0%, 100% { box-shadow: 0 0 0 0 currentColor; opacity: 1; } 50% { box-shadow: 0 0 0 4px transparent; opacity: 0.55; } }
++@media (prefers-reduced-motion: reduce) { .nx-pulse i { animation: none; } }
++.nx-comb { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px 8px; }
++@media (min-width: 640px) { .nx-comb { grid-template-columns: repeat(4, 1fr); row-gap: 40px; } .nx-comb > :nth-child(4n+2), .nx-comb > :nth-child(4n+4) { transform: translateY(38px); } }
+diff --git a/resources/js/layout/AppHeader.tsx b/resources/js/layout/AppHeader.tsx
+index f77c1bd..7736a26 100755
+--- a/resources/js/layout/AppHeader.tsx
++++ b/resources/js/layout/AppHeader.tsx
+@@ -5,8 +5,9 @@ import { useTheme } from '../context/ThemeContext';
+ import { NotificationBell } from '../components/notifications/Notifications';
+ import DemoSwitcher from '../components/common/DemoSwitcher';
+ import { MenentiaSymbol } from '../components/common/MenentiaLogo';
+-import { buildSections, currentSection, navContext, tabIsActive } from './navigation';
+-import { AppIcon, AppSwitcher } from './apps';
++import { buildSections, currentSection, navContext, NavSection, tabIsActive } from './navigation';
++import { AppIcon } from './apps';
++import CommandPalette from './CommandPalette';
+ 
+ interface SharedAuthProps {
+     auth?: {
+@@ -16,16 +17,97 @@ interface SharedAuthProps {
+     [key: string]: unknown;
+ }
+ 
++interface Pulse {
++    tone: 'bad' | 'warn' | 'good';
++    text: string;
++    href: string;
++}
++
++/** Rail d'hexagones (écran large) : une application = un hexagone. */
++function AppRail({ sections, current, onSearch }: { sections: NavSection[]; current?: string; onSearch: () => void }) {
++    return (
++        <aside className="nx-rail fixed inset-y-0 left-0 z-99999 hidden w-[84px] flex-col items-stretch px-2 py-3 md:flex">
++            <Link href="/apps" className="mb-3 flex flex-col items-center gap-1 text-[10px] font-semibold tracking-wider text-cyan-200" aria-label="Ma journée">
++                <MenentiaSymbol className="h-9 w-9" onDark />
++                MA JOURNÉE
++            </Link>
++            <nav className="no-scrollbar flex flex-1 flex-col gap-1 overflow-y-auto" aria-label="Applications">
++                {sections.map((s) => (
++                    <Link key={s.key} href={s.path} className="nx-rail-item" aria-current={current === s.key ? 'page' : undefined} title={s.name}>
++                        <AppIcon section={s} size="sm" active={current === s.key} />
++                        <span className="max-w-full truncate">{s.name}</span>
++                    </Link>
++                ))}
++            </nav>
++            <button type="button" onClick={onSearch} className="nx-rail-item mt-2" title="Recherche rapide (Ctrl+K)">
++                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
++                    <circle cx="11" cy="11" r="7" />
++                    <path d="m20 20-3.5-3.5" />
++                </svg>
++                <span>Ctrl K</span>
++            </button>
++        </aside>
++    );
++}
++
++/** Barre du bas (téléphone) : 4 applications + Ma journée. */
++function MobileDock({ sections, current }: { sections: NavSection[]; current?: string }) {
++    const pinned = ['actions', 'customers', 'agenda', 'invoices', 'cash', 'sales'].map((k) => sections.find((s) => s.key === k)).filter(Boolean).slice(0, 4) as NavSection[];
++    return (
++        <nav className="fixed inset-x-0 bottom-0 z-99999 flex items-end justify-around border-t border-gray-200 bg-white/95 px-1 pt-1.5 pb-[max(6px,env(safe-area-inset-bottom))] backdrop-blur md:hidden dark:border-gray-800 dark:bg-gray-900/95" aria-label="Applications">
++            {pinned.map((s) => (
++                <Link key={s.key} href={s.path} className={`flex w-16 flex-col items-center gap-0.5 text-[10.5px] ${current === s.key ? 'font-semibold text-blue-700' : 'text-gray-500'}`}>
++                    <AppIcon section={s} size="sm" active={current === s.key} />
++                    <span className="max-w-full truncate">{s.name}</span>
++                </Link>
++            ))}
++            <Link href="/apps" className="flex w-16 flex-col items-center gap-0.5 text-[10.5px] text-gray-500">
++                <MenentiaSymbol className="h-8 w-7" />
++                <span>Tout</span>
++            </Link>
++        </nav>
++    );
++}
++
++/** Pouls client : 1 à 3 signaux clients propres à l'application ouverte. */
++function PulseStrip({ app }: { app?: string }) {
++    const [items, setItems] = useState<Pulse[]>([]);
++    useEffect(() => {
++        setItems([]);
++        if (!app) return;
++        const ctrl = new AbortController();
++        fetch(`/apps/pulse?app=${app}`, { headers: { Accept: 'application/json' }, signal: ctrl.signal })
++            .then((r) => (r.ok ? r.json() : { items: [] }))
++            .then((d) => setItems(d.items ?? []))
++            .catch(() => undefined);
++        return () => ctrl.abort();
++    }, [app]);
++
++    if (items.length === 0) return null;
++    return (
++        <div className="no-scrollbar flex items-center gap-2 overflow-x-auto px-4 pb-3 md:px-6">
++            <span className="shrink-0 text-[11px] font-bold tracking-wider text-gray-400 uppercase">Pouls client</span>
++            {items.map((p) => (
++                <Link key={p.text} href={p.href} className={`nx-pulse shrink-0 ${p.tone}`}>
++                    <i aria-hidden="true" />
++                    {p.text}
++                </Link>
++            ))}
++        </div>
++    );
++}
++
+ /**
+- * En-tête à la manière d'Odoo : grille des applications, application en
+- * cours et ses menus, puis notifications et compte. Une application = un
+- * espace : en Dépenses, on ne voit que les dépenses.
++ * En-tête NENTIX : rail d'hexagones à gauche (une application = un espace),
++ * en-tête clair avec l'application en cours et ses onglets, puis le « pouls
++ * client » de cette application.
+  */
+ const AppHeader: React.FC = () => {
+     const { theme, toggleTheme } = useTheme();
+     const { url, props } = usePage<SharedAuthProps>();
+     const { auth } = props;
+     const [userMenuOpen, setUserMenuOpen] = useState(false);
++    const [paletteOpen, setPaletteOpen] = useState(false);
+     const menuRef = useRef<HTMLDivElement>(null);
+ 
+     const sections = buildSections(navContext(auth));
+@@ -42,90 +124,118 @@ const AppHeader: React.FC = () => {
+         return () => document.removeEventListener('mousedown', close);
+     }, [userMenuOpen]);
+ 
+-    const tabLink = (active: boolean) =>
+-        `rounded-lg px-3 py-1.5 text-[13.5px] whitespace-nowrap transition-colors ${active ? 'bg-white/15 font-semibold text-white' : 'text-white/75 hover:bg-white/10 hover:text-white'}`;
++    useEffect(() => {
++        const key = (e: KeyboardEvent) => {
++            const typing = e.target instanceof HTMLElement && (['INPUT', 'TEXTAREA', 'SELECT'].includes(e.target.tagName) || e.target.isContentEditable);
++            if ((e.key === 'k' && (e.ctrlKey || e.metaKey)) || (e.key === '/' && !typing)) {
++                e.preventDefault();
++                setPaletteOpen(true);
++            }
++        };
++        document.addEventListener('keydown', key);
++        return () => document.removeEventListener('keydown', key);
++    }, []);
+ 
+     return (
+-        <header className="nx-topbar sticky top-0 z-99999 w-full text-white shadow-md">
+-            <div className="flex h-14 items-center gap-2 px-2 sm:px-4">
+-                <AppSwitcher sections={sections} current={section?.key} />
++        <>
++            <AppRail sections={sections.filter((s) => s.key !== 'platform')} current={section?.key} onSearch={() => setPaletteOpen(true)} />
++            <MobileDock sections={sections} current={section?.key} />
++            <CommandPalette sections={sections} open={paletteOpen} onClose={() => setPaletteOpen(false)} />
+ 
+-                <Link href="/apps" className="flex items-center gap-2 rounded-lg px-1.5 py-1 hover:bg-white/10" aria-label="NENTIX, applications">
+-                    {section ? <AppIcon section={section} size="sm" /> : <MenentiaSymbol className="h-7 w-7" onDark />}
+-                    <span className="text-[15px] font-semibold">{section?.name ?? 'NENTIX'}</span>
+-                </Link>
++            <header className="sticky top-0 z-9999 w-full border-b border-gray-200 bg-white/90 backdrop-blur dark:border-gray-800 dark:bg-gray-900/90">
++                <div className="flex h-14 items-center gap-3 px-4 md:px-6">
++                    <Link href="/apps" className="md:hidden" aria-label="Ma journée">
++                        <MenentiaSymbol className="h-7 w-7" />
++                    </Link>
++                    <h1 className="truncate text-[17px] font-bold text-[#0B1F3A] dark:text-white">{section?.name ?? 'Ma journée'}</h1>
+ 
+-                {tabs.length > 1 && (
+-                    <nav className="no-scrollbar ml-2 hidden min-w-0 items-center gap-1 overflow-x-auto md:flex" aria-label={`Menu ${section?.name ?? ''}`}>
+-                        {tabs.map((tab) => {
+-                            const active = tabIsActive(url, tab);
+-                            return (
+-                                <Link key={tab.path} href={tab.path} aria-current={active ? 'page' : undefined} className={tabLink(active)}>
++                    {tabs.length > 1 && (
++                        <nav className="no-scrollbar ml-4 hidden h-14 min-w-0 items-end gap-5 overflow-x-auto md:flex" aria-label={`Menu ${section?.name ?? ''}`}>
++                            {tabs.map((tab) => (
++                                <Link key={tab.path} href={tab.path} aria-current={tabIsActive(url, tab) ? 'page' : undefined} className="nx-tab">
+                                     {tab.name === 'Automatisations' ? '⚡ Automatisations' : tab.name}
+                                 </Link>
+-                            );
+-                        })}
+-                    </nav>
+-                )}
++                            ))}
++                        </nav>
++                    )}
++
++                    <div className="ml-auto flex items-center gap-1.5">
++                        <button
++                            type="button"
++                            onClick={() => setPaletteOpen(true)}
++                            className="hidden h-9 items-center gap-2 rounded-full border border-gray-200 bg-gray-50 px-3 text-[13px] text-gray-500 hover:border-blue-300 lg:flex dark:border-gray-700 dark:bg-white/5"
++                        >
++                            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
++                                <circle cx="11" cy="11" r="7" />
++                                <path d="m20 20-3.5-3.5" />
++                            </svg>
++                            Chercher un client
++                            <kbd className="rounded bg-white px-1.5 text-[11px] text-gray-400 dark:bg-gray-800">Ctrl K</kbd>
++                        </button>
++                        <button type="button" onClick={() => setPaletteOpen(true)} className="flex h-9 w-9 items-center justify-center rounded-full text-gray-500 hover:bg-gray-100 lg:hidden" aria-label="Recherche rapide">
++                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
++                                <circle cx="11" cy="11" r="7" />
++                                <path d="m20 20-3.5-3.5" />
++                            </svg>
++                        </button>
++                        <DemoSwitcher />
++                        <NotificationBell />
+ 
+-                <div className="ml-auto flex items-center gap-1.5">
+-                    <DemoSwitcher />
+-                    <NotificationBell />
+-
+-                    {auth?.user && (
+-                        <div className="relative" ref={menuRef}>
+-                            <button
+-                                onClick={() => setUserMenuOpen((prev) => !prev)}
+-                                className="flex items-center gap-2 rounded-lg px-1.5 py-1 text-sm font-medium hover:bg-white/10"
+-                                aria-expanded={userMenuOpen}
+-                            >
+-                                <span className="flex h-8 w-8 items-center justify-center rounded-full bg-gradient-to-br from-cyan-400 to-blue-600 text-[13px] font-bold text-white">
+-                                    {auth.user.name.charAt(0).toUpperCase()}
+-                                </span>
+-                                <span className="hidden text-left leading-tight lg:block">
+-                                    <span className="block">{auth.user.name}</span>
+-                                    {auth.organization && <span className="block max-w-[180px] truncate text-[11px] font-normal text-white/60">{auth.organization.name}</span>}
+-                                </span>
+-                            </button>
+-                            {userMenuOpen && (
+-                                <div className="absolute right-0 mt-2 w-60 rounded-xl border border-gray-200 bg-white py-1.5 text-gray-700 shadow-theme-lg dark:border-gray-800 dark:bg-gray-900 dark:text-gray-300">
+-                                    <div className="border-b border-gray-100 px-4 py-2 dark:border-gray-800">
+-                                        <p className="truncate text-xs text-gray-500 dark:text-gray-400">{auth.user.email}</p>
+-                                        {auth.user.role_name && <p className="mt-0.5 text-xs font-medium">{auth.user.role_name}</p>}
+-                                        {auth.organization?.pack_label && <p className="mt-1 inline-block rounded-full bg-blue-50 px-2 py-0.5 text-[11px] font-semibold text-blue-700">Pack {auth.organization.pack_label}</p>}
++                        {auth?.user && (
++                            <div className="relative" ref={menuRef}>
++                                <button
++                                    onClick={() => setUserMenuOpen((prev) => !prev)}
++                                    className="flex items-center gap-2 rounded-full py-1 pr-2 pl-1 text-sm font-medium text-gray-700 hover:bg-gray-100 dark:text-gray-200 dark:hover:bg-white/5"
++                                    aria-expanded={userMenuOpen}
++                                >
++                                    <span className="nx-hex flex h-9 w-8 items-center justify-center bg-gradient-to-br from-cyan-400 to-blue-600 text-[13px] font-bold text-white">
++                                        {auth.user.name.charAt(0).toUpperCase()}
++                                    </span>
++                                    <span className="hidden text-left leading-tight xl:block">
++                                        <span className="block">{auth.user.name}</span>
++                                        {auth.organization && <span className="block max-w-[180px] truncate text-[11px] font-normal text-gray-500">{auth.organization.name}</span>}
++                                    </span>
++                                </button>
++                                {userMenuOpen && (
++                                    <div className="absolute right-0 mt-2 w-60 rounded-xl border border-gray-200 bg-white py-1.5 text-gray-700 shadow-theme-lg dark:border-gray-800 dark:bg-gray-900 dark:text-gray-300">
++                                        <div className="border-b border-gray-100 px-4 py-2 dark:border-gray-800">
++                                            <p className="truncate text-xs text-gray-500 dark:text-gray-400">{auth.user.email}</p>
++                                            {auth.user.role_name && <p className="mt-0.5 text-xs font-medium">{auth.user.role_name}</p>}
++                                            {auth.organization?.pack_label && <p className="mt-1 inline-block rounded-full bg-blue-50 px-2 py-0.5 text-[11px] font-semibold text-blue-700">Pack {auth.organization.pack_label}</p>}
++                                        </div>
++                                        {sections.find((s) => s.key === 'platform') && (
++                                            <Link href="/admin" className="block w-full px-4 py-2 text-left text-sm hover:bg-gray-50 dark:hover:bg-white/5">
++                                                Back-office NENTIX
++                                            </Link>
++                                        )}
++                                        <button onClick={toggleTheme} className="block w-full px-4 py-2 text-left text-sm hover:bg-gray-50 dark:hover:bg-white/5">
++                                            {theme === 'dark' ? 'Thème clair' : 'Thème sombre'}
++                                        </button>
++                                        <Link href="/aide" className="block w-full px-4 py-2 text-left text-sm hover:bg-gray-50 dark:hover:bg-white/5">
++                                            Besoin d’aide ?
++                                        </Link>
++                                        <button onClick={() => router.post('/logout')} className="block w-full px-4 py-2 text-left text-sm hover:bg-gray-50 dark:hover:bg-white/5">
++                                            Se déconnecter
++                                        </button>
+                                     </div>
+-                                    <Link href="/apps" className="block w-full px-4 py-2 text-left text-sm hover:bg-gray-50 dark:hover:bg-white/5">
+-                                        Toutes les applications
+-                                    </Link>
+-                                    <button onClick={toggleTheme} className="block w-full px-4 py-2 text-left text-sm hover:bg-gray-50 dark:hover:bg-white/5">
+-                                        {theme === 'dark' ? 'Thème clair' : 'Thème sombre'}
+-                                    </button>
+-                                    <Link href="/aide" className="block w-full px-4 py-2 text-left text-sm hover:bg-gray-50 dark:hover:bg-white/5">
+-                                        Besoin d’aide ?
+-                                    </Link>
+-                                    <button onClick={() => router.post('/logout')} className="block w-full px-4 py-2 text-left text-sm hover:bg-gray-50 dark:hover:bg-white/5">
+-                                        Se déconnecter
+-                                    </button>
+-                                </div>
+-                            )}
+-                        </div>
+-                    )}
++                                )}
++                            </div>
++                        )}
++                    </div>
+                 </div>
+-            </div>
+-
+-            {tabs.length > 1 && (
+-                <nav className="no-scrollbar flex gap-1 overflow-x-auto px-2 pb-2 md:hidden" aria-label={`Menu ${section?.name ?? ''}`}>
+-                    {tabs.map((tab) => {
+-                        const active = tabIsActive(url, tab);
+-                        return (
+-                            <Link key={tab.path} href={tab.path} aria-current={active ? 'page' : undefined} className={tabLink(active)}>
++
++                {tabs.length > 1 && (
++                    <nav className="no-scrollbar -mt-2 flex gap-5 overflow-x-auto px-4 md:hidden" aria-label={`Menu ${section?.name ?? ''}`}>
++                        {tabs.map((tab) => (
++                            <Link key={tab.path} href={tab.path} aria-current={tabIsActive(url, tab) ? 'page' : undefined} className="nx-tab">
+                                 {tab.name === 'Automatisations' ? '⚡ Automatisations' : tab.name}
+                             </Link>
+-                        );
+-                    })}
+-                </nav>
+-            )}
+-        </header>
++                        ))}
++                    </nav>
++                )}
++                <PulseStrip app={section?.key} />
++            </header>
++        </>
+     );
+ };
+ 
+diff --git a/resources/js/layout/AppLayout.tsx b/resources/js/layout/AppLayout.tsx
+index 89b23ba..8f4de4a 100755
+--- a/resources/js/layout/AppLayout.tsx
++++ b/resources/js/layout/AppLayout.tsx
+@@ -7,13 +7,13 @@ import '../components/page/simple.css';
+ import '../../css/nentix.css';
+ 
+ /**
+- * Mise en page à la manière d'Odoo : pas de menu latéral, une barre du haut
+- * avec la grille des applications et les menus de l'application en cours.
++ * Mise en page NENTIX : rail d'hexagones à gauche (barre du bas sur
++ * téléphone), en-tête clair de l'application en cours, pouls client.
+  */
+ const AppLayout: React.FC<{ children: ReactNode }> = ({ children }) => {
+     return (
+         <SidebarProvider>
+-            <div className="nx-app min-h-screen">
++            <div className="nx-app min-h-screen pb-20 md:pb-0 md:pl-[84px]">
+                 <AppHeader />
+                 <main className="mx-auto max-w-(--breakpoint-2xl) p-4 md:p-6">{children}</main>
+             </div>
+diff --git a/resources/js/layout/CommandPalette.tsx b/resources/js/layout/CommandPalette.tsx
+new file mode 100644
+index 0000000..e7ce7d2
+--- /dev/null
++++ b/resources/js/layout/CommandPalette.tsx
+@@ -0,0 +1,130 @@
++import { router } from '@inertiajs/react';
++import { useEffect, useMemo, useRef, useState } from 'react';
++
++import { NavSection } from './navigation';
++import { AppIcon } from './apps';
++
++interface FoundCustomer {
++    id: number;
++    name: string | null;
++    phone_e164: string;
++}
++
++/**
++ * Recherche rapide NENTIX (Ctrl+K ou « / ») : un client ou une application,
++ * depuis n'importe quel écran. Le client d'abord : on tape un nom ou un
++ * numéro, on ouvre sa fiche.
++ */
++export default function CommandPalette({ sections, open, onClose }: { sections: NavSection[]; open: boolean; onClose: () => void }) {
++    const [q, setQ] = useState('');
++    const [customers, setCustomers] = useState<FoundCustomer[]>([]);
++    const [cursor, setCursor] = useState(0);
++    const input = useRef<HTMLInputElement>(null);
++
++    useEffect(() => {
++        if (open) {
++            setQ('');
++            setCustomers([]);
++            setCursor(0);
++            setTimeout(() => input.current?.focus(), 10);
++        }
++    }, [open]);
++
++    useEffect(() => {
++        if (q.trim().length < 2) {
++            setCustomers([]);
++            return;
++        }
++        const ctrl = new AbortController();
++        const t = setTimeout(() => {
++            fetch(`/apps/search?q=${encodeURIComponent(q.trim())}`, { headers: { Accept: 'application/json' }, signal: ctrl.signal })
++                .then((r) => (r.ok ? r.json() : { customers: [] }))
++                .then((d) => setCustomers(d.customers ?? []))
++                .catch(() => undefined);
++        }, 180);
++        return () => {
++            clearTimeout(t);
++            ctrl.abort();
++        };
++    }, [q]);
++
++    const norm = (s: string) => s.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
++    const apps = useMemo(() => sections.filter((s) => s.key !== 'platform' && (q === '' || norm(s.name).includes(norm(q)))).slice(0, 6), [sections, q]);
++    const results = [
++        ...customers.map((c) => ({ key: `c${c.id}`, href: `/customers/${c.id}`, label: c.name || c.phone_e164, hint: c.phone_e164, app: undefined as NavSection | undefined })),
++        ...apps.map((s) => ({ key: s.key, href: s.path, label: s.name, hint: 'Application', app: s })),
++    ];
++
++    if (!open) return null;
++
++    const go = (href: string) => {
++        onClose();
++        router.visit(href);
++    };
++
++    return (
++        <div className="fixed inset-0 z-[100001] flex items-start justify-center bg-[#0b1f3a]/50 px-4 pt-[12vh] backdrop-blur-sm" onMouseDown={onClose}>
++            <div
++                role="dialog"
++                aria-label="Recherche rapide"
++                className="w-full max-w-xl overflow-hidden rounded-2xl bg-white shadow-2xl dark:bg-gray-900"
++                onMouseDown={(e) => e.stopPropagation()}
++            >
++                <div className="flex items-center gap-3 border-b border-gray-100 px-4 dark:border-gray-800">
++                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-gray-400" aria-hidden="true">
++                        <circle cx="11" cy="11" r="7" />
++                        <path d="m20 20-3.5-3.5" />
++                    </svg>
++                    <input
++                        ref={input}
++                        value={q}
++                        onChange={(e) => {
++                            setQ(e.target.value);
++                            setCursor(0);
++                        }}
++                        onKeyDown={(e) => {
++                            if (e.key === 'Escape') onClose();
++                            if (e.key === 'ArrowDown') {
++                                e.preventDefault();
++                                setCursor((c) => Math.min(c + 1, results.length - 1));
++                            }
++                            if (e.key === 'ArrowUp') {
++                                e.preventDefault();
++                                setCursor((c) => Math.max(c - 1, 0));
++                            }
++                            if (e.key === 'Enter' && results[cursor]) go(results[cursor].href);
++                        }}
++                        placeholder="Un client (nom, numéro) ou une application…"
++                        className="h-14 w-full bg-transparent text-[15px] text-gray-900 outline-none placeholder:text-gray-400 dark:text-white"
++                    />
++                    <kbd className="rounded border border-gray-200 px-1.5 text-[11px] text-gray-400 dark:border-gray-700">Échap</kbd>
++                </div>
++                <ul className="max-h-[50vh] overflow-y-auto p-2">
++                    {results.length === 0 && <li className="px-3 py-6 text-center text-sm text-gray-500">Aucun résultat</li>}
++                    {results.map((r, i) => (
++                        <li key={r.key}>
++                            <button
++                                type="button"
++                                onMouseEnter={() => setCursor(i)}
++                                onClick={() => go(r.href)}
++                                className={`flex w-full items-center gap-3 rounded-xl px-3 py-2 text-left ${i === cursor ? 'bg-blue-50 dark:bg-white/10' : ''}`}
++                            >
++                                {r.app ? (
++                                    <AppIcon section={r.app} size="sm" />
++                                ) : (
++                                    <span className="flex h-8 w-8 items-center justify-center rounded-full bg-gradient-to-br from-cyan-400 to-blue-600 text-[13px] font-bold text-white">
++                                        {r.label.charAt(0).toUpperCase()}
++                                    </span>
++                                )}
++                                <span className="min-w-0 flex-1">
++                                    <span className="block truncate text-[14px] font-medium text-gray-900 dark:text-white">{r.label}</span>
++                                    <span className="block text-[12px] text-gray-500">{r.hint}</span>
++                                </span>
++                            </button>
++                        </li>
++                    ))}
++                </ul>
++            </div>
++        </div>
++    );
++}
+diff --git a/resources/js/layout/apps.tsx b/resources/js/layout/apps.tsx
+index 3135480..885bdf4 100644
+--- a/resources/js/layout/apps.tsx
++++ b/resources/js/layout/apps.tsx
+@@ -1,12 +1,10 @@
+-import { Link } from '@inertiajs/react';
+-import { useEffect, useRef, useState } from 'react';
+ 
+ import { NavSection } from './navigation';
+ 
+ /*
+- * Applications NENTIX, à la manière d'Odoo : chaque rubrique du menu est une
+- * application avec sa couleur, sa phrase et son propre espace. Le lanceur
+- * (/apps) et le sélecteur d'applications de l'en-tête partagent ce style.
++ * Applications NENTIX : chaque rubrique du menu est une application avec sa
++ * couleur, sa phrase et son propre espace. Signature visuelle : l'hexagone du
++ * logo (rail de gauche, « Ma journée » en nid d'abeilles).
+  */
+ 
+ export interface AppStyle {
+@@ -37,72 +35,20 @@ export const APP_STYLES: Record<string, AppStyle> = {
+ 
+ export const appStyle = (key: string): AppStyle => APP_STYLES[key] ?? { tile: 'from-blue-500 to-blue-700', tagline: '' };
+ 
+-/** Icône d'application : carré arrondi en dégradé, icône blanche. */
+-export function AppIcon({ section, size = 'md' }: { section: NavSection; size?: 'sm' | 'md' | 'lg' }) {
+-    const box = size === 'lg' ? 'h-16 w-16 rounded-2xl [&_svg]:size-8' : size === 'sm' ? 'h-7 w-7 rounded-lg [&_svg]:size-4' : 'h-11 w-11 rounded-xl [&_svg]:size-5';
++/** Icône d'application : hexagone en dégradé (forme du logo NENTIX), icône blanche. */
++export function AppIcon({ section, size = 'md', active = false }: { section: NavSection; size?: 'sm' | 'md' | 'lg' | 'xl'; active?: boolean }) {
++    const box =
++        size === 'xl'
++            ? 'h-[88px] w-[78px] [&_svg]:size-8'
++            : size === 'lg'
++              ? 'h-16 w-14 [&_svg]:size-6'
++              : size === 'sm'
++                ? 'h-8 w-7 [&_svg]:size-4'
++                : 'h-11 w-10 [&_svg]:size-5';
+ 
+     return (
+-        <span className={`inline-flex shrink-0 items-center justify-center bg-gradient-to-br text-white shadow-sm ${appStyle(section.key).tile} ${box}`} aria-hidden="true">
+-            {section.icon}
++        <span className={`nx-hex-wrap ${active ? 'is-active' : ''}`} aria-hidden="true">
++            <span className={`nx-hex inline-flex shrink-0 items-center justify-center bg-gradient-to-br text-white ${appStyle(section.key).tile} ${box}`}>{section.icon}</span>
+         </span>
+     );
+ }
+-
+-/** Bouton « grille » de l'en-tête : toutes les applications en un clic. */
+-export function AppSwitcher({ sections, current }: { sections: NavSection[]; current?: string }) {
+-    const [open, setOpen] = useState(false);
+-    const ref = useRef<HTMLDivElement>(null);
+-
+-    useEffect(() => {
+-        if (!open) return;
+-        const close = (e: MouseEvent) => {
+-            if (!ref.current?.contains(e.target as Node)) setOpen(false);
+-        };
+-        const esc = (e: KeyboardEvent) => e.key === 'Escape' && setOpen(false);
+-        document.addEventListener('mousedown', close);
+-        document.addEventListener('keydown', esc);
+-        return () => {
+-            document.removeEventListener('mousedown', close);
+-            document.removeEventListener('keydown', esc);
+-        };
+-    }, [open]);
+-
+-    return (
+-        <div className="relative" ref={ref}>
+-            <button
+-                type="button"
+-                onClick={() => setOpen((v) => !v)}
+-                aria-expanded={open}
+-                aria-label="Toutes les applications"
+-                title="Toutes les applications"
+-                className="flex h-9 w-9 items-center justify-center rounded-lg text-white/90 hover:bg-white/10 focus-visible:outline-2 focus-visible:outline-cyan-300"
+-            >
+-                <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+-                    {[4, 10.5, 17].flatMap((y) => [4, 10.5, 17].map((x) => <rect key={`${x}-${y}`} x={x - 1.5} y={y - 1.5} width="4.5" height="4.5" rx="1.2" />))}
+-                </svg>
+-            </button>
+-            {open && (
+-                <div className="absolute top-11 left-0 z-[100000] w-[min(92vw,420px)] rounded-2xl border border-gray-200 bg-white p-3 shadow-2xl dark:border-gray-800 dark:bg-gray-900">
+-                    <div className="grid grid-cols-3 gap-1 sm:grid-cols-4">
+-                        {sections.map((section) => (
+-                            <Link
+-                                key={section.key}
+-                                href={section.path}
+-                                onClick={() => setOpen(false)}
+-                                className={`flex flex-col items-center gap-1.5 rounded-xl p-2.5 text-center text-[12px] font-medium text-gray-700 hover:bg-gray-100 dark:text-gray-200 dark:hover:bg-white/5 ${
+-                                    current === section.key ? 'bg-blue-50 dark:bg-white/10' : ''
+-                                }`}
+-                            >
+-                                <AppIcon section={section} />
+-                                <span className="leading-tight">{section.name}</span>
+-                            </Link>
+-                        ))}
+-                    </div>
+-                    <Link href="/apps" onClick={() => setOpen(false)} className="mt-2 block rounded-lg py-2 text-center text-xs font-semibold text-brand-text hover:bg-gray-50 dark:hover:bg-white/5">
+-                        Ouvrir l’écran des applications
+-                    </Link>
+-                </div>
+-            )}
+-        </div>
+-    );
+-}
+diff --git a/resources/js/pages/Apps/Index.tsx b/resources/js/pages/Apps/Index.tsx
+index b973bb7..cb810dc 100644
+--- a/resources/js/pages/Apps/Index.tsx
++++ b/resources/js/pages/Apps/Index.tsx
+@@ -6,10 +6,23 @@ import { buildSections, navContext, NavAuth } from '../../layout/navigation';
+ import { formatNumber } from '../../components/dashboard/Charts';
+ 
+ /*
+- * Écran des applications (façon Odoo) : une tuile par application, chacune
+- * avec son chiffre du jour centré client. Un clic = l'espace de l'application.
++ * « Ma journée » : à gauche, le fil des clients du jour (qui vient, qui
++ * attend une réponse, qui doit payer, qui s'éloigne) ; à droite, les
++ * applications en nid d'abeilles, chacune avec son chiffre client du jour.
+  */
+ 
++interface DayCustomer {
++    id: number;
++    name: string;
++}
++
++interface Day {
++    appointments: { time: string; customer: DayCustomer | null; what: string }[];
++    quotes: { id: number; customer: DayCustomer | null; what: string; amount: number; days: number }[];
++    balances: { id: number; customer: DayCustomer | null; what: string; amount: number; late: boolean }[];
++    drifting: { customer: DayCustomer | null; since: number | null }[];
++}
++
+ interface Badge {
+     value: number;
+     label: string;
+@@ -22,45 +35,63 @@ interface PageProps {
+     badges: Record<string, Badge>;
+     locked: Record<string, string>;
+     greeting: string;
++    day: Day;
+     [key: string]: unknown;
+ }
+ 
++function FeedBlock({ title, dot, empty, children, count }: { title: string; dot: string; empty: string; children: React.ReactNode; count: number }) {
++    return (
++        <section className="rounded-2xl border border-gray-200 bg-white p-4 dark:border-gray-800 dark:bg-gray-900">
++            <h2 className="mb-2 flex items-center gap-2 text-[13px] font-bold tracking-wide text-gray-500 uppercase">
++                <span className={`h-2 w-2 rounded-full ${dot}`} aria-hidden="true" />
++                {title}
++                {count > 0 && <span className="ml-auto rounded-full bg-gray-100 px-2 text-[12px] text-gray-600 dark:bg-white/10 dark:text-gray-300">{count}</span>}
++            </h2>
++            {count === 0 ? <p className="py-2 text-[13.5px] text-gray-400">{empty}</p> : <ul className="divide-y divide-gray-100 dark:divide-gray-800">{children}</ul>}
++        </section>
++    );
++}
++
++function Who({ customer }: { customer: DayCustomer | null }) {
++    if (!customer) return <span className="text-gray-400">Client anonyme</span>;
++    return (
++        <Link href={`/customers/${customer.id}`} className="font-semibold text-gray-900 hover:text-blue-700 dark:text-white">
++            {customer.name}
++        </Link>
++    );
++}
++
+ function AppsIndex() {
+-    const { auth, badges, greeting } = usePage<PageProps>().props;
++    const { auth, badges, greeting, day, locked } = usePage<PageProps>().props;
+     const sections = buildSections(navContext(auth)).filter((s) => s.key !== 'platform');
+-    const platform = buildSections(navContext(auth)).find((s) => s.key === 'platform');
+     const first = (auth.user?.name ?? '').split(' ').find((w) => !['Dr', 'Dr.', 'M.', 'Mme', 'Mlle', 'Pr'].includes(w)) ?? '';
+     const canManage = auth.user?.can_manage_organization ?? false;
+     const todo = badges.actions?.value ?? 0;
++    const today = new Date().toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' });
++    const li = 'flex items-center gap-3 py-2 text-[14px]';
+ 
+     return (
+         <>
+-            <Head title="Applications" />
+-            <section className="nx-banner">
++            <Head title="Ma journée" />
++            <div className="mb-5 flex flex-wrap items-end justify-between gap-3">
+                 <div>
+-                    <p className="text-sm text-cyan-100/90">{auth.organization?.name}</p>
+-                    <h1 className="mt-1 text-2xl font-bold sm:text-3xl">
+-                        {greeting} {first} !
++                    <p className="text-[13px] font-medium text-cyan-700 capitalize dark:text-cyan-300">{today}</p>
++                    <h1 className="text-2xl font-bold text-[#0B1F3A] sm:text-[28px] dark:text-white">
++                        {greeting} {first}, voici vos clients du jour.
+                     </h1>
+-                    <p className="mt-1 max-w-xl text-[15px] text-white/85">
+-                        {todo > 0 ? (
+-                            <>
+-                                <b>{todo} client{todo > 1 ? 's' : ''}</b> attend{todo > 1 ? 'ent' : ''} une action de votre part aujourd’hui.
+-                            </>
+-                        ) : (
+-                            'Tous vos clients sont à jour. Belle journée !'
+-                        )}
++                    <p className="mt-1 text-[14.5px] text-gray-500">
++                        {todo > 0 ? `${todo} action${todo > 1 ? 's' : ''} client${todo > 1 ? 's' : ''} vous attend${todo > 1 ? 'ent' : ''}.` : 'Tous vos clients sont à jour.'}
+                     </p>
+                 </div>
+-                <div className="flex flex-wrap items-center gap-2">
+-                    {auth.organization?.pack_label && <span className="rounded-full bg-white/15 px-3 py-1 text-xs font-semibold">Pack {auth.organization.pack_label}</span>}
++                <div className="flex items-center gap-2">
++                    {auth.organization?.pack_label && <span className="rounded-full border border-blue-200 bg-blue-50 px-3 py-1 text-xs font-semibold text-blue-700">Pack {auth.organization.pack_label}</span>}
+                     {todo > 0 && (
+-                        <Link href="/actions" className="rounded-xl bg-white px-4 py-2 text-sm font-semibold text-[#0B1F3A] shadow hover:bg-cyan-50">
+-                            Voir les clients à relancer
++                        <Link href="/actions" className="rounded-full bg-gradient-to-r from-blue-700 to-cyan-500 px-4 py-2 text-sm font-semibold text-white shadow hover:opacity-95">
++                            Commencer les relances
+                         </Link>
+                     )}
+                 </div>
+-            </section>
++            </div>
+ 
+             {auth.organization?.automation === false && (
+                 <div className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+@@ -73,53 +104,85 @@ function AppsIndex() {
+                 </div>
+             )}
+ 
+-            <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
+-                {sections.map((section) => {
+-                    const badge = badges[section.key];
+-                    return (
+-                        <Link
+-                            key={section.key}
+-                            href={section.path}
+-                            className="group relative flex flex-col gap-3 rounded-2xl border border-gray-200 bg-white p-4 shadow-sm transition hover:-translate-y-0.5 hover:border-blue-200 hover:shadow-lg focus-visible:outline-2 focus-visible:outline-blue-500 dark:border-gray-800 dark:bg-gray-900"
+-                        >
+-                            <AppIcon section={section} size="lg" />
+-                            <span>
+-                                <span className="block text-[15px] font-semibold text-gray-900 dark:text-white">{section.name}</span>
+-                                <span className="mt-0.5 block text-[12.5px] leading-snug text-gray-500 dark:text-gray-400">{appStyle(section.key).tagline}</span>
+-                            </span>
+-                            {badge && badge.value > 0 && (
+-                                <span
+-                                    className={`absolute top-3 right-3 rounded-full px-2 py-0.5 text-[11.5px] font-semibold ${
+-                                        badge.tone === 'bad' ? 'bg-red-50 text-red-700' : 'bg-blue-50 text-blue-700'
+-                                    }`}
+-                                >
+-                                    {badge.money ? formatNumber(badge.value) : badge.value} {badge.label}
++            <div className="grid grid-cols-[minmax(0,1fr)] gap-6 lg:grid-cols-[minmax(0,5fr)_minmax(0,6fr)]">
++                <div className="flex flex-col gap-3">
++                    <FeedBlock title="Ils viennent aujourd’hui" dot="bg-violet-500" empty="Aucun rendez-vous aujourd’hui." count={day.appointments.length}>
++                        {day.appointments.map((a, i) => (
++                            <li key={i} className={li}>
++                                <span className="w-12 shrink-0 font-mono text-[13px] font-semibold text-violet-700">{a.time}</span>
++                                <span className="min-w-0 flex-1 truncate">
++                                    <Who customer={a.customer} /> <span className="text-gray-500">· {a.what}</span>
+                                 </span>
+-                            )}
+-                        </Link>
+-                    );
+-                })}
+-                {canManage && (
+-                    <Link
+-                        href="/settings/modules"
+-                        className="flex flex-col items-start gap-3 rounded-2xl border-2 border-dashed border-gray-300 p-4 text-gray-500 transition hover:border-blue-300 hover:text-blue-700 dark:border-gray-700"
+-                    >
+-                        <span className="inline-flex h-16 w-16 items-center justify-center rounded-2xl bg-gray-100 text-3xl dark:bg-white/5">+</span>
+-                        <span>
+-                            <span className="block text-[15px] font-semibold">Ajouter une application</span>
+-                            <span className="mt-0.5 block text-[12.5px]">Factures, caisse, dépenses, fidélité…</span>
+-                        </span>
+-                    </Link>
+-                )}
+-            </div>
++                            </li>
++                        ))}
++                    </FeedBlock>
++                    <FeedBlock title="Ils attendent votre relance" dot="bg-amber-500" empty="Aucun devis en attente." count={day.quotes.length}>
++                        {day.quotes.map((q) => (
++                            <li key={q.id} className={li}>
++                                <span className="min-w-0 flex-1 truncate">
++                                    <Who customer={q.customer} /> <span className="text-gray-500">· {q.what}</span>
++                                </span>
++                                <span className="shrink-0 text-[12.5px] text-amber-700">{q.days === 0 ? 'envoyé aujourd’hui' : `depuis ${q.days} j`}</span>
++                                <Link href={`/invoices/${q.id}`} className="shrink-0 rounded-full border border-amber-200 px-2.5 py-0.5 text-[12.5px] font-semibold text-amber-800 hover:bg-amber-50">
++                                    Relancer
++                                </Link>
++                            </li>
++                        ))}
++                    </FeedBlock>
++                    <FeedBlock title="Ils doivent encore payer" dot="bg-red-500" empty="Aucun solde à encaisser." count={day.balances.length}>
++                        {day.balances.map((b) => (
++                            <li key={b.id} className={li}>
++                                <span className="min-w-0 flex-1 truncate">
++                                    <Who customer={b.customer} /> <span className="text-gray-500">· {b.what}</span>
++                                </span>
++                                <Link href={`/invoices/${b.id}`} className={`shrink-0 text-[13px] font-semibold ${b.late ? 'text-red-600' : 'text-gray-700 dark:text-gray-200'}`}>
++                                    {formatNumber(b.amount)} F{b.late ? ' · en retard' : ''}
++                                </Link>
++                            </li>
++                        ))}
++                    </FeedBlock>
++                    <FeedBlock title="Ils s’éloignent" dot="bg-blue-500" empty="Aucun client à risque." count={day.drifting.length}>
++                        {day.drifting.map((d, i) => (
++                            <li key={i} className={li}>
++                                <span className="min-w-0 flex-1 truncate">
++                                    <Who customer={d.customer} />
++                                </span>
++                                {d.since !== null && <span className="shrink-0 text-[12.5px] text-gray-500">dernière visite il y a {d.since} j</span>}
++                            </li>
++                        ))}
++                    </FeedBlock>
++                </div>
+ 
+-            {platform && (
+-                <p className="mt-6 text-sm">
+-                    <Link href={platform.path} className="font-semibold text-brand-text hover:underline">
+-                        Back-office NENTIX →
+-                    </Link>
+-                </p>
+-            )}
++                <section aria-label="Applications">
++                    <h2 className="mb-3 text-[13px] font-bold tracking-wide text-gray-500 uppercase">Vos applications</h2>
++                    <div className="nx-comb pb-12">
++                        {sections.map((section) => {
++                            const badge = badges[section.key];
++                            return (
++                                <Link key={section.key} href={section.path} className="group flex flex-col items-center gap-1.5 rounded-2xl p-2 text-center transition hover:bg-white dark:hover:bg-white/5" title={appStyle(section.key).tagline}>
++                                    <span className="relative transition group-hover:-translate-y-0.5">
++                                        <AppIcon section={section} size="lg" />
++                                        {badge && badge.value > 0 && (
++                                            <span className={`absolute -top-1 -right-3 rounded-full px-1.5 py-0.5 text-[10.5px] font-bold text-white shadow ${badge.tone === 'bad' ? 'bg-red-500' : 'bg-[#0B1F3A]'}`}>
++                                                {badge.money ? `${formatNumber(Math.round(badge.value / 1000))}k` : badge.value}
++                                            </span>
++                                        )}
++                                    </span>
++                                    <span className="text-[13px] leading-tight font-semibold text-gray-800 dark:text-gray-100">{section.name}</span>
++                                    {badge && badge.value > 0 && <span className="text-[11px] leading-tight text-gray-500">{badge.label}</span>}
++                                </Link>
++                            );
++                        })}
++                        {canManage && (
++                            <Link href="/settings/modules" className="group flex flex-col items-center gap-1.5 rounded-2xl p-2 text-center text-gray-500 hover:text-blue-700">
++                                <span className="nx-hex flex h-16 w-14 items-center justify-center bg-gray-200 text-2xl font-light text-gray-500 transition group-hover:bg-blue-100 dark:bg-white/10">+</span>
++                                <span className="text-[13px] leading-tight font-semibold">Ajouter</span>
++                                {Object.keys(locked ?? {}).length > 0 && <span className="text-[11px] text-gray-400">{Object.keys(locked).length} en option</span>}
++                            </Link>
++                        )}
++                    </div>
++                </section>
++            </div>
+         </>
+     );
+ }
+diff --git a/tests/Feature/Modules/GestionModulesTest.php b/tests/Feature/Modules/GestionModulesTest.php
+index baec16f..3467cbd 100644
+--- a/tests/Feature/Modules/GestionModulesTest.php
++++ b/tests/Feature/Modules/GestionModulesTest.php
+@@ -1,6 +1,7 @@
+ <?php
+ 
+ use App\Models\Brand;
++use App\Models\CatalogItem;
+ use App\Models\Contact;
+ use App\Models\Organization;
+ use App\Models\Purchase;
+@@ -9,6 +10,7 @@ use App\Models\User;
+ use App\Modules\Caisse\Models\CashClosing;
+ use App\Modules\Depenses\Models\Expense;
+ use App\Modules\Facturation\Models\Invoice;
++use App\Modules\Stock\Models\StockItem;
+ use App\Support\Modules\ModuleRegistry;
+ use Illuminate\Http\UploadedFile;
+ use Illuminate\Support\Facades\Storage;
+@@ -204,10 +206,10 @@ it('shows the app launcher with customer-centred badges and the automations of a
+ it('tracks the stock of products sold with a service: sale, cancel, receipt with expense, inventory', function () {
+     $this->organization->setModules(['rdv', 'catalogue', 'produits', 'stock', 'depenses', 'factures']);
+     $this->organization->save();
+-    $frame = \App\Models\CatalogItem::create(['organization_id' => $this->organization->id, 'type' => 'product', 'name' => 'Monture Ray', 'price' => 45000, 'active' => true]);
++    $frame = CatalogItem::create(['organization_id' => $this->organization->id, 'type' => 'product', 'name' => 'Monture Ray', 'price' => 45000, 'active' => true]);
+ 
+     $this->actingAs($this->admin)->post('/stock/track', ['catalog_item_id' => $frame->id, 'quantity' => 3, 'min_quantity' => 2])->assertSessionHasNoErrors();
+-    $item = \App\Modules\Stock\Models\StockItem::firstOrFail();
++    $item = StockItem::firstOrFail();
+     expect($item->quantity)->toBe(3);
+ 
+     // Vente par facture : la monture sort du stock.
+@@ -233,3 +235,24 @@ it('tracks the stock of products sold with a service: sale, cancel, receipt with
+     $this->get('/stock')->assertInertia(fn (Assert $page) => $page->component('Stock/Index')->where('items.0.quantity', 6)->where('stats.products', 1));
+     $this->get('/stock/movements')->assertInertia(fn (Assert $page) => $page->component('Stock/Movements')->has('movements.data', 5));
+ });
++
++it('shows the day of customers, the customer pulse of an app and finds a customer with the quick search', function () {
++    $quote = newQuote($this);
++    $this->post("/invoices/{$quote->id}/sent")->assertRedirect();
++    $this->travel(4)->days();
++
++    $this->get('/apps')->assertInertia(fn (Assert $page) => $page
++        ->component('Apps/Index')
++        ->where('day.quotes.0.customer.name', 'Grâce Mba')
++        ->where('day.quotes.0.days', 4));
++
++    $this->getJson('/apps/pulse?app=invoices')->assertOk()
++        ->assertJsonPath('items.0.text', '1 devis sans réponse depuis 3 jours');
++
++    $this->getJson('/apps/search?q=grâ')->assertOk()->assertJsonPath('customers.0.id', $this->customer->id);
++    $this->getJson('/apps/search?q=77001')->assertOk()->assertJsonPath('customers.0.id', $this->customer->id);
++
++    $other = Organization::factory()->create();
++    $stranger = User::factory()->create(['organization_id' => $other->id, 'role_id' => defaultRole($other, 'Super administrateur')->id]);
++    $this->actingAs($stranger)->getJson('/apps/search?q=Grâce')->assertOk()->assertJsonCount(0, 'customers');
++});

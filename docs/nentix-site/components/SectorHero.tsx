@@ -226,7 +226,7 @@ function Commerce() {
   );
 }
 
-const arts: Record<string, () => React.ReactElement> = { beaute: Beaute, sante: Sante, sport: Sport, technique: Technique, pro: Pro, commerce: Commerce, boutiques: Commerce };
+const arts: Record<string, () => React.ReactElement> = { beaute: Beaute, sante: Sante, sport: Sport, technique: Technique, pro: Pro, commerce: Commerce, boutiques: Commerce, formation: Pro, vehicules: Technique };
 
 export function SectorEmblem({ slug }: { slug: string }) {
   const Art = arts[slug];

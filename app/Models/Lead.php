@@ -10,7 +10,7 @@ use Illuminate\Database\Eloquent\Model;
 class Lead extends Model
 {
     // Valeurs du champ « Activité » du formulaire de démo (lib/families.ts du site, plus « autre »).
-    public const ACTIVITIES = ['beaute', 'sante', 'sport', 'technique', 'pro', 'commerce', 'autre'];
+    public const ACTIVITIES = ['beaute', 'sante', 'sport', 'formation', 'vehicules', 'technique', 'pro', 'commerce', 'autre'];
 
     public const STATUSES = [
         'new' => 'Nouveau',

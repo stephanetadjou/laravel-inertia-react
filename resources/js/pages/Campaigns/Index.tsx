@@ -83,7 +83,9 @@ function CampaignsIndex() {
     // ?group=ID (depuis la page Groupes) : ouvre la création avec ce groupe présélectionné.
     const requestedGroup = new URLSearchParams(typeof window !== 'undefined' ? window.location.search : '').get('group');
     const presetGroup = groups.some((g) => String(g.id) === requestedGroup) ? requestedGroup : null;
-    const [isCreateOpen, setIsCreateOpen] = useState(presetGroup !== null);
+    // ?texte=… (bouton « Envoyer à un segment » d'un tunnel de vente) : message libre prérempli.
+    const presetText = new URLSearchParams(typeof window !== 'undefined' ? window.location.search : '').get('texte') ?? '';
+    const [isCreateOpen, setIsCreateOpen] = useState(presetGroup !== null || presetText !== '');
     const apply = useQueryFilters('/campaigns', filters as unknown as Record<string, unknown>);
     const filtered = Boolean(filters.q || filters.status || filters.type || filters.store || filters.period);
 
@@ -223,6 +225,7 @@ function CampaignsIndex() {
                 groups={groups}
                 templates={templates}
                 initialGroupIds={presetGroup ? [presetGroup] : []}
+                initialText={presetText}
             />
         </Page>
     );

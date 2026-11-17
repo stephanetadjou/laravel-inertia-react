@@ -1,0 +1,114 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Logo hexagonal ClientlyX</title>
+<style>
+  :root { --prune: #2B1A3D; --orange: #E8590C; --sun: #FFD43B; --cream: #FFF7EE; }
+  * { box-sizing: border-box; }
+  body { margin: 0; font-family: system-ui, -apple-system, "Segoe UI", sans-serif; background: #FAFAF9; color: var(--prune); padding: 24px 16px 48px; }
+  h1 { font-size: 24px; margin: 0 0 4px; }
+  p.lead { margin: 0 0 24px; color: #57534E; }
+  .grid { display: grid; gap: 16px; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); max-width: 1180px; }
+  .card { background: #fff; border: 1px solid #E7E5E4; border-radius: 20px; padding: 20px; }
+  .card h2 { font-size: 17px; margin: 0 0 4px; }
+  .card p { font-size: 14px; color: #57534E; margin: 0 0 14px; line-height: 1.45; }
+  .row { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
+  .tile { display: grid; place-items: center; border-radius: 14px; padding: 14px; }
+  .light { background: #FAFAF9; }
+  .dark { background: var(--prune); }
+  .word { font-weight: 800; font-size: 22px; letter-spacing: -0.02em; display: inline-flex; align-items: center; gap: 10px; }
+  .word b { color: var(--orange); }
+  .dark .word { color: #fff; }
+  .tag { display: inline-block; font-size: 12px; font-weight: 700; background: var(--sun); color: var(--prune); padding: 2px 8px; border-radius: 99px; margin-left: 6px; }
+</style>
+</head>
+<body>
+  <h1>Logo hexagonal ClientlyX : 4 propositions</h1>
+  <p class="lead">Le C et la flèche jaune du logo actuel, dans un hexagone. L'hexagone est déjà la forme des applications dans le rail de l'app. Chaque logo est montré en grand, en favicon (16 px) et avec le nom.</p>
+
+  <svg width="0" height="0" style="position:absolute">
+    <defs>
+      <!-- A : hexagone orange plein, C crème, flèche jaune (traduction directe) -->
+      <symbol id="logo-a" viewBox="0 0 80 80">
+        <polygon points="40,4 71.2,22 71.2,58 40,76 8.8,58 8.8,22" fill="#E8590C" stroke="#E8590C" stroke-width="6" stroke-linejoin="round"/>
+        <path d="M57 24a24 24 0 1 0 0 32" fill="none" stroke="#FFF7EE" stroke-width="8.5" stroke-linecap="round"/>
+        <path d="M51 45l13-13m0 0h-9m9 0v9" fill="none" stroke="#FFD43B" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>
+      </symbol>
+      <!-- B : hexagone prune, C orange, flèche jaune (plus premium) -->
+      <symbol id="logo-b" viewBox="0 0 80 80">
+        <polygon points="40,4 71.2,22 71.2,58 40,76 8.8,58 8.8,22" fill="#2B1A3D" stroke="#2B1A3D" stroke-width="6" stroke-linejoin="round"/>
+        <path d="M57 24a24 24 0 1 0 0 32" fill="none" stroke="#E8590C" stroke-width="8.5" stroke-linecap="round"/>
+        <path d="M51 45l13-13m0 0h-9m9 0v9" fill="none" stroke="#FFD43B" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>
+      </symbol>
+      <!-- C : le C est lui-même un hexagone ouvert, flèche jaune qui sort de l'ouverture -->
+      <symbol id="logo-c" viewBox="0 0 80 80">
+        <polygon points="40,4 71.2,22 71.2,58 40,76 8.8,58 8.8,22" fill="#E8590C" stroke="#E8590C" stroke-width="6" stroke-linejoin="round"/>
+        <polyline points="56,28 40,19 24,28 24,52 40,61 56,52" fill="none" stroke="#FFF7EE" stroke-width="8" stroke-linecap="round" stroke-linejoin="round"/>
+        <path d="M46 40h18m0 0l-6-6m6 6l-6 6" fill="none" stroke="#FFD43B" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>
+      </symbol>
+      <!-- D : nid d'abeilles, C crème et petit hexagone jaune à la place de la flèche -->
+      <symbol id="logo-d" viewBox="0 0 80 80">
+        <polygon points="40,4 71.2,22 71.2,58 40,76 8.8,58 8.8,22" fill="#E8590C" stroke="#E8590C" stroke-width="6" stroke-linejoin="round"/>
+        <path d="M55 26a22 22 0 1 0 0 28" fill="none" stroke="#FFF7EE" stroke-width="8.5" stroke-linecap="round"/>
+        <polygon points="58,31 65.8,35.5 65.8,44.5 58,49 50.2,44.5 50.2,35.5" fill="#FFD43B"/>
+      </symbol>
+    </defs>
+  </svg>
+
+  <div class="grid">
+    <div class="card">
+      <h2>A · Soleil hexagonal <span class="tag">Recommandé</span></h2>
+      <p>La traduction directe du logo actuel : même orange, même C crème, même flèche jaune. Ce sont les clients qui reviennent et qui grandissent. On reste reconnaissable tout en rejoignant les hexagones de l'app.</p>
+      <div class="row">
+        <div class="tile light"><svg width="96" height="96"><use href="#logo-a"/></svg></div>
+        <div class="tile light"><svg width="16" height="16"><use href="#logo-a"/></svg></div>
+      </div>
+      <div class="row" style="margin-top:12px">
+        <div class="tile light"><span class="word"><svg width="34" height="34"><use href="#logo-a"/></svg>Cliently<b>X</b></span></div>
+        <div class="tile dark"><span class="word"><svg width="34" height="34"><use href="#logo-a"/></svg>Cliently<b>X</b></span></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>B · Prune et soleil</h2>
+      <p>Hexagone prune, C orange. Plus sobre et plus « haut de gamme ». Il ressort très bien sur fond clair ; sur fond prune, il faut un contour.</p>
+      <div class="row">
+        <div class="tile light"><svg width="96" height="96"><use href="#logo-b"/></svg></div>
+        <div class="tile light"><svg width="16" height="16"><use href="#logo-b"/></svg></div>
+      </div>
+      <div class="row" style="margin-top:12px">
+        <div class="tile light"><span class="word"><svg width="34" height="34"><use href="#logo-b"/></svg>Cliently<b>X</b></span></div>
+        <div class="tile dark"><span class="word"><svg width="34" height="34"><use href="#logo-b"/></svg>Cliently<b>X</b></span></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>C · Le C hexagonal</h2>
+      <p>Le C est lui-même un hexagone ouvert, et la flèche jaune sort par l'ouverture : le client qui revient vers vous. C'est le plus graphique et le plus propre à ClientlyX ; il change davantage du logo actuel.</p>
+      <div class="row">
+        <div class="tile light"><svg width="96" height="96"><use href="#logo-c"/></svg></div>
+        <div class="tile light"><svg width="16" height="16"><use href="#logo-c"/></svg></div>
+      </div>
+      <div class="row" style="margin-top:12px">
+        <div class="tile light"><span class="word"><svg width="34" height="34"><use href="#logo-c"/></svg>Cliently<b>X</b></span></div>
+        <div class="tile dark"><span class="word"><svg width="34" height="34"><use href="#logo-c"/></svg>Cliently<b>X</b></span></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>D · Nid d'abeilles</h2>
+      <p>C crème, avec une petite alvéole jaune à la place de la flèche : l'écosystème d'applications autour du client. C'est le plus doux, mais la flèche de croissance disparaît.</p>
+      <div class="row">
+        <div class="tile light"><svg width="96" height="96"><use href="#logo-d"/></svg></div>
+        <div class="tile light"><svg width="16" height="16"><use href="#logo-d"/></svg></div>
+      </div>
+      <div class="row" style="margin-top:12px">
+        <div class="tile light"><span class="word"><svg width="34" height="34"><use href="#logo-d"/></svg>Cliently<b>X</b></span></div>
+        <div class="tile dark"><span class="word"><svg width="34" height="34"><use href="#logo-d"/></svg>Cliently<b>X</b></span></div>
+      </div>
+    </div>
+  </div>
+</body>
+</html>

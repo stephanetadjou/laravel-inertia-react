@@ -36,7 +36,7 @@ class SendSalesMorningReminders extends Command
                     }
 
                     Mail::html(view('reports.sales-morning', ['user' => $user, 'organization' => $organization, 'rows' => $rows])->render(), function ($message) use ($user, $rows) {
-                        $message->to($user->email)->subject("Vos {$rows->count()} relance(s) du jour · Menentia");
+                        $message->to($user->email)->subject("Vos {$rows->count()} relance(s) du jour · ClientlyX");
                     });
                     $sent++;
                 }

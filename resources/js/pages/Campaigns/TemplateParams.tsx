@@ -15,7 +15,7 @@ interface Pricing {
 export function CostEstimate({ count, category, isText = false }: { count: number | null; category?: string | null; isText?: boolean }) {
     const { whatsappPricing: pricing, messageCredits: credits } = usePage<{ whatsappPricing?: Pricing | null; messageCredits?: { balance: number; cost: number } | null }>().props;
 
-    // Crédits NENTIX : seuls les messages marketing consomment (session et utilitaire gratuits).
+    // Crédits ClientlyX : seuls les messages marketing consomment (session et utilitaire gratuits).
     if (credits && count !== null) {
         const marketing = !isText && (category ?? 'marketing').toLowerCase() === 'marketing';
         const total = marketing ? count * credits.cost : 0;
@@ -25,7 +25,7 @@ export function CostEstimate({ count, category, isText = false }: { count: numbe
                 {marketing ? (
                     <>
                         Coût : <b>{fcfa(total)}</b> ({new Intl.NumberFormat('fr-FR').format(count)} × {fcfa(credits.cost)}) · solde {fcfa(credits.balance)}
-                        {total > credits.balance && ' — crédits insuffisants, demandez une recharge à NENTIX.'}
+                        {total > credits.balance && ' — crédits insuffisants, demandez une recharge à ClientlyX.'}
                     </>
                 ) : (
                     <>Message utilitaire ou de session : aucun crédit consommé (solde {fcfa(credits.balance)}).</>

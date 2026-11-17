@@ -17,7 +17,7 @@ use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 
 /**
- * Tableaux de bord Menentia Retail : Direction, Marques & points de vente,
+ * Tableaux de bord ClientlyX Retail : Direction, Marques & points de vente,
  * Familles (au niveau d'analyse de l'entreprise), Clientèle, Rétention et
  * Qualité des imports, sur un même jeu de filtres (période, points de vente
  * du périmètre, marque, famille).

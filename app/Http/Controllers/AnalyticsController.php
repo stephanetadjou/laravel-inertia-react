@@ -21,7 +21,7 @@ use Symfony\Component\HttpFoundation\StreamedResponse;
 use Symfony\Component\HttpKernel\Exception\HttpException;
 
 /**
- * Analyses NENTIX Retail : tableaux de bord Direction, Marques & points de
+ * Analyses ClientlyX Retail : tableaux de bord Direction, Marques & points de
  * vente, Familles, Clientèle, Rétention et Qualité des imports, filtres
  * communs (période, marque, point de vente, famille) bornés par le périmètre
  * du rôle ; export CSV / Excel de chaque tableau et rapport de direction

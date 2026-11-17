@@ -98,6 +98,8 @@ class AppointmentController extends Controller
             'statuses' => Appointment::STATUSES,
             'paymentMethods' => Purchase::PAYMENT_METHODS,
             'catalog' => self::catalogFor($user->organization_id),
+            // Véhicules, salles, matériel (module « ressources »).
+            'resources' => $user->organization->hasModule('ressources') ? ResourceController::options($user->organization_id) : [],
             'appointments' => $appointments->map(fn (Appointment $a) => $this->present($a, $messages)),
             // Colonne « À venir » : prochains rendez-vous, quelle que soit la période affichée.
             'upcoming' => Appointment::whereIn('store_id', $storeIds)
@@ -233,6 +235,7 @@ class AppointmentController extends Controller
     public function store(Request $request): RedirectResponse
     {
         $data = $this->validated($request, creating: true);
+        $this->ensureResourceFree($data);
         $customer = $this->resolveCustomer($request, $data);
         $items = $this->catalogItems($request, $data);
 
@@ -253,6 +256,7 @@ class AppointmentController extends Controller
     {
         $this->authorizeAppointment($request, $appointment);
         $data = $this->validated($request, creating: false);
+        $this->ensureResourceFree($data, $appointment);
         $items = $this->catalogItems($request, $data);
 
         DB::transaction(function () use ($appointment, $data, $items) {
@@ -386,12 +390,14 @@ class AppointmentController extends Controller
             'kind_label' => Appointment::KINDS[$a->kind ?? 'rdv'] ?? null,
             'has_gps' => $a->latitude !== null,
             'notes' => $a->notes,
+            'address' => $a->address,
             'store_id' => $a->store_id,
             'store_name' => $a->store?->name,
             'staff_user_id' => $a->staff_user_id,
             'staff_member_id' => $a->staff_member_id,
             'staff_color' => $a->staffMember?->color,
             'staff_name' => $a->staffMember?->name ?? $a->staff?->name,
+            'resource_id' => $a->resource_id,
             'customer_id' => $a->customer_id,
             'customer_name' => $a->customer?->name,
             'phone_e164' => $a->customer?->phone_e164,
@@ -444,6 +450,7 @@ class AppointmentController extends Controller
             'staff_member_id' => ['nullable', 'integer', Rule::in($this->staffMembers($request)->pluck('id'))],
             'status' => ['nullable', Rule::in(array_keys(Appointment::STATUSES))],
             'notes' => ['nullable', 'string', 'max:2000'],
+            'address' => ['nullable', 'string', 'max:255'],
             // Prestations du catalogue choisies pour le rendez-vous.
             'item_ids' => ['nullable', 'array'],
             'item_ids.*' => ['integer'],
@@ -451,6 +458,8 @@ class AppointmentController extends Controller
             'kind' => ['nullable', Rule::in(array_keys(Appointment::KINDS))],
             'latitude' => ['nullable', 'numeric', 'between:-90,90'],
             'longitude' => ['nullable', 'numeric', 'between:-180,180'],
+            // Véhicule, salle ou matériel réservé (module « ressources »).
+            'resource_id' => ['nullable', 'integer', Rule::exists('bookable_resources', 'id')->where('organization_id', $request->user()->organization_id)],
         ], [
             'store_id.in' => 'Choisissez un établissement de votre périmètre.',
             'phone.required_without' => 'Indiquez le numéro du client.',
@@ -500,6 +509,28 @@ class AppointmentController extends Controller
      * @param  array<string, mixed>  $data
      * @param  Collection<int, CatalogItem>|null  $items
      */
+    /**
+     * Un véhicule (ou une salle) ne sert qu'à un rendez-vous à la fois.
+     *
+     * @param  array<string, mixed>  $data
+     */
+    private function ensureResourceFree(array $data, ?Appointment $current = null): void
+    {
+        if (empty($data['resource_id']) || in_array($data['status'] ?? $current?->status, ['cancelled', 'no_show'], true)) {
+            return;
+        }
+
+        $minutes = (int) ($data['duration_minutes'] ?? $current?->duration_minutes ?? 30);
+        $taken = ResourceController::conflict((int) $data['resource_id'], Carbon::parse($data['starts_at']), $minutes, $current?->id);
+
+        if ($taken !== null) {
+            throw ValidationException::withMessages([
+                'resource_id' => 'Déjà réservé de '.$taken->starts_at->format('H\hi').' à '.$taken->starts_at->copy()->addMinutes($taken->duration_minutes)->format('H\hi')
+                    .($taken->customer ? " ({$taken->customer->name})" : '').'.',
+            ]);
+        }
+    }
+
     private function attributes(array $data, ?Collection $items = null): array
     {
         // Avec des prestations du catalogue : libellé et durée par défaut en découlent.
@@ -514,7 +545,9 @@ class AppointmentController extends Controller
             'staff_user_id' => $data['staff_user_id'] ?? null,
             'staff_member_id' => $data['staff_member_id'] ?? null,
             'notes' => $data['notes'] ?? null,
+            'address' => $data['address'] ?? null,
             'kind' => $data['kind'] ?? 'rdv',
+            ...(array_key_exists('resource_id', $data) ? ['resource_id' => $data['resource_id']] : []),
             ...(isset($data['latitude'], $data['longitude']) ? ['latitude' => $data['latitude'], 'longitude' => $data['longitude']] : []),
         ];
     }

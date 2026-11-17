@@ -21,10 +21,13 @@ export interface AppointmentRow {
     kind_label?: string | null;
     has_gps?: boolean;
     notes: string | null;
+    address?: string | null;
     store_id: number;
     store_name: string | null;
     staff_user_id: number | null;
     staff_member_id: number | null;
+    /** Véhicule, salle ou matériel réservé (module « ressources »). */
+    resource_id?: number | null;
     staff_color: string | null;
     staff_name: string | null;
     customer_id: number;
@@ -128,7 +131,9 @@ export default function AppointmentFormModal({
 }) {
     const isEditing = appointment !== null;
     // Types visite / démo : avec le module « Suivi des prospects ».
-    const orgModules = usePage<{ auth?: { organization?: { modules?: string[] } | null } }>().props.auth?.organization?.modules ?? [];
+    const pageProps = usePage<{ auth?: { organization?: { modules?: string[] } | null }; resources?: { id: number; name: string; store_id: number | null }[] }>().props;
+    const orgModules = pageProps.auth?.organization?.modules ?? [];
+    const resources = pageProps.resources ?? [];
     const withKinds = orgModules.includes('prospects') || orgModules.includes('essai');
     const withCustomer = isEditing || customerId !== undefined;
 
@@ -142,8 +147,10 @@ export default function AppointmentFormModal({
         service: appointment?.service ?? '',
         staff_user_id: appointment?.staff_user_id ? String(appointment.staff_user_id) : '',
         staff_member_id: appointment?.staff_member_id ? String(appointment.staff_member_id) : '',
+        resource_id: appointment?.resource_id ? String(appointment.resource_id) : '',
         status: appointment?.status ?? 'planned',
         notes: appointment?.notes ?? '',
+        address: appointment?.address ?? '',
         kind: appointment?.kind ?? 'rdv',
         latitude: '' as string | number,
         longitude: '' as string | number,
@@ -296,6 +303,22 @@ export default function AppointmentFormModal({
                                 ))}
                         </select>
                     </div>
+                    {resources.length > 0 && (
+                        <div>
+                            <Label htmlFor="appt-resource">Véhicule / salle</Label>
+                            <select id="appt-resource" value={data.resource_id} onChange={(e) => setData('resource_id', e.target.value)} className={fieldClasses()}>
+                                <option value="">Aucun</option>
+                                {resources
+                                    .filter((r) => r.store_id === null || r.store_id === Number(data.store_id))
+                                    .map((r) => (
+                                        <option key={r.id} value={r.id}>
+                                            {r.name}
+                                        </option>
+                                    ))}
+                            </select>
+                            <Err message={errors.resource_id} />
+                        </div>
+                    )}
                     <div>
                         <Label htmlFor="appt-status">Statut</Label>
                         <select id="appt-status" value={data.status} onChange={(e) => setData('status', e.target.value)} className={fieldClasses()}>
@@ -336,6 +359,12 @@ export default function AppointmentFormModal({
                         )}
                     </div>
                 )}
+
+                <div>
+                    <Label htmlFor="appt-address">Adresse d’intervention (facultatif)</Label>
+                    <input id="appt-address" value={data.address} onChange={(e) => setData('address', e.target.value)} placeholder="Quartier, rue, repère… si vous vous déplacez chez le client" className={fieldClasses()} />
+                    <Err message={errors.address} />
+                </div>
 
                 <div>
                     <Label htmlFor="appt-notes">Notes</Label>

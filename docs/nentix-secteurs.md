@@ -6,7 +6,7 @@ Démo : `php artisan migrate` puis `php artisan demo:nentix-secteurs` (mot de pa
 | Secteur | Compte de démo | Commercial |
 |---|---|---|
 | Beauté et salons | `beaute@demo-nentix.test` | `beaute.commercial@demo-nentix.test` |
-| Sport et bien-être | `sport@demo-nentix.test` | `sport.commercial@demo-nentix.test` |
+| Fitness et bien-être | `sport@demo-nentix.test` | `sport.commercial@demo-nentix.test` |
 | Services pro et agences | `pro@demo-nentix.test` | `pro.commercial@demo-nentix.test` |
 | Boutiques | `boutique@demo-nentix.test` | — |
 
@@ -84,7 +84,7 @@ Vue **Tableau** : glisser-déposer natif HTML5 entre les colonnes (« Perdu » d
 `app/Support/SectorPresets.php`, `app/Support/AutoReplyDefaults.php`, `app/Services/{AutoReplies,WhatsAppConversation,Acquisition,SourceReport}.php`, `app/Jobs/ProcessWhatsAppWebhookJob.php`, `app/Console/Commands/{SendAppointmentReminders,SeedNentixSectorsDemo}.php`, `app/Http/Controllers/{ConversationController,AutoReplySettingsController,SourceReportController}.php`, pages `Discussions/Index`, `Settings/AutoReplies`, `Analytics/Sources`, migration `2026_11_09_100000_nentix_secteurs.php`, tests `tests/Feature/NentixSecteurs/`.
 
 ## 6. Site vitrine
-La dernière version du site NENTIX (`docs/Menentia doc/nentix-site.zip`, du 05/11) est désormais suivie dans `docs/nentix-site/` (Next.js, même `package.json` que l’ancien site). Mises à jour : les 4 secteurs (Beauté et salons, Sport et bien-être, Services pro et agences, Boutiques ; pages Santé et Services techniques retirées), solutions de chaque secteur réécrites autour des nouveaux workflows, fonctionnalités désormais disponibles (fiche au premier message et source de la pub, réponses automatiques, rappel à boutons, boîte de réception partagée, crédits de messages, tableau par source). `npx tsc` et `next build` passent. Lancement : `cd docs/nentix-site && npm install && npm run dev`.
+La dernière version du site NENTIX (`docs/Menentia doc/nentix-site.zip`, du 05/11) est désormais suivie dans `docs/nentix-site/` (Next.js, même `package.json` que l’ancien site). Mises à jour : les 4 secteurs (Beauté et salons, Fitness et bien-être, Services pro et agences, Boutiques ; pages Santé et Services techniques retirées), solutions de chaque secteur réécrites autour des nouveaux workflows, fonctionnalités désormais disponibles (fiche au premier message et source de la pub, réponses automatiques, rappel à boutons, boîte de réception partagée, crédits de messages, tableau par source). `npx tsc` et `next build` passent. Lancement : `cd docs/nentix-site && npm install && npm run dev`.
 
 ## 7. Accueil épuré (10/11/2026)
 L'Accueil ne garde que l'essentiel : bannière, « Pour bien démarrer » (tant qu'il n'est pas terminé), 4 chiffres clés selon le secteur, actions du jour (discussions et demandes à traiter, puis les listes de « À faire » les plus chargées) et, avec l'agenda, les prochains rendez-vous du jour.

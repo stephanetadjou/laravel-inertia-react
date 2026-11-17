@@ -9,6 +9,8 @@ import { InstallmentRow, PayButton, STATUS_PILL } from '../Installments/Index';
 import { SubscriptionRow, SubscriptionsTable } from '../Plans/Index';
 import SubscriptionModal, { SubscriptionFormOptions } from '../Plans/SubscriptionModal';
 import { ProspectCard, Stage, StageSelect } from '../Prospects/Index';
+import LocationCustomerTab, { LocationModuleProps } from '../Location/CustomerTab';
+import { EnrollModal, EnrollOptions, EXAM_PILL, ExamRow, hoursLabel, LEARNER_PILL, LearnerRow, Progress } from '../Learners/shared';
 
 export interface ScheduleRow {
     id: number;
@@ -53,6 +55,7 @@ export interface ModuleProps {
     beneficiaries?: BeneficiaryRow[];
     healthNote?: { visible: boolean; text: string | null; has_note: boolean };
     schedules?: ScheduleRow[] | null;
+    learnerModule?: (EnrollOptions & { trainings: LearnerRow[]; exams: ExamRow[] }) | null;
     prospectModule?: {
         stage: string | null;
         stage_label: string | null;
@@ -68,6 +71,7 @@ export interface ModuleProps {
         counts: { present: number; absent: number; excused: number };
         recent: { session_id: number; class: string | null; date: string | null; status: 'present' | 'absent' | 'excused' }[];
     } | null;
+    locationModule?: LocationModuleProps | null;
     subscriptionModule?: (SubscriptionFormOptions & { subscriptions: SubscriptionRow[] }) | null;
     paymentMethods: Record<string, string>;
     canEdit: boolean;
@@ -99,6 +103,11 @@ export function useModuleTabs(): ModuleTab[] {
         tabs.push({ key: 'attendance', label: 'Cours et présences', render: () => <AttendanceTab /> });
     }
 
+    if (props.learnerModule) {
+        const current = props.learnerModule.trainings.find((t) => t.status === 'active');
+        tabs.push({ key: 'learning', label: current ? `Formation · ${current.percent} %` : 'Formation', render: () => <LearningTab /> });
+    }
+
     if (props.prospectModule) {
         tabs.push({ key: 'prospect', label: props.prospectModule.stage_label ? `Suivi commercial · ${props.prospectModule.stage_label}` : 'Suivi commercial', render: () => <ProspectTab /> });
     }
@@ -108,12 +117,96 @@ export function useModuleTabs(): ModuleTab[] {
         tabs.push({ key: 'subscriptions', label: `Abonnements${current ? ` (${current})` : ''}`, render: () => <SubscriptionsTab /> });
     }
 
+    if (props.locationModule) {
+        tabs.push({ key: 'location', label: `Location (${props.locationModule.bookings.length})`, render: () => <LocationCustomerTab /> });
+    }
+
     if (props.schedules) {
         const late = props.schedules.flatMap((s) => s.installments).filter((i) => i.status === 'overdue').length;
         tabs.push({ key: 'schedules', label: `Échéances${late ? ` · ${late} en retard` : ''}`, render: () => <SchedulesTab /> });
     }
 
     return tabs;
+}
+
+/** Onglet « Formation » : parcours, heures faites, progression, examens. */
+function LearningTab() {
+    const { customer, learnerModule: m } = usePage<ModuleProps>().props;
+    const [enrolling, setEnrolling] = useState(false);
+    if (!m) return null;
+
+    return (
+        <section className="mdash-panel">
+            <div className="mdash-ph">
+                <div>
+                    <h2>Formations</h2>
+                    <span className="mdash-sub">Heures comptées depuis les leçons honorées et les présences aux cours</span>
+                </div>
+                <button type="button" className="mdash-btn brand" onClick={() => setEnrolling(true)}>
+                    Inscrire à une formation
+                </button>
+            </div>
+            {m.trainings.length > 0 && m.trainings.every((t) => t.status === 'completed') && (
+                <p className="mb-3 text-sm text-emerald-700">Formation terminée : plus de relance ni de campagne pour cet apprenant (seules les échéances encore dues restent).</p>
+            )}
+            {m.trainings.length === 0 ? (
+                <p className="text-sm text-gray-500">Pas encore inscrit à une formation.</p>
+            ) : (
+                <div className="mdash-tbl mpage-table">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Formation</th>
+                                <th>Heures</th>
+                                <th>Progression</th>
+                                <th>Prochain examen</th>
+                                <th>Statut</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {m.trainings.map((t) => (
+                                <tr key={t.id}>
+                                    <td className="cell-main">
+                                        <Link href={`/learners/${t.id}`}>
+                                            <b>{t.training}</b>
+                                        </Link>
+                                        <span className="block text-xs text-gray-500">
+                                            depuis le {formatDay(t.started_on)}
+                                            {t.staff ? ` · ${t.staff}` : ''}
+                                        </span>
+                                    </td>
+                                    <td className="num">{hoursLabel(t)}</td>
+                                    <td>
+                                        <Progress percent={t.percent} alert={t.alert !== null} />
+                                        {t.alert && <span className="mt-1 block text-xs text-error-600">{t.alert}</span>}
+                                    </td>
+                                    <td>{t.next_exam ? `${t.next_exam.type} · ${formatDay(t.next_exam.date)}` : '—'}</td>
+                                    <td>
+                                        <span className={`mdash-pill ${LEARNER_PILL[t.status]}`}>{t.status_label}</span>
+                                    </td>
+                                </tr>
+                            ))}
+                        </tbody>
+                    </table>
+                </div>
+            )}
+            {m.exams.length > 0 && (
+                <div className="mt-4">
+                    <h3 className="mb-2 text-sm font-semibold">Examens</h3>
+                    <ul className="space-y-1 text-sm">
+                        {m.exams.map((e) => (
+                            <li key={e.id} className="flex items-center gap-2">
+                                <span className={`mdash-pill ${EXAM_PILL[e.result]}`}>{e.result_label}</span>
+                                {e.type} · {formatDay(e.exam_on)}
+                                {e.attempt > 1 ? ` · tentative ${e.attempt}` : ''}
+                            </li>
+                        ))}
+                    </ul>
+                </div>
+            )}
+            {enrolling && <EnrollModal options={m} customer={{ id: customer.id, name: customer.name, phone: customer.phone_e164 }} onClose={() => setEnrolling(false)} />}
+        </section>
+    );
 }
 
 function ProspectTab() {

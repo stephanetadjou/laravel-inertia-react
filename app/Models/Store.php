@@ -115,8 +115,8 @@ class Store extends Model
     }
 
     /**
-     * Token qui accède au numéro : celui de Menentia pour un numéro géré par
-     * Menentia (compte partagé avec son portefeuille), sinon celui saisi par
+     * Token qui accède au numéro : celui de ClientlyX pour un numéro géré par
+     * ClientlyX (compte partagé avec son portefeuille), sinon celui saisi par
      * l'entreprise.
      */
     private function ownAccessToken(): ?string

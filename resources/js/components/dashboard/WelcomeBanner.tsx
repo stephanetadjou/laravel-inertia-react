@@ -10,7 +10,7 @@ interface BannerProps {
     [key: string]: unknown;
 }
 
-/** Bannière d'accueil NENTIX (inspirée du portail NEXUS) : salutation, pastilles, action principale. */
+/** Bannière d'accueil ClientlyX (inspirée du portail NEXUS) : salutation, pastilles, action principale. */
 export default function WelcomeBanner() {
     const { auth } = usePage<BannerProps>().props;
     const org = auth?.organization;
@@ -30,7 +30,7 @@ export default function WelcomeBanner() {
                 <span className="nx-chip nx-chip-glow">
                     {hello}, {org?.name ?? auth?.user?.name}
                 </span>
-                <h1>Bienvenue sur NENTIX !</h1>
+                <h1>Bienvenue sur ClientlyX !</h1>
                 <p>Connaissez vos clients, parlez-leur au bon moment et faites grandir votre activité : tout se pilote ici, simplement.</p>
                 <div className="nx-banner-chips">
                     {auth?.user && (

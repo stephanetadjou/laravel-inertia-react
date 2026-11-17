@@ -25,7 +25,9 @@ return Application::configure(basePath: dirname(__DIR__))
             EnsureOrganizationActive::class,
         ]);
 
-        $middleware->validateCsrfTokens(except: ['webhooks/*']);
+        $middleware->validateCsrfTokens(except: ['webhooks/*', 'c/*/clic']);
+
+        $middleware->trustProxies(at: '*');
 
         $middleware->alias([
             'can-manage-organization' => EnsureCanManageOrganization::class,

@@ -7,7 +7,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 /**
  * Modèle de correspondance des colonnes d'un fichier de ventes (colonne du
- * fichier => champ de Menentia), réutilisable d'un import à l'autre.
+ * fichier => champ de ClientlyX), réutilisable d'un import à l'autre.
  */
 class ImportMapping extends Model
 {

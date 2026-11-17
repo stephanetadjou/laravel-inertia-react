@@ -5,7 +5,7 @@ use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
 
 /**
- * Menentia Retail, fondations :
+ * ClientlyX Retail, fondations :
  * - organizations.currency / timezone : devise (XAF par défaut) et fuseau
  *   horaire (Africa/Libreville) de l'entreprise ;
  * - stores.code / city / is_active : code du point de vente (celui du

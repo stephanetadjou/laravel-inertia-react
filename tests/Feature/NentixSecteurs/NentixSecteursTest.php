@@ -24,7 +24,7 @@ use Illuminate\Support\Facades\Http;
 use Inertia\Testing\AssertableInertia as Assert;
 
 /*
- * NENTIX par secteur : préréglages, fiche auto + source de la pub, réponses
+ * ClientlyX par secteur : préréglages, fiche auto + source de la pub, réponses
  * automatiques et boutons, rappel de la veille, discussions, sources, crédits.
  */
 
@@ -107,6 +107,7 @@ it('registers with only the sector and prepares the four sectors', function (str
 })->with([
     'beauté' => ['beaute', ['rdv', 'rappels_rdv'], 'Nouveau contact'],
     'sport' => ['sport', ['abonnements', 'essai', 'seances_groupe'], 'Prospect'],
+    'formation' => ['formation', ['formation', 'ressources', 'seances_groupe', 'tranches'], 'Demande d’information'],
     'pro' => ['pro', ['prospects', 'relance_devis'], 'À contacter'],
     'boutiques' => ['boutique', ['familles', 'fidelite'], ''],
 ]);
@@ -328,14 +329,14 @@ it('reads keywords of short messages', function (string $text, ?string $option) 
     expect(AutoReplies::keywordOf($text))->toBe($option);
 })->with([['C’est combien la coupe ?', 'prix'], ['Vous êtes ouverts dimanche ?', 'horaires'], ['Je veux un rdv', 'rdv'], ['Merci beaucoup', null]]);
 
-it('creates the four sector demo companies and can replay', function () {
+it('creates the sector demo companies and can replay', function () {
     Artisan::call('demo:nentix-secteurs');
     Artisan::call('demo:nentix-secteurs');
 
     $orgs = Organization::where('slug', 'like', 'demo-nentix-%')->get();
-    expect($orgs)->toHaveCount(4)
-        ->and($orgs->pluck('sector')->sort()->values()->all())->toBe(['beaute', 'commerce', 'pro', 'sport'])
+    expect($orgs)->toHaveCount(7)
+        ->and($orgs->pluck('sector')->sort()->values()->all())->toBe(['beaute', 'commerce', 'immobilier', 'pro', 'sante', 'sport', 'technique'])
         ->and(User::where('email', 'beaute@demo-nentix.test')->count())->toBe(1)
-        ->and(Customer::whereIn('organization_id', $orgs->pluck('id'))->whereNotNull('acquisition_source')->count())->toBe(48)
-        ->and(Task::whereIn('organization_id', $orgs->pluck('id'))->whereNull('done_at')->count())->toBe(12);
+        ->and(Customer::whereIn('organization_id', $orgs->pluck('id'))->whereNotNull('acquisition_source')->count())->toBe(91)
+        ->and(Task::whereIn('organization_id', $orgs->pluck('id'))->whereNull('done_at')->count())->toBe(28);
 });

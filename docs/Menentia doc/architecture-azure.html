@@ -1,0 +1,123 @@
+<title>Architecture Azure Mercure Tech</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Sora:wght@600;700;800&family=Inter:wght@400;500;600&display=swap">
+<style>
+/* Layout : feuillets A4 empilés, même charte que le catalogue Mercure Tech */
+:root{--plum:#2B1A3D;--orange:#E8590C;--sun:#FFD43B;--cream:#FFF7EE;--muted:#6B5A7A;--line:#EADFCE;--paper:#FFFFFF;--bg:#EFE8DE;--display:'Sora',system-ui,sans-serif;--body:'Inter',system-ui,sans-serif}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#17101F;color-scheme:dark}}
+:root[data-theme="dark"]{--bg:#17101F;color-scheme:dark}
+body{background:var(--bg);color:var(--plum);font-family:var(--body);line-height:1.55}
+.book{max-width:900px;margin:0 auto;padding-block:32px 64px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));display:flex;flex-direction:column;gap:28px}
+.sheet{background:var(--paper);border-radius:6px;box-shadow:0 10px 30px rgba(43,26,61,.12);overflow:hidden}
+.pad{padding:clamp(24px,5vw,56px);display:flex;flex-direction:column;gap:18px}
+h1,h2,h3{font-family:var(--display);margin:0;letter-spacing:-.02em;text-wrap:balance;color:var(--plum)}
+h2{font-size:clamp(1.5rem,3.4vw,2rem)}h3{font-size:1.05rem}p{margin:0}
+.eyebrow{font:600 12px/1 var(--body);text-transform:uppercase;letter-spacing:.12em;color:var(--orange)}
+.muted{color:var(--muted)}
+.grid{display:grid;gap:14px}.g2{grid-template-columns:repeat(2,minmax(0,1fr))}.g3{grid-template-columns:repeat(3,minmax(0,1fr))}
+@media (max-width:680px){.g2,.g3{grid-template-columns:1fr}}
+.box{border:1px solid var(--line);border-radius:10px;padding:18px;display:flex;flex-direction:column;gap:6px;min-width:0}
+.box ul{margin:2px 0 0;padding-left:18px;color:var(--muted);font-size:14px}
+.cover{background:var(--plum);color:var(--cream)}.cover h1{color:var(--cream);font-size:clamp(2rem,5.5vw,3.2rem);line-height:1.08}
+.cover .muted{color:#CBBCD9}.band{height:10px;background:linear-gradient(90deg,var(--orange) 0 70%,var(--sun) 70%)}
+.scroll{overflow-x:auto}
+table{width:100%;border-collapse:collapse;font-size:14px;font-variant-numeric:tabular-nums}
+th,td{text-align:left;padding:9px 8px;border-bottom:1px solid var(--line);vertical-align:top}th{font-family:var(--display);font-size:13px}
+.foot{font-size:13px;color:var(--muted)}
+</style>
+<div class="book">
+
+<section class="sheet cover"><div class="pad" style="gap:22px">
+  <span class="eyebrow" style="color:var(--sun)">Mercure Tech · Dossier technique</span>
+  <h1>Architecture cloud sur Microsoft Azure</h1>
+  <p class="muted" style="max-width:60ch;font-size:1.05rem">Comment Mercure Tech héberge son site et l'écosystème ClientlyX : services utilisés, flux, sécurité, déploiement et coûts. Une architecture qui démarre petit et grandit sans être refaite.</p>
+  <p style="font-size:13px;color:#CBBCD9">Région principale : France Central · Région de secours : South Africa North</p>
+</div><div class="band"></div></section>
+
+<section class="sheet"><div class="pad">
+  <span class="eyebrow">Vue d'ensemble</span>
+  <h2>Schéma de l'architecture</h2>
+  <div class="scroll"><svg viewBox="0 0 820 520" style="min-width:680px;width:100%;height:auto" font-family="Inter" font-size="12">
+    <defs><marker id="a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0L10 5L0 10z" fill="#6B5A7A"/></marker></defs>
+    <g fill="#FFF7EE" stroke="#EADFCE"><rect x="10" y="10" width="800" height="54" rx="10"/></g>
+    <text x="410" y="42" text-anchor="middle" fill="#2B1A3D" font-weight="600">Visiteurs, clients et entreprises (navigateur, téléphone) · Meta WhatsApp Cloud API</text>
+    <rect x="10" y="90" width="800" height="54" rx="10" fill="#2B1A3D"/>
+    <text x="410" y="114" text-anchor="middle" fill="#FFF7EE" font-weight="600" font-family="Sora">Azure DNS + Azure Front Door</text>
+    <text x="410" y="132" text-anchor="middle" fill="#CBBCD9">HTTPS, certificat *.clientlyx.com, pare-feu web (WAF), cache</text>
+    <g font-weight="600">
+      <rect x="10" y="175" width="190" height="80" rx="10" fill="#FFF" stroke="#E8590C" stroke-width="2"/><text x="105" y="205" text-anchor="middle" fill="#2B1A3D">Static Web Apps</text><text x="105" y="225" text-anchor="middle" fill="#6B5A7A" font-weight="400">mercuretech…</text><text x="105" y="241" text-anchor="middle" fill="#6B5A7A" font-weight="400">clientlyx.com</text>
+      <rect x="220" y="175" width="380" height="80" rx="10" fill="#E8590C"/><text x="410" y="205" text-anchor="middle" fill="#fff">App Service Linux · Laravel (PHP 8.3)</text><text x="410" y="225" text-anchor="middle" fill="#FFE3D0" font-weight="400">app. · marketplace. · *.clientlyx.com · webhooks WhatsApp</text><text x="410" y="241" text-anchor="middle" fill="#FFE3D0" font-weight="400">emplacements production et staging</text>
+      <rect x="620" y="175" width="190" height="80" rx="10" fill="#FFF" stroke="#E8590C" stroke-width="2"/><text x="715" y="205" text-anchor="middle" fill="#2B1A3D">Container Apps</text><text x="715" y="225" text-anchor="middle" fill="#6B5A7A" font-weight="400">queue:work (envois)</text><text x="715" y="241" text-anchor="middle" fill="#6B5A7A" font-weight="400">schedule:run (chaque minute)</text>
+    </g>
+    <g font-weight="600">
+      <rect x="10" y="300" width="190" height="70" rx="10" fill="#FFD43B"/><text x="105" y="330" text-anchor="middle" fill="#2B1A3D">MySQL Flexible Server</text><text x="105" y="350" text-anchor="middle" fill="#2B1A3D" font-weight="400">réseau privé, sauvegardes</text>
+      <rect x="220" y="300" width="185" height="70" rx="10" fill="#FFD43B"/><text x="312" y="330" text-anchor="middle" fill="#2B1A3D">Blob Storage</text><text x="312" y="350" text-anchor="middle" fill="#2B1A3D" font-weight="400">imports, PDF, logos</text>
+      <rect x="415" y="300" width="185" height="70" rx="10" fill="#FFD43B"/><text x="507" y="330" text-anchor="middle" fill="#2B1A3D">Key Vault</text><text x="507" y="350" text-anchor="middle" fill="#2B1A3D" font-weight="400">tokens, clés, certificats</text>
+      <rect x="620" y="300" width="190" height="70" rx="10" fill="#FFD43B"/><text x="715" y="330" text-anchor="middle" fill="#2B1A3D">IA</text><text x="715" y="350" text-anchor="middle" fill="#2B1A3D" font-weight="400">Azure OpenAI, autres fournisseurs</text>
+    </g>
+    <g font-weight="600">
+      <rect x="10" y="410" width="395" height="70" rx="10" fill="#FFF7EE" stroke="#EADFCE"/><text x="207" y="440" text-anchor="middle" fill="#2B1A3D">Application Insights + Log Analytics</text><text x="207" y="460" text-anchor="middle" fill="#6B5A7A" font-weight="400">erreurs, lenteurs, alertes</text>
+      <rect x="415" y="410" width="395" height="70" rx="10" fill="#FFF7EE" stroke="#EADFCE"/><text x="612" y="440" text-anchor="middle" fill="#2B1A3D">GitHub Actions</text><text x="612" y="460" text-anchor="middle" fill="#6B5A7A" font-weight="400">tests → staging → migrate --force → bascule</text>
+    </g>
+    <g stroke="#6B5A7A" stroke-width="1.5" marker-end="url(#a)" fill="none">
+      <path d="M410 64v24"/><path d="M105 144v29"/><path d="M410 144v29"/><path d="M715 144v29"/>
+      <path d="M600 215h18"/><path d="M300 255v43"/><path d="M450 255v43"/><path d="M560 255v43"/><path d="M715 255v43"/><path d="M260 255C200 275 130 280 110 298"/>
+    </g>
+  </svg></div>
+  <p class="foot">Lecture : chaque requête passe par Front Door, puis vers le site statique ou l'application. Les envois WhatsApp et les tâches de nuit tournent à part, dans Container Apps, sur la même image que l'application.</p>
+</div></section>
+
+<section class="sheet"><div class="pad">
+  <span class="eyebrow">Les briques</span>
+  <h2>Qui fait quoi</h2>
+  <div class="scroll"><table>
+    <thead><tr><th>Espace</th><th>Service Azure</th><th>Rôle</th></tr></thead>
+    <tbody>
+      <tr><td>Site Mercure Tech</td><td>Static Web Apps</td><td>Site vitrine, HTTPS et domaine inclus ; formulaire vers l'API des demandes de ClientlyX</td></tr>
+      <tr><td>clientlyx.com</td><td>Static Web Apps</td><td>Site commercial, essai gratuit, demande de démo</td></tr>
+      <tr><td>app.clientlyx.com</td><td>App Service Linux</td><td>Le SaaS, avec un emplacement staging pour tester chaque version</td></tr>
+      <tr><td>marketplace.clientlyx.com</td><td>App Service (même app)</td><td>Vitrine publique des entreprises, reconnue par son nom de domaine</td></tr>
+      <tr><td>nom.clientlyx.com</td><td>Front Door + App Service</td><td>Site de chaque entreprise, sous-domaine joker, noms réservés protégés</td></tr>
+      <tr><td>Envois et tâches</td><td>Container Apps</td><td>File d'attente WhatsApp, rapport du soir, recalculs de nuit</td></tr>
+      <tr><td>Données</td><td>MySQL Flexible Server</td><td>Base unique, accès privé, sauvegardes automatiques</td></tr>
+      <tr><td>Fichiers</td><td>Blob Storage</td><td>Imports Excel, rapports PDF, logos</td></tr>
+      <tr><td>Secrets</td><td>Key Vault</td><td>Tokens WhatsApp, clés IA, clé de l'application, certificat joker</td></tr>
+    </tbody>
+  </table></div>
+</div></section>
+
+<section class="sheet"><div class="pad">
+  <span class="eyebrow">Confiance</span>
+  <h2>Sécurité et continuité</h2>
+  <div class="grid g2">
+    <div class="box"><h3>Données protégées</h3><ul><li>Base de données sur réseau privé, jamais exposée</li><li>Identifiants WhatsApp chiffrés et secrets dans Key Vault</li><li>Accès des services par identité managée, sans mot de passe</li></ul></div>
+    <div class="box"><h3>Trafic filtré</h3><ul><li>HTTPS partout, pare-feu web devant l'application</li><li>Webhooks WhatsApp signés et vérifiés</li><li>Quotas contre les abus sur les pages publiques</li></ul></div>
+    <div class="box"><h3>Continuité</h3><ul><li>Sauvegardes de la base de 7 à 35 jours</li><li>Mise en production sans coupure par bascule d'emplacement</li><li>Retour arrière immédiat en cas de problème</li></ul></div>
+    <div class="box"><h3>Supervision</h3><ul><li>Alertes sur erreurs, lenteurs et file bloquée</li><li>Journal d'audit dans l'application</li><li>Jamais de remise à zéro de la base en production</li></ul></div>
+  </div>
+</div></section>
+
+<section class="sheet"><div class="pad">
+  <span class="eyebrow">Mise en œuvre</span>
+  <h2>Déploiement par étapes et coûts</h2>
+  <div class="grid g3">
+    <div class="box"><span class="eyebrow">Étape 1</span><h3>Lancement</h3><p class="muted">Sites statiques, application, Container Apps, MySQL, Blob, Key Vault, Application Insights.</p></div>
+    <div class="box"><span class="eyebrow">Étape 2</span><h3>Sites d'entreprise</h3><p class="muted">Ajout de Front Door, du DNS joker et du certificat *.clientlyx.com.</p></div>
+    <div class="box"><span class="eyebrow">Étape 3</span><h3>Croissance</h3><p class="muted">Marketplace, cache Redis, montée en gamme de la base, réplica en Afrique du Sud si besoin.</p></div>
+  </div>
+  <div class="scroll"><table>
+    <thead><tr><th>Poste</th><th>Étape 1 (par mois)</th></tr></thead>
+    <tbody>
+      <tr><td>Static Web Apps (2 sites)</td><td>0 $</td></tr>
+      <tr><td>App Service Linux (P0v3)</td><td>~ 60 à 80 $</td></tr>
+      <tr><td>Container Apps (file et tâches)</td><td>~ 10 à 30 $</td></tr>
+      <tr><td>MySQL Flexible Server (B1ms)</td><td>~ 15 à 25 $</td></tr>
+      <tr><td>Blob, Key Vault, Application Insights</td><td>~ 10 à 20 $</td></tr>
+      <tr><td><b>Total lancement</b></td><td><b>~ 100 à 155 $</b></td></tr>
+      <tr><td>Front Door Standard (étape 2)</td><td>+ ~ 35 $ et le trafic</td></tr>
+    </tbody>
+  </table></div>
+  <p class="foot">Estimations indicatives, à confirmer avec le calculateur de prix Azure. Microsoft et Azure sont des marques de Microsoft Corporation.</p>
+</div></section>
+
+</div>

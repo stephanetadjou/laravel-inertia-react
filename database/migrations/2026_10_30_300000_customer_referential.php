@@ -6,7 +6,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 
 /**
- * Référentiel client (Menentia Retail) :
+ * Référentiel client (ClientlyX Retail) :
  * - customer_phones : numéros d'une fiche (principal, anciens numéros avec
  *   leur période de validité, numéro partagé par plusieurs personnes) ;
  *   repris de customers.phone_e164 et customers.previous_phones ;

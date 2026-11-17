@@ -29,14 +29,14 @@ export function NavDropdown({ label, children }: { label: string; children: Reac
         type="button"
         aria-expanded={open}
         onClick={() => setOpen((o) => !o)}
-        className={`inline-flex h-[72px] items-center gap-1 whitespace-nowrap px-4 text-[15px] font-medium hover:text-white ${open ? 'text-white' : 'text-white/90'}`}
+        className={`inline-flex h-[72px] items-center gap-1 whitespace-nowrap px-4 text-[15px] font-medium hover:text-blue-text ${open ? 'text-navy' : 'text-muted'}`}
       >
         {label} <Icon name="chevron" className={`h-4 w-4 transition ${open ? 'rotate-180' : ''}`} />
       </button>
       {/* Panneau toujours dans le HTML (référencement, aperçu statique), masqué tant qu'il est fermé. */}
       <div hidden={!open} className="absolute inset-x-0 top-full" onClick={(e) => (e.target as HTMLElement).closest('a') && setOpen(false)}>
         <div className="mx-auto w-full max-w-[1320px] px-5 sm:px-8">
-          <div className="rounded-b-2xl border border-t-0 border-white/10 bg-[#0B2540] p-6 shadow-float">{children}</div>
+          <div className="rounded-b-2xl border border-t-0 border-line bg-[#0B2540] p-6 shadow-float">{children}</div>
         </div>
       </div>
     </div>

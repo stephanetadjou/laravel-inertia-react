@@ -10,7 +10,7 @@ use Symfony\Component\HttpFoundation\Response;
 /**
  * Entreprise suspendue depuis le back-office plateforme : ses utilisateurs
  * ne voient plus qu'une page « compte suspendu » (déconnexion possible).
- * Les super-admins Menentia gardent l'accès à /admin.
+ * Les super-admins ClientlyX gardent l'accès à /admin.
  */
 class EnsureOrganizationActive
 {

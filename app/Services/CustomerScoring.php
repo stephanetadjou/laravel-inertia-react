@@ -174,6 +174,13 @@ class CustomerScoring
             $raise((clone $late)->select('payment_schedules.customer_id'), 'high');
             $raise((clone $late)->whereNotNull('payment_schedules.beneficiary_id')->select('payment_schedules.beneficiary_id'), 'high');
         }
+
+        // Centre de formation : un apprenant qui a terminé sa formation ne « part » pas, il a fini.
+        if ($organization->hasModule('formation')) {
+            DB::table('customers')->where('organization_id', $organization->id)
+                ->whereIn('id', Learners::trainedQuery($organization->id))
+                ->update(['churn_risk' => null]);
+        }
     }
 
     /**

@@ -23,6 +23,8 @@ use App\Models\Purchase;
 use App\Models\StaffMember;
 use App\Models\Store;
 use App\Models\User;
+use App\Modules\Location\Services\LocationCustomer;
+use App\Modules\Location\Services\LocationSegments;
 use App\Services\ActionLists;
 use App\Services\CustomerLifecycle;
 use App\Services\CustomerScoring;
@@ -303,12 +305,17 @@ class CustomerController extends Controller
             ...$this->scheduleProps($customer, $user, $storeIds),
             // Suivi des prospects : étape, commercial, historique des passages.
             'prospectModule' => $this->prospectProps($customer, $user),
+            'locationModule' => LocationCustomer::forCustomer($customer, $user),
             // Cours suivis et présences (module « seances_groupe »).
             'attendanceModule' => $user->organization->hasModule('seances_groupe') ? ClassController::forCustomer($customer) : null,
             // Abonnements de la fiche et formulaire d'abonnement (module « abonnements »).
             'subscriptionModule' => $user->organization->hasModule('abonnements')
                 ? ['subscriptions' => PlanController::forCustomer($customer, $user), ...PlanController::formOptions($user)]
                 : null,
+            // Parcours de formation, heures et examens (module « formation »).
+            'learnerModule' => $user->organization->hasModule('formation') ? LearnerController::forCustomer($customer, $user) : null,
+            // Véhicules, salles, matériel proposés à la prise de rendez-vous (module « ressources »).
+            'resources' => $user->organization->hasModule('ressources') ? ResourceController::options($user->organization_id) : [],
             'apiEnabled' => $user->organization->usesWhatsAppApi(),
             'appointments' => $customer->appointments()->whereIn('store_id', $storeIds)
                 ->with(AppointmentController::RELATIONS)
@@ -435,6 +442,11 @@ class CustomerController extends Controller
             }
             foreach (GroupClass::where('organization_id', $organization->id)->where('active', true)->orderBy('name')->get(['id', 'name']) as $class) {
                 $options[] = ['value' => "class:{$class->id}", 'label' => "Inscrits : {$class->name}"];
+            }
+        }
+        if ($organization->hasModule('location')) {
+            foreach (LocationSegments::SEGMENTS as $key => $label) {
+                $options[] = ['value' => "location:{$key}", 'label' => $label];
             }
         }
 

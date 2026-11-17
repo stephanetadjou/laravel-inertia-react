@@ -3,7 +3,7 @@
 namespace Database\Seeders;
 
 /**
- * Profils des entreprises de démonstration Menentia Retail (données
+ * Profils des entreprises de démonstration ClientlyX Retail (données
  * fictives) : groupe de mode à Libreville, chaîne de restaurants,
  * distributeur de produits de grande consommation. Utilisés par
  * `php artisan demo:retail` (App\Console\Commands\SeedRetailDemo).

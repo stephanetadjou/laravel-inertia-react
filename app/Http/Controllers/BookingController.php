@@ -41,6 +41,11 @@ class BookingController extends Controller
 
     public function show(Request $request, Organization $organization): Response
     {
+        // Lien public « Que souhaitez-vous ? » : page d'accueil du lien ; ?rdv=1 ouvre la prise de rendez-vous.
+        if (\App\Support\OnlinePage::isEnabled($organization) && ! $request->boolean('rdv')) {
+            return app(OnlinePageController::class)->show($request, $organization);
+        }
+
         // Page fermée (ou sans prestation réservable) : explication plutôt qu'une erreur 404,
         // avec le chemin du réglage pour un membre de l'entreprise connecté.
         $closed = ! $organization->bookingSettings()['enabled'] ? 'closed' : ($this->services($organization)->isEmpty() ? 'no_services' : null);
@@ -58,6 +63,7 @@ class BookingController extends Controller
 
         return Inertia::render('Booking/Show', [
             'organization' => ['name' => $organization->name, 'slug' => $organization->slug],
+            'rideRequestUrl' => $organization->hasModule('location') ? url("/rdv/{$organization->slug}/course") : null,
             'welcome' => $settings['welcome'],
             'stores' => $stores->map(fn (Store $s) => ['id' => $s->id, 'name' => $s->name])->values(),
             'services' => $this->services($organization)->map(fn (CatalogItem $item) => [

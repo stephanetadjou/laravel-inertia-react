@@ -329,7 +329,7 @@ it('shows the webhook URL on the tunnel address when one is configured', functio
     expect($store->webhookUrl())->toBe("https://abcd.ngrok-free.app/webhooks/whatsapp/{$store->webhook_key}");
 });
 
-it('gives the step-by-step guide the NENTIX support contact', function () {
+it('gives the step-by-step guide the ClientlyX support contact', function () {
     config(['services.menentia.support_whatsapp' => '+241 77 00 00 00']);
     $organization = Organization::factory()->create(['name' => 'Salon Awa']);
     connectedStore($organization);

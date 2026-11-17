@@ -9,7 +9,7 @@ use Database\Seeders\MenentiaDemoSeeder;
 use Illuminate\Console\Command;
 
 /**
- * Charge (ou recharge) l'entreprise fictive « Menentia Solutions digitales »
+ * Charge (ou recharge) l'entreprise fictive « ClientlyX Solutions digitales »
  * (suivi des prospects et des commerciaux). Seule cette entreprise est
  * supprimée puis recréée.
  */
@@ -17,7 +17,7 @@ class SeedMenentiaDemo extends Command
 {
     protected $signature = 'demo:menentia {--force : Autoriser l\'exécution en production}';
 
-    protected $description = 'Charge l’entreprise fictive « Menentia Solutions digitales » (prospects, commerciaux)';
+    protected $description = 'Charge l’entreprise fictive « ClientlyX Solutions digitales » (prospects, commerciaux)';
 
     public function handle(): int
     {

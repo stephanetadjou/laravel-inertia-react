@@ -28,6 +28,8 @@ interface CreateCampaignModalProps {
     templates: TemplateOption[];
     /** Groupes présélectionnés (ex. « Créer une campagne » depuis la page Groupes). */
     initialGroupIds?: string[];
+    /** Message libre prérempli (ex. « Envoyer à un segment » depuis un tunnel de vente). */
+    initialText?: string;
 }
 
 function fieldClasses() {
@@ -42,7 +44,7 @@ function toggleButtonClasses(active: boolean) {
     }`;
 }
 
-export default function CreateCampaignModal({ isOpen, onClose, stores, groups, templates, initialGroupIds = [] }: CreateCampaignModalProps) {
+export default function CreateCampaignModal({ isOpen, onClose, stores, groups, templates, initialGroupIds = [], initialText = '' }: CreateCampaignModalProps) {
     const { data, setData, post, processing, errors, reset } = useForm<{
         name: string;
         description: string;
@@ -71,13 +73,13 @@ export default function CreateCampaignModal({ isOpen, onClose, stores, groups, t
         import_store_id: stores[0] ? stores[0].id.toString() : '',
         file: null,
         confirm_consent: false,
-        message_type: 'template',
+        message_type: initialText ? 'text' : 'template',
         template_name: templates[0]?.name ?? '',
         template_id: templates[0] ? String(templates[0].id) : '',
         template_variables: [],
         header_image: null,
         header_image_url: '',
-        text_body: '',
+        text_body: initialText,
         gender: '',
         lifecycle_stages: [],
         vip_only: false,

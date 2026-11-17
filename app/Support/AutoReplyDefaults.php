@@ -49,11 +49,42 @@ class AutoReplyDefaults
             'welcome' => 'Bonjour {prenom} 💇‍♀️ Bienvenue chez {boutique} ! Que souhaitez-vous ?',
             'options' => ['prix', 'rdv', 'horaires', 'humain'],
         ],
+        'sante' => [
+            'welcome' => 'Bonjour {prenom}, bienvenue chez {boutique}. Prendre rendez-vous, nos horaires ou parler au secrétariat : que souhaitez-vous ?',
+            'options' => ['rdv', 'horaires', 'humain'],
+            'labels' => ['rdv' => 'Prendre rendez-vous', 'humain' => 'Parler au secrétariat'],
+        ],
+        'optique' => [
+            'welcome' => 'Bonjour {prenom} 👓 Bienvenue chez {boutique} ! Examen de vue, nouvelles lunettes ou suivi de votre commande : que souhaitez-vous ?',
+            'options' => ['rdv', 'prix', 'horaires', 'humain'],
+            'labels' => ['rdv' => 'Examen de vue'],
+        ],
+        'technique' => [
+            'welcome' => 'Bonjour {prenom}, bienvenue chez {boutique} ! Entretien, réparation ou devis : que souhaitez-vous ?',
+            'options' => ['prix', 'rdv', 'rappel', 'humain'],
+            'labels' => ['rdv' => 'Passage à l’atelier'],
+            'callback_reply' => 'Merci {prenom}, un mécanicien vous rappelle dans la journée pour parler de votre véhicule.',
+        ],
         'sport' => [
             'welcome' => 'Bonjour {prenom} 💪 Bienvenue chez {boutique} ! Une séance d’essai vous tente ?',
             'options' => ['prix', 'rdv', 'horaires', 'humain'],
             'labels' => ['rdv' => 'Séance d’essai'],
             'booking_reply' => 'Réservez votre séance d’essai ici : {lien_rdv}',
+        ],
+        'formation' => [
+            'welcome' => 'Bonjour {prenom} 🎓 Bienvenue chez {boutique} ! Tarifs, inscription ou prochaine leçon : que souhaitez-vous ?',
+            'options' => ['prix', 'rdv', 'horaires', 'humain'],
+            'labels' => ['rdv' => 'Réserver une leçon'],
+        ],
+        'vehicules' => [
+            'welcome' => 'Bonjour {prenom}, bienvenue chez {boutique} ! Location, achat d’un véhicule ou contrat en cours : que souhaitez-vous ?',
+            'options' => ['prix', 'rappel', 'horaires', 'humain'],
+            'callback_reply' => 'Merci {prenom}, un conseiller vous rappelle dans la journée avec les véhicules disponibles.',
+        ],
+        'location' => [
+            'welcome' => 'Bonjour {prenom}, bienvenue chez {boutique} ! Vous souhaitez louer (dates, type de véhicule, avec ou sans chauffeur) ou acheter un véhicule ?',
+            'options' => ['prix', 'rappel', 'horaires', 'humain'],
+            'callback_reply' => 'Merci {prenom}, un conseiller vous rappelle dans la journée avec les véhicules disponibles et un devis.',
         ],
         'pro' => [
             'welcome' => 'Bonjour {prenom}, merci de contacter {boutique}. Comment pouvons-nous vous aider ?',

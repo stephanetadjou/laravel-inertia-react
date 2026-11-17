@@ -37,39 +37,39 @@
     --text-theme-xs: 12px;
     --text-theme-xs--line-height: 18px;
 
-    /* Marque NENTIX (charte du 05/11/2026) : bleu #1D4ED8, cyan #06B6D4, bleu nuit #0B1F3A. Ancien bleu-vert Menentia (28/10/2026) : bleu
+    /* Marque ClientlyX (14/11/2026, « Soleil et prune ») : orange #E8590C (boutons, foncé #C94A08 sous texte blanc), jaune #FFD43B (accent), prune #2B1A3D (textes forts, menu sombre). Avant : NENTIX bleu #1D4ED8, cyan #06B6D4, bleu nuit #0B1F3A. Ancien bleu-vert ClientlyX (28/10/2026) : bleu
        #0E7BD6 pour la marque et les boutons, vert #00C896 en accent (logo,
        dégradé), bleu nuit #0B2D4A pour les titres, fond #F4F8FB. En petit
        texte sur fond blanc : bleu foncé #0A66B2 et vert foncé #007A5C. */
-    --color-brand: #1d4ed8; /* logo, grands aplats, titres colorés de 24 px et plus */
-    --color-brand-strong: #1d4ed8; /* boutons principaux, texte blanc dessus */
-    --color-brand-text: #1d4ed8; /* petit texte, liens, sur fond clair */
-    --color-brand-green: #06b6d4; /* accent, dégradé du logo */
-    --color-brand-green-text: #0e7490; /* petit texte vert sur fond blanc */
-    --color-ink-strong: #0b1f3a; /* titres, bleu nuit */
-    --color-ink: #0b1f3a;
+    --color-brand: #e8590c; /* logo, grands aplats, titres colorés de 24 px et plus */
+    --color-brand-strong: #c94a08; /* boutons principaux, texte blanc dessus */
+    --color-brand-text: #b8460a; /* petit texte, liens, sur fond clair */
+    --color-brand-green: #ffd43b; /* accent, dégradé du logo */
+    --color-brand-green-text: #8a5a00; /* petit texte vert sur fond blanc */
+    --color-ink-strong: #2b1a3d; /* titres, bleu nuit */
+    --color-ink: #2b1a3d;
     --color-ink-muted: #475569;
-    --color-accent: #06b6d4; /* décor, élément actif */
-    --color-tint: #dbe6fe;
+    --color-accent: #ffd43b; /* décor, élément actif */
+    --color-tint: #fdeee4;
     --color-surface-soft: #f4f7fb;
     --color-line: #e2e8f0;
-    --color-focus: #0b1f3a;
-    --color-focus-dark: #93b4fd;
+    --color-focus: #2b1a3d;
+    --color-focus-dark: #f7a774;
 
     /* Échelle brand-* des classes existantes (bg-brand-500 pour les boutons,
        text-brand-text pour les liens…), alignée sur les tokens ci-dessus. */
-    --color-brand-25: #f5f8ff;
-    --color-brand-50: #eff4ff;
-    --color-brand-100: #dbe6fe;
-    --color-brand-200: #bfd2fe;
-    --color-brand-300: #93b4fd;
-    --color-brand-400: #5b8cf6;
-    --color-brand-500: #1d4ed8;
-    --color-brand-600: #1b43b8;
-    --color-brand-700: #183a9e;
-    --color-brand-800: #1a3278;
-    --color-brand-900: #0b1f3a;
-    --color-brand-950: #071428;
+    --color-brand-25: #fffaf5;
+    --color-brand-50: #fff4ec;
+    --color-brand-100: #fde6d6;
+    --color-brand-200: #fbcbaa;
+    --color-brand-300: #f7a774;
+    --color-brand-400: #f07d3e;
+    --color-brand-500: #e8590c;
+    --color-brand-600: #c94a08;
+    --color-brand-700: #a63d08;
+    --color-brand-800: #7c2d12;
+    --color-brand-900: #2b1a3d;
+    --color-brand-950: #1e1229;
 
     --color-blue-light-25: #f5fbff;
     --color-blue-light-50: #f0f9ff;

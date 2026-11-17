@@ -6,7 +6,7 @@ import { notFound } from 'next/navigation';
 import { Icon } from '@/components/Icon';
 import { SectorOrb, Timeline } from '@/components/SectorVisuals';
 import { BookingMock, CampagneMock, ClientMock, DashboardMock, RelancesMock, SegmentsMock, WhatsAppMock, WithPhone } from '@/components/mockups';
-import { CtaBand, PricingCards } from '@/components/sections';
+import { CtaBand, PricingCards, ResourceDetail } from '@/components/sections';
 import { Button, Container, SectionTitle, StatusBadge } from '@/components/ui';
 import { families, links, type Family } from '@/lib/site';
 
@@ -31,6 +31,8 @@ const visuals: Record<string, ReactNode> = {
   technique: <WithPhone main={<ClientMock />} phone={<WhatsAppMock />} />,
   pro: <WithPhone main={<SegmentsMock />} phone={<WhatsAppMock />} />,
   boutiques: <WithPhone main={<SegmentsMock />} phone={<CampagneMock />} />,
+  formation: <WithPhone main={<ClientMock />} phone={<WhatsAppMock />} />,
+  vehicules: <WithPhone main={<DashboardMock />} phone={<WhatsAppMock />} />,
 };
 
 const steps = [
@@ -145,7 +147,7 @@ export default async function FamilyPage({ params }: Props) {
           </div>
           <SectionTitle
             title="À chaque difficulté, une réponse précise."
-            lead={live === f.solutions.length ? 'Toutes ces réponses sont déjà disponibles dans l’application.' : `${live} réponses sur ${f.solutions.length} sont déjà disponibles dans l’application. Les autres arrivent avec le module ${f.short}, et sont signalées « Bientôt ».`}
+            lead={live === f.solutions.length ? 'Toutes ces réponses sont déjà disponibles dans l’application.' : live === 0 ? `Ces réponses arrivent avec le module ${f.short}, en cours de développement.` : `${live} réponses sur ${f.solutions.length} sont déjà disponibles dans l’application. Les autres arrivent avec le module ${f.short}, et sont signalées « Bientôt ».`}
           />
           <ol className="flex flex-col divide-y divide-line overflow-hidden rounded-3xl border border-line">
             {f.solutions.map((s, i) => (
@@ -168,6 +170,12 @@ export default async function FamilyPage({ params }: Props) {
               </li>
             ))}
           </ol>
+        </Container>
+      </section>
+
+      <section id="ressource" className="scroll-mt-20 border-t border-line py-20">
+        <Container>
+          <ResourceDetail family={f} />
         </Container>
       </section>
 

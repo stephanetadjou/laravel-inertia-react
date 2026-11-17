@@ -1,5 +1,5 @@
 /*
- * Éléments communs du back-office plateforme NENTIX (/admin).
+ * Éléments communs du back-office plateforme ClientlyX (/admin).
  */
 
 export interface AdminOrganization {

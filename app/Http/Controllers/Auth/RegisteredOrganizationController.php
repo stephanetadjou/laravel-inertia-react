@@ -9,6 +9,7 @@ use App\Models\Organization;
 use App\Models\Role;
 use App\Models\Store;
 use App\Models\User;
+use App\Modules\CarteDigitale\Services\DigitalCards;
 use App\Support\SectorPresets;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -31,9 +32,24 @@ use Inertia\Response;
  */
 class RegisteredOrganizationController extends Controller
 {
-    public function create(): Response
+    public function create(Request $request): Response
     {
+        // Venue du créateur de carte du site vitrine (?offre=carte&nom=…) : la carte
+        // sera créée et préremplie juste après l'inscription.
+        $cardDraft = null;
+        if ($request->query('offre') === 'carte') {
+            $cardDraft = collect($request->only(['nom', 'poste', 'entreprise', 'whatsapp', 'email', 'couleur', 'facebook', 'instagram', 'tiktok', 'linkedin', 'youtube', 'x']))
+                ->map(fn ($v) => is_string($v) ? mb_substr(trim($v), 0, 120) : null)->filter()->all();
+            $request->session()->put('card_draft', $cardDraft);
+        }
+
         return Inertia::render('Auth/Register', [
+            'prefill' => $cardDraft === null ? null : [
+                'name' => $cardDraft['nom'] ?? '',
+                'organization_name' => $cardDraft['entreprise'] ?? '',
+                'email' => filter_var($cardDraft['email'] ?? null, FILTER_VALIDATE_EMAIL) ?: '',
+                'offer' => 'carte',
+            ],
             // Inscription publique : secteurs de prestations de services (le commerce n'est plus proposé).
             'sectors' => collect(Organization::PUBLIC_SECTORS)->map(fn ($key) => [
                 'key' => $key,
@@ -41,6 +57,12 @@ class RegisteredOrganizationController extends Controller
                 'description' => Organization::SECTORS[$key]['description'],
                 'modules' => SectorPresets::PRESETS[$key]['modules'] ?? Organization::SECTORS[$key]['modules'],
                 'module_labels' => collect(SectorPresets::PRESETS[$key]['modules'] ?? [])->map(fn ($m) => Organization::MODULES[$m]['label'])->values(),
+            ])->values(),
+            'families' => collect(Organization::FAMILIES)->map(fn ($f, $key) => [
+                'key' => $key,
+                'label' => $f['label'],
+                'sector' => $f['sector'],
+                'metiers' => collect($f['metiers'])->map(fn ($sector, $label) => ['label' => $label, 'sector' => $sector])->values(),
             ])->values(),
             // « Comment travaillez-vous ? » : une réponse oui coche le module.
             'questions' => collect(Organization::WORK_QUESTIONS)->map(fn ($question, $module) => ['module' => $module, 'question' => $question])->values(),
@@ -66,6 +88,7 @@ class RegisteredOrganizationController extends Controller
             'answers' => ['nullable', 'array'],
             'answers.*' => ['boolean'],
             'ai_agents' => ['nullable', 'boolean'],
+            'activity' => ['nullable', 'string', 'max:120'],
             ...ModuleController::settingsRules(),
         ]);
 
@@ -87,6 +110,9 @@ class RegisteredOrganizationController extends Controller
                 'name' => $validated['organization_name'],
                 'slug' => $slug,
                 'sector' => $validated['sector'],
+                'activity' => $validated['activity'] ?? null,
+                // Analyse seule : imports de ventes réguliers depuis le logiciel de caisse.
+                'usage_mode' => $validated['sector'] === 'commerce' ? 'analyse' : 'complete',
                 // Sans compte Meta vérifié au départ : relances manuelles par lien wa.me,
                 // l'API WhatsApp s'active plus tard dans Organisation.
                 'whatsapp_api_enabled' => false,
@@ -134,6 +160,14 @@ class RegisteredOrganizationController extends Controller
 
         Auth::login($user);
         $request->session()->regenerate();
+
+        // Carte digitale commencée sur le site vitrine : créée, puis ouverte pour finir.
+        if (is_array($draft = $request->session()->pull('card_draft'))) {
+            $card = DigitalCards::createFromDraft($user->organization, $user->id, $draft);
+
+            return redirect()->route('cards.edit', $card)
+                ->with('success', 'Bienvenue ! Votre carte digitale est prête : ajoutez votre photo puis partagez-la.');
+        }
 
         return redirect()->route('dashboard.index')
             ->with('success', 'Bienvenue ! Connectez maintenant le numéro WhatsApp de votre établissement.');

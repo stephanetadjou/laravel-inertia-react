@@ -7,7 +7,7 @@ import { families } from '@/lib/site';
 
 export const metadata: Metadata = {
   title: 'Activités',
-  description: 'Beauté et salons, sport et bien-être, services pro et agences, boutiques : choisissez votre secteur, NENTIX se prépare tout seul.',
+  description: 'Beauté et salons, fitness et bien-être, services pro et agences, boutiques : choisissez votre secteur, NENTIX se prépare tout seul.',
   alternates: { canonical: '/activites' },
 };
 

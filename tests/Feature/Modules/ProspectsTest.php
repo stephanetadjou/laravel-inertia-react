@@ -18,7 +18,7 @@ beforeEach(function () {
     $this->organization->setModules(['rdv', 'catalogue', 'prospects']);
     $this->organization->save();
     $brand = Brand::factory()->create(['organization_id' => $this->organization->id]);
-    $this->store = Store::factory()->create(['organization_id' => $this->organization->id, 'brand_id' => $brand->id, 'name' => 'Menentia Libreville']);
+    $this->store = Store::factory()->create(['organization_id' => $this->organization->id, 'brand_id' => $brand->id, 'name' => 'ClientlyX Libreville']);
     $this->director = User::factory()->create(['organization_id' => $this->organization->id, 'role_id' => defaultRole($this->organization, 'Super administrateur')->id]);
     $role = Role::create(['organization_id' => $this->organization->id, 'name' => 'Commercial', 'scope' => Role::SCOPE_ORGANIZATION, 'own_records_only' => true]);
     $this->alice = User::factory()->create(['organization_id' => $this->organization->id, 'role_id' => $role->id, 'name' => 'Alice']);

@@ -2,6 +2,9 @@
 
 return [
 
+    // Phase de test : sélecteur d'entreprise de démo par secteur dans la barre du haut (jamais en production).
+    'demo_switcher' => env('DEMO_SWITCHER', false),
+
     /*
     |--------------------------------------------------------------------------
     | Third Party Services
@@ -37,15 +40,15 @@ return [
 
     // Site vitrine : retour après le formulaire de démo, et adresse qui reçoit les demandes.
     'menentia' => [
-        'site_url' => env('MENENTIA_SITE_URL', 'https://menentia.com'),
+        'site_url' => env('MENENTIA_SITE_URL', 'https://clientlyx.com'),
         'leads_email' => env('MENENTIA_LEADS_EMAIL'),
         // Affiché aux entreprises suspendues.
-        'support_email' => env('MENENTIA_SUPPORT_EMAIL', 'contact@menentia.com'),
+        'support_email' => env('MENENTIA_SUPPORT_EMAIL', 'contact@clientlyx.com'),
         // Lien « Besoin d'aide ? » (numéro WhatsApp du support, format international sans +) ; à défaut, l'email.
         'support_whatsapp' => env('MENENTIA_SUPPORT_WHATSAPP'),
     ],
 
-    // NENTIX : coût par défaut d'un message marketing (FCFA), modifiable par entreprise dans /admin.
+    // ClientlyX : coût par défaut d'un message marketing (FCFA), modifiable par entreprise dans /admin.
     'nentix' => [
         'marketing_message_cost' => (int) env('NENTIX_MARKETING_MESSAGE_COST', 50),
     ],
@@ -61,9 +64,9 @@ return [
         // l'URL de rappel affichée, quand l'app tourne derrière un tunnel en
         // local. Vide : APP_URL.
         'webhook_base_url' => env('WHATSAPP_WEBHOOK_BASE_URL'),
-        // App Meta de Menentia, pour les numéros « gérés par Menentia » (le
-        // client partage son compte WhatsApp avec le portefeuille Menentia) :
-        // token permanent de l'utilisateur système Menentia, App Secret qui
+        // App Meta de ClientlyX, pour les numéros « gérés par ClientlyX » (le
+        // client partage son compte WhatsApp avec le portefeuille ClientlyX) :
+        // token permanent de l'utilisateur système ClientlyX, App Secret qui
         // signe le webhook unique /webhooks/whatsapp et son jeton de
         // vérification (à recopier dans l'app Meta).
         'platform' => [

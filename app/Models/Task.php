@@ -6,7 +6,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 /**
- * Tâche de « À faire » créée par NENTIX (client qui veut parler à quelqu'un,
+ * Tâche de « À faire » créée par ClientlyX (client qui veut parler à quelqu'un,
  * demande de rappel, rendez-vous à recaser, relance de devis…). Elle quitte
  * la liste quand elle est faite (done_at).
  */
@@ -16,6 +16,9 @@ class Task extends Model
         'talk_to_human' => 'Parler à quelqu’un',
         'callback' => 'Être rappelé',
         'reschedule' => 'Rendez-vous à recaser',
+        'card_contact' => 'Contact reçu par la carte digitale',
+        'ride_request' => 'Demande de course en ligne',
+        'online_request' => 'Demande reçue par le lien en ligne',
         'other' => 'Autre',
     ];
 

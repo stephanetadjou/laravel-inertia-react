@@ -75,6 +75,7 @@ it('adapts the key figures to the sector', function (string $sector, array $keys
 })->with([
     'beauté' => ['beaute', ['appointments_today', 'to_confirm', 'to_recall', 'revenue']],
     'sport' => ['sport', ['appointments_today', 'active_subscriptions', 'overdue', 'new_contacts']],
+    'formation' => ['formation', ['appointments_today', 'learners', 'exams', 'dropping']],
     'pro' => ['pro', ['open_prospects', 'quotes', 'to_recall', 'revenue']],
     'boutiques' => ['commerce', ['revenue', 'buyers', 'at_risk', 'new_contacts']],
 ]);

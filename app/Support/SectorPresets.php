@@ -6,7 +6,7 @@ use App\Models\Organization;
 use App\Models\Role;
 
 /**
- * Préréglages par secteur : à l'inscription, NENTIX active les modules du
+ * Préréglages par secteur : à l'inscription, ClientlyX active les modules du
  * secteur, crée les étapes de suivi, les réponses automatiques et les
  * messages de relance. Rejouable sans doublon : une seconde application ne
  * touche plus aux modules (l'entreprise les a peut-être changés dans
@@ -35,6 +35,38 @@ class SectorPresets
                 'prospect_followup' => 'Bonjour {prenom}, ici {boutique}. Souhaitez-vous que nous vous réservions un créneau cette semaine ?',
             ],
         ],
+        'sante' => [
+            'modules' => ['rdv', 'catalogue', 'reponses_auto', 'rappels_rdv', 'relance_cycle'],
+            'optional' => ['beneficiaires', 'tranches', 'lieux'],
+            'stages' => [],
+            'messages' => [
+                'service_cycle' => 'Bonjour {prenom}, ici {boutique}. Votre dernier {prestation} date de {jours} jours : c’est le moment de votre contrôle. On vous réserve un créneau ?',
+                'no_show' => 'Bonjour {prenom}, nous ne vous avons pas vu à votre rendez-vous du {date_rdv} chez {boutique}. Souhaitez-vous en fixer un nouveau ?',
+            ],
+        ],
+        'optique' => [
+            'modules' => ['rdv', 'catalogue', 'produits', 'stock', 'factures', 'reponses_auto', 'rappels_rdv', 'relance_cycle'],
+            'optional' => ['tranches', 'caisse', 'depenses', 'beneficiaires'],
+            'stages' => [],
+            'messages' => [
+                'service_cycle' => 'Bonjour {prenom}, ici {boutique}. Votre dernier examen de vue date de {jours} jours : c’est le moment de vérifier votre vue. On vous réserve un créneau ?',
+                'quote_followup' => 'Bonjour {prenom}, ici {boutique}. Avez-vous pu regarder le devis de vos lunettes ? Nous pouvons lancer la commande dès votre accord.',
+            ],
+        ],
+        'technique' => [
+            'modules' => ['rdv', 'catalogue', 'reponses_auto', 'rappels_rdv', 'relance_cycle', 'relance_devis', 'prospects'],
+            'optional' => ['tranches', 'lieux'],
+            'stages' => [
+                ['key' => 'demande', 'label' => 'Demande de devis', 'kind' => 'a_contacter', 'delay_days' => 1],
+                ['key' => 'devis_envoye', 'label' => 'Devis envoyé', 'kind' => 'en_discussion', 'delay_days' => 3],
+                ['key' => 'accepte', 'label' => 'Devis accepté', 'kind' => 'gagne', 'delay_days' => 0],
+                ['key' => 'perdu', 'label' => 'Pas donné suite', 'kind' => 'perdu', 'delay_days' => 0],
+            ],
+            'messages' => [
+                'service_cycle' => 'Bonjour {prenom}, ici {boutique}. Votre dernière {prestation} date de {jours} jours : pensez au prochain entretien. On vous réserve un passage à l’atelier ?',
+                'quote_followup' => 'Bonjour {prenom}, ici {boutique}. Avez-vous pu regarder notre devis pour votre véhicule ? Nous pouvons le prendre dès cette semaine.',
+            ],
+        ],
         'sport' => [
             'modules' => ['rdv', 'abonnements', 'essai', 'seances_groupe', 'tranches', 'catalogue', 'prospects', 'reponses_auto'],
             'optional' => ['fidelite', 'beneficiaires', 'lieux'],
@@ -48,6 +80,41 @@ class SectorPresets
             'messages' => [
                 'prospect_followup' => 'Bonjour {prenom}, merci d’être venu(e) à la séance d’essai chez {boutique} ! Prêt(e) à continuer ? Nous pouvons préparer votre abonnement dès aujourd’hui.',
             ],
+        ],
+        'formation' => [
+            'modules' => ['formation', 'rdv', 'seances_groupe', 'abonnements', 'tranches', 'catalogue', 'ressources', 'prospects', 'reponses_auto', 'rappels_rdv'],
+            'optional' => ['beneficiaires', 'lieux', 'fidelite'],
+            'stages' => [
+                ['key' => 'demande', 'label' => 'Demande d’information', 'kind' => 'a_contacter', 'delay_days' => 1],
+                ['key' => 'devis', 'label' => 'Tarifs envoyés', 'kind' => 'en_discussion', 'delay_days' => 3],
+                ['key' => 'visite', 'label' => 'Venu au centre', 'kind' => 'en_discussion', 'delay_days' => 2],
+                ['key' => 'inscrit', 'label' => 'Inscrit', 'kind' => 'gagne', 'delay_days' => 0],
+                ['key' => 'perdu', 'label' => 'Pas donné suite', 'kind' => 'perdu', 'delay_days' => 0],
+            ],
+            'messages' => [
+                'prospect_followup' => 'Bonjour {prenom}, ici {boutique}. Avez-vous pu regarder nos formules ? Les inscriptions sont ouvertes : nous pouvons fixer votre première leçon dès cette semaine.',
+            ],
+        ],
+        'vehicules' => [
+            'modules' => ['vehicules', 'ressources', 'tranches', 'prospects', 'reponses_auto'],
+            'optional' => ['lieux', 'agents_ia'],
+            // Acheteurs d'un véhicule : de la demande à la vente.
+            'stages' => [
+                ['key' => 'interesse', 'label' => 'Intéressé', 'kind' => 'a_contacter', 'delay_days' => 2],
+                ['key' => 'essai', 'label' => 'Essai fait', 'kind' => 'en_discussion', 'delay_days' => 3],
+                ['key' => 'offre', 'label' => 'Offre faite', 'kind' => 'en_discussion', 'delay_days' => 3],
+                ['key' => 'vendu', 'label' => 'Vendu', 'kind' => 'gagne', 'delay_days' => 0],
+                ['key' => 'perdu', 'label' => 'Pas donné suite', 'kind' => 'perdu', 'delay_days' => 0],
+            ],
+            'messages' => [
+                'prospect_followup' => 'Bonjour {prenom}, ici {boutique}. Le véhicule qui vous intéressait est toujours disponible : souhaitez-vous l’essayer cette semaine ?',
+            ],
+        ],
+        'location' => [
+            'modules' => ['location', 'vehicules', 'factures', 'tranches', 'caisse', 'reponses_auto', 'tunnels'],
+            'optional' => ['lieux', 'depenses', 'agents_ia'],
+            'stages' => [],
+            'messages' => [],
         ],
         'pro' => [
             'modules' => ['prospects', 'relance_devis', 'reponses_auto'],

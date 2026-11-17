@@ -15,6 +15,7 @@ use App\Models\LoyaltyProgram;
 use App\Models\Purchase;
 use App\Models\Store;
 use App\Models\User;
+use App\Modules\Location\Services\LocationSegments;
 use Closure;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
@@ -225,7 +226,7 @@ class CustomerSearch
         $this->loyaltyTier = $tier === '' ? null : (ctype_digit($tier) ? (int) $tier : $tier);
 
         $follow = (string) ($filters['follow'] ?? '');
-        $this->follow = preg_match('/^(unpaid|ending:\d{1,3}|absent:\d{1,2}|class:\d+)$/', $follow) ? $follow : null;
+        $this->follow = preg_match('/^(unpaid|ending:\d{1,3}|absent:\d{1,2}|class:\d+|location:[a-z]{3,12})$/', $follow) ? $follow : null;
 
         $articleId = (int) ($filters['article'] ?? 0);
         $this->article = $articleId ? Article::where('organization_id', $user->organization_id)->find($articleId) : null;
@@ -338,6 +339,7 @@ class CustomerSearch
             ->unionAll((clone $query)->whereNotNull("{$table}.beneficiary_id")->select("{$table}.beneficiary_id as id")), 'ids')->select('id');
 
         return match ($kind) {
+            'location' => LocationSegments::query($organizationId, (string) $value),
             'unpaid' => $both(DB::table('installments')->join('payment_schedules', 'payment_schedules.id', '=', 'installments.payment_schedule_id')
                 ->where('payment_schedules.organization_id', $organizationId)->where('payment_schedules.status', 'active')
                 ->whereNull('installments.paid_at')->where('installments.due_on', '<', $today), 'payment_schedules'),
@@ -363,6 +365,7 @@ class CustomerSearch
             'unpaid' => 'Tranche en retard',
             'ending' => "Abonnement finissant dans {$value} j",
             'absent' => "Absent {$value} fois en 30 j",
+            'location' => LocationSegments::label((string) $value),
             default => 'Inscrits : '.(GroupClass::whereKey((int) $value)->value('name') ?? 'cours'),
         };
     }
@@ -470,6 +473,8 @@ class CustomerSearch
         return Contact::query()
             ->where($this->contactScope())
             ->where('contacts.consent_status', 'opt_in')
+            // Centre de formation : pas de campagne aux apprenants qui ont terminé leur formation.
+            ->when($this->user->organization->hasModule('formation'), fn ($q) => $q->whereNotIn('contacts.customer_id', Learners::trainedQuery($this->user->organization_id)))
             ->where(fn ($q) => $q->whereIn('contacts.customer_id', $matched()->select('customers.id'))
                 ->orWhereIn('contacts.customer_id', $matched()->whereNotNull('customers.responsible_id')->select('customers.responsible_id')));
     }

@@ -5,7 +5,7 @@ use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
 
 /**
- * Menentia Retail : tickets de vente et import des ventes v2.
+ * ClientlyX Retail : tickets de vente et import des ventes v2.
  *
  * Les tickets restent dans `purchases` (1 achat = 1 ticket) et leurs lignes
  * dans `purchase_items` : l'encaissement d'un rendez-vous, la fidélité, le

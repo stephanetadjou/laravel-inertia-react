@@ -38,6 +38,7 @@ class ProspectController extends Controller
         $ownerFilter = $user->ownRecordsOnly() ? $user->id : ($request->integer('owner') ?: null);
         $q = trim((string) $request->query('q', ''));
         $lateOnly = $request->boolean('late');
+        $source = array_key_exists((string) $request->query('source'), Customer::SOURCES) ? (string) $request->query('source') : null;
 
         // Gagnés et perdus : seulement ceux des 30 derniers jours dans le tableau.
         $finals = $stages->whereIn('kind', ['gagne', 'perdu'])->pluck('key')->all();
@@ -45,6 +46,7 @@ class ProspectController extends Controller
             ->whereIn('prospect_stage', $stages->pluck('key'))
             ->where(fn ($w) => $w->whereNotIn('prospect_stage', $finals)->orWhere('prospect_stage_at', '>=', now()->subDays(30)))
             ->when($ownerFilter, fn ($w) => $w->where('owner_user_id', $ownerFilter))
+            ->when($source, fn ($w) => $w->where('acquisition_source', $source))
             ->when($q !== '', fn ($w) => $w->where(fn ($s) => $s->where('name', 'like', "%{$q}%")->orWhere('company_name', 'like', "%{$q}%")->orWhere('phone_e164', 'like', '%'.ltrim(preg_replace('/\D+/', '', $q), '0').'%')))
             ->with('owner:id,name')
             ->orderBy('prospect_stage_at')
@@ -57,7 +59,8 @@ class ProspectController extends Controller
         return Inertia::render('Prospects/Index', [
             'stages' => $stages,
             'prospects' => $customers,
-            'filters' => ['owner' => $ownerFilter, 'q' => $q, 'late' => $lateOnly, 'view' => $request->query('view') === 'list' ? 'list' : 'kanban'],
+            'sources' => collect(Customer::SOURCES)->map(fn ($label, $key) => ['value' => $key, 'label' => $label])->values(),
+            'filters' => ['owner' => $ownerFilter, 'source' => $source, 'q' => $q, 'late' => $lateOnly, 'view' => $request->query('view') === 'list' ? 'list' : 'kanban'],
             'owners' => $user->ownRecordsOnly() ? [] : self::salesPeople($organization),
             'stores' => Store::whereIn('id', PlanController::storeIds($user))->orderBy('name')->get(['id', 'name']),
             'canAssign' => ! $user->ownRecordsOnly(),
@@ -230,6 +233,7 @@ class ProspectController extends Controller
             'lost_reason' => $c->lost_reason,
             'owner' => $c->owner?->name,
             'owner_id' => $c->owner_user_id,
+            'source' => $c->sourceLabel(),
             'whatsapp_url' => $phone ? ActionLists::whatsappUrl($phone, '') : null,
         ];
     }

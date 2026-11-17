@@ -34,7 +34,7 @@ use PhpOffice\PhpSpreadsheet\Spreadsheet;
 use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
 
 /**
- * Charge une entreprise de démonstration Menentia Retail (données fictives),
+ * Charge une entreprise de démonstration ClientlyX Retail (données fictives),
  * en passant par le vrai moteur d'import des ventes : fichiers de caisse
  * trimestriels (dont un avec des lignes en erreur, un au format Excel),
  * un import annulé, retours, tickets annulés, ventes anonymes, clients
@@ -57,7 +57,7 @@ class SeedRetailDemo extends Command
         {--tickets= : Nombre de tickets à générer (défaut selon le type)}
         {--force : Autoriser l’exécution en production}';
 
-    protected $description = 'Charge une entreprise de démonstration Menentia Retail (données fictives, via le moteur d’import)';
+    protected $description = 'Charge une entreprise de démonstration ClientlyX Retail (données fictives, via le moteur d’import)';
 
     private array $profile;
 

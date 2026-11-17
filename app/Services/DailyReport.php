@@ -115,6 +115,8 @@ class DailyReport
             'modules' => $this->modules($day),
             // Suivi des commerciaux : journée de chacun et retard sur l'objectif à date.
             'sales_team' => $this->salesTeam($day),
+            // Moteur d'occupation : creux, saturations et ressources immobilisées à partir de demain.
+            'occupation' => $this->occupation($day->copy()->addDay()),
         ];
 
         $report['summary'] = $this->summary($report);
@@ -565,6 +567,23 @@ class DailyReport
         ])->all();
     }
 
+    /** @return array{creux: int, saturation: int, immobilisation: int, top: list<array<string, mixed>>}|null */
+    private function occupation(Carbon $from): ?array
+    {
+        if (! Occupation::applies($this->organization)) {
+            return null;
+        }
+
+        $signals = collect((new Occupation($this->organization, $this->storeIds))->signals($from));
+
+        return [
+            'creux' => $signals->where('type', 'creux')->count(),
+            'saturation' => $signals->where('type', 'saturation')->count(),
+            'immobilisation' => $signals->where('type', 'immobilisation')->count(),
+            'top' => $signals->take(5)->values()->all(),
+        ];
+    }
+
     private function actions(array $r): array
     {
         $actions = [];
@@ -602,6 +621,15 @@ class DailyReport
 
         if (($r['tomorrow']['free_slots'] ?? 0) > 0) {
             $actions[] = "**Remplir les {$r['tomorrow']['free_slots']} créneaux libres de demain** : proposez-les aux clients « Fidèles » qui ne sont pas revenus depuis 3 semaines.";
+        }
+
+        $idle = collect($r['occupation']['top'] ?? [])->where('type', 'immobilisation')->first();
+        if ($idle) {
+            $actions[] = "**Faire sortir {$idle['label']}** : ".mb_strtolower($idle['detail']).'. Proposez-la aux clients qui l’ont déjà réservée.';
+        }
+
+        if (($r['occupation']['saturation'] ?? 0) > 0) {
+            $actions[] = "**{$r['occupation']['saturation']} journée(s) ou cours saturés** à venir : proposez un autre moment aux clients qui réservent.";
         }
 
         if ($r['target'] && $r['target']['remaining'] > 0 && $r['target']['remaining_days'] > 0) {

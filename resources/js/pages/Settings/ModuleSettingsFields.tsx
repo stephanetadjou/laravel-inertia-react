@@ -10,6 +10,7 @@ export interface ModuleSettingsValues {
     tranches: { due_day: number; reminders: number[] };
     beneficiaires: { label: string; minor_needs_responsible: boolean };
     fidelite: { points_per_attendance: number };
+    formation?: { dropout_days: number; behind_percent: number };
 }
 
 export const WEEKDAYS = ['Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi', 'Dimanche'];
@@ -143,6 +144,21 @@ export function ModuleSettingsFields({
                 <legend className="mb-1 text-xs font-semibold tracking-wide text-gray-500 uppercase">Fidélité</legend>
                 <Label text="Points par présence à un cours" hint="0 = les points ne viennent que des achats" error={err('fidelite.points_per_attendance')}>
                     <input type="number" min={0} className={field} value={values.fidelite.points_per_attendance} onChange={(e) => set('fidelite', { points_per_attendance: Number(e.target.value) })} />
+                </Label>
+            </fieldset>,
+        );
+    }
+
+    if (enabled.includes('formation')) {
+        const formation = values.formation ?? { dropout_days: 14, behind_percent: 30 };
+        blocks.push(
+            <fieldset key="formation" className="space-y-3">
+                <legend className="mb-1 text-xs font-semibold tracking-wide text-gray-500 uppercase">Suivi des apprenants</legend>
+                <Label text="Décrochage après (jours)" hint="sans leçon ni présence, ni leçon à venir" error={err('formation.dropout_days')}>
+                    <input type="number" min={3} className={field} value={formation.dropout_days} onChange={(e) => onChange({ ...values, formation: { ...formation, dropout_days: Number(e.target.value) } })} />
+                </Label>
+                <Label text="Retard signalé à (points)" hint="écart entre la progression faite et celle attendue à la date" error={err('formation.behind_percent')}>
+                    <input type="number" min={5} max={100} className={field} value={formation.behind_percent} onChange={(e) => onChange({ ...values, formation: { ...formation, behind_percent: Number(e.target.value) } })} />
                 </Label>
             </fieldset>,
         );

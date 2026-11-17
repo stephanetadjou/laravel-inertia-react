@@ -104,7 +104,7 @@ function AdminLeads() {
         >
             <Panel>
                 {leads.data.length === 0 ? (
-                    <Empty title="Aucune demande">Les demandes du formulaire menentia.com/contact arrivent ici.</Empty>
+                    <Empty title="Aucune demande">Les demandes du formulaire clientlyx.com/contact arrivent ici.</Empty>
                 ) : (
                     <div className="mdash-tbl mpage-table">
                         <table>

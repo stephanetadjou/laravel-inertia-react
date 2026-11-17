@@ -157,7 +157,7 @@ it('targets customers by family, lapsed family, never bought family and property
 it('hides the agenda for retail and shows the sector at registration', function () {
     // Inscription publique : 4 secteurs, dont les Boutiques (clé commerce).
     $this->get('/register')->assertInertia(fn ($page) => $page->has('sectors', count(Organization::PUBLIC_SECTORS))
-        ->where('sectors', fn ($sectors) => collect($sectors)->contains('label', 'Boutiques')));
+        ->where('sectors', fn ($sectors) => collect($sectors)->contains('label', 'Analyser mes données clients')));
 
     [$organization, $user] = familiesSetup();
 

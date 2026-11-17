@@ -18,10 +18,10 @@ export const WHATSAPP_DISPLAY = '+241 XX XX XX XX';
 export const brand = {
   name: 'NENTIX',
   promise: 'Connaissez vos clients. Parlez-leur au bon moment. Faites grandir votre activité.',
-  category: 'La plateforme d’intelligence client des PME africaines',
+  category: 'The AI Customer Growth Platform for Africa',
   signature: 'Connecter · Fidéliser · Développer',
   description:
-    'NENTIX est la plateforme d’intelligence client des PME africaines : vos clients, vos ventes et vos échanges WhatsApp dans une seule application, pour savoir chaque jour qui relancer, qui récompenser et qui ne revient plus.',
+    'NENTIX, The AI Customer Growth Platform for Africa : le CRM intelligent qui transforme vos interactions clients, vos données et WhatsApp en croissance mesurable. Vos clients, vos ventes et vos échanges WhatsApp dans une seule application, pour savoir chaque jour qui relancer, qui récompenser et qui ne revient plus.',
 };
 
 export type Status = 'dispo' | 'bientot';
@@ -253,7 +253,7 @@ export const discoverMenu: MenuItem[] = [
   { icon: 'store', label: 'Marketplace', href: MARKETPLACE_URL },
 ];
 
-export { families, type Family } from './families';
+export { families, leadActivity, type Family } from './families';
 
 export type Plan = {
   id: string;

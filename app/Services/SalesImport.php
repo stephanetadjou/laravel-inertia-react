@@ -26,13 +26,13 @@ use Illuminate\Validation\ValidationException;
 use Throwable;
 
 /**
- * Import des ventes v2 (Menentia Retail, utilisable par tous les secteurs).
+ * Import des ventes v2 (ClientlyX Retail, utilisable par tous les secteurs).
  *
  * 1. upload()   : le fichier est gardé dans le stockage privé avec son
  *                 empreinte sha256 ; un fichier déjà importé est refusé
  *                 (sauf si son lot a été annulé).
  * 2. validate() : les colonnes du fichier sont associées aux champs de
- *                 Menentia (mapping, réutilisable), chaque ligne est lue et
+ *                 ClientlyX (mapping, réutilisable), chaque ligne est lue et
  *                 enregistrée (import_rows) : valide, rejetée (avec code et
  *                 message par n° de ligne) ou doublon d'un ticket déjà importé.
  * 3. confirm()  : le traitement part en file d'attente (ProcessSalesImportJob).
@@ -57,7 +57,7 @@ use Throwable;
 class SalesImport
 {
     /**
-     * Champs de Menentia proposés au mapping : libellé, aide et en-têtes
+     * Champs de ClientlyX proposés au mapping : libellé, aide et en-têtes
      * reconnus automatiquement (comparés sans accents ni ponctuation).
      *
      * @var array<string, array{label: string, help: string, aliases: list<string>}>

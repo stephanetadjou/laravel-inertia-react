@@ -21,6 +21,7 @@ interface Service {
 interface PageProps {
     organization: { name: string; slug: string };
     welcome: string;
+    rideRequestUrl?: string | null;
     stores: { id: number; name: string }[];
     services: Service[];
     privacyUrl: string;
@@ -33,7 +34,7 @@ const dayLabel = (day: string) => {
     return label.charAt(0).toUpperCase() + label.slice(1);
 };
 
-export default function BookingShow({ organization, welcome, stores, services, privacyUrl }: PageProps) {
+export default function BookingShow({ organization, welcome, stores, services, privacyUrl, rideRequestUrl }: PageProps) {
     const { data, setData, post, processing, errors, transform } = useForm({
         store: stores[0]?.id ?? 0,
         items: [] as number[],
@@ -114,6 +115,11 @@ export default function BookingShow({ organization, welcome, stores, services, p
                     <p>{welcome || 'Prenez rendez-vous en ligne, en moins d’une minute.'}</p>
                 </div>
             </header>
+            {rideRequestUrl && (
+                <a href={rideRequestUrl} className="mbook-step block text-center font-semibold">
+                    🚗 Demander une course ou un transfert
+                </a>
+            )}
 
             <form onSubmit={submit} className="mbook-form">
                 <section className="mbook-step">
@@ -243,7 +249,7 @@ export default function BookingShow({ organization, welcome, stores, services, p
             </form>
 
             <footer className="mbook-foot">
-                <MenentiaSymbol className="h-4 w-4" /> Réservation par NENTIX
+                <MenentiaSymbol className="h-4 w-4" /> Réservation par ClientlyX
             </footer>
         </div>
     );

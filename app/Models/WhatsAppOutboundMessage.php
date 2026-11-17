@@ -5,7 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
-/** Message de session ou réponse automatique envoyé depuis NENTIX (hors campagnes). */
+/** Message de session ou réponse automatique envoyé depuis ClientlyX (hors campagnes). */
 class WhatsAppOutboundMessage extends Model
 {
     protected $table = 'whatsapp_outbound_messages';

@@ -6,9 +6,9 @@ use App\Http\Controllers\Concerns\ValidatesImportFile;
 use App\Models\Brand;
 use App\Models\Category;
 use App\Models\ImportBatch;
-use App\Models\Organization;
 use App\Models\ImportMapping;
 use App\Models\ImportRow;
+use App\Models\Organization;
 use App\Models\Role;
 use App\Models\Store;
 use App\Models\User;
@@ -57,7 +57,7 @@ class SalesImportController extends Controller
     {
         $user = $this->authorizeImport($request);
         if (! $user->organization->salesImportOpen()) {
-            return back()->with('error', 'La reprise de l’historique est terminée : les ventes se saisissent maintenant dans NENTIX. Un administrateur peut la rouvrir dans Paramètres › Modules.');
+            return back()->with('error', 'La reprise de l’historique est terminée : les ventes se saisissent maintenant dans ClientlyX. Un administrateur peut la rouvrir dans Paramètres › Modules.');
         }
 
         $stores = $this->visibleStores($user);
@@ -127,7 +127,7 @@ class SalesImportController extends Controller
         $user = $this->authorizeBatch($request, $batch);
 
         if (! $user->organization->salesImportOpen()) {
-            return back()->with('error', 'La reprise de l’historique est terminée : les ventes se saisissent maintenant dans NENTIX. Un administrateur peut la rouvrir dans Paramètres › Modules.');
+            return back()->with('error', 'La reprise de l’historique est terminée : les ventes se saisissent maintenant dans ClientlyX. Un administrateur peut la rouvrir dans Paramètres › Modules.');
         }
 
         if (! $batch->isOpen()) {
@@ -176,7 +176,7 @@ class SalesImportController extends Controller
         $user = $this->authorizeBatch($request, $batch);
 
         if (! $user->organization->salesImportOpen()) {
-            return back()->with('error', 'La reprise de l’historique est terminée : les ventes se saisissent maintenant dans NENTIX. Un administrateur peut la rouvrir dans Paramètres › Modules.');
+            return back()->with('error', 'La reprise de l’historique est terminée : les ventes se saisissent maintenant dans ClientlyX. Un administrateur peut la rouvrir dans Paramètres › Modules.');
         }
 
         if ($batch->status !== ImportBatch::STATUS_VALIDATED) {
@@ -267,7 +267,7 @@ class SalesImportController extends Controller
         $organization = $request->user()->organization;
         $organization->forceFill(['history_import_closed_at' => now()])->save();
 
-        return redirect('/dashboard')->with('success', 'Reprise de l’historique terminée : vos ventes se saisissent maintenant dans NENTIX.');
+        return redirect('/dashboard')->with('success', 'Reprise de l’historique terminée : vos ventes se saisissent maintenant dans ClientlyX.');
     }
 
     public function reopenHistory(Request $request): RedirectResponse

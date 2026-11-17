@@ -14,7 +14,7 @@ use App\Models\Store;
 
 /**
  * « Pour bien démarrer » : les premières étapes d'une entreprise, selon ses
- * modules, cochées toutes seules quand la donnée existe. Menentia se met en
+ * modules, cochées toutes seules quand la donnée existe. ClientlyX se met en
  * place sans l'équipe technique ; chaque étape mène à l'écran qui la fait.
  */
 class Onboarding
@@ -33,13 +33,13 @@ class Onboarding
         $words = $org->hasModule('beneficiaires') ? mb_strtolower($org->beneficiaryLabel(true)) : 'clients';
         $steps = [];
 
-        // Secteur NENTIX : le choix du secteur suffit, ses modules sont déjà en place.
+        // Secteur ClientlyX : le choix du secteur suffit, ses modules sont déjà en place.
         if ($org->sector_preset_applied_at === null) {
             $steps[] = ['key' => 'modules', 'label' => 'Vérifier vos modules', 'help' => 'Cochez ce que vous utilisez (rendez-vous, cours, abonnements…) : le menu s’adapte.', 'url' => '/settings/modules',
                 'done' => ! empty($org->modules['reviewed'])];
         }
 
-        // Secteurs NENTIX : WhatsApp d'abord (fiche auto, source de la pub, réponses automatiques).
+        // Secteurs ClientlyX : WhatsApp d'abord (fiche auto, source de la pub, réponses automatiques).
         if ($org->sector_preset_applied_at !== null || $has('reponses_auto')) {
             $steps[] = ['key' => 'whatsapp', 'label' => 'Connecter WhatsApp', 'help' => 'Le numéro de votre établissement : chaque client qui écrit a sa fiche, avec la pub qui l’a fait venir.', 'url' => $org->usesWhatsAppApi() ? '/settings/whatsapp?guide=1' : '/organisation',
                 'done' => $org->usesWhatsAppApi() && Store::where('organization_id', $id)->whereNotNull('whatsapp_phone_number_id')->exists()];

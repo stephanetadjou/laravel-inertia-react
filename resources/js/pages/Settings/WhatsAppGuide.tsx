@@ -61,7 +61,7 @@ const STEPS: Step[] = [
     },
     {
         key: 'nentix',
-        title: 'Tout saisir dans NENTIX et tester',
+        title: 'Tout saisir dans ClientlyX et tester',
         items: [
             'Remplissez le formulaire de votre établissement ci-dessous, puis « Enregistrer » et « Tester ».',
             <>Recopiez l’URL de rappel et le jeton de vérification dans l’app › WhatsApp › <b>Configuration</b> › Webhook, puis abonnez le champ « messages ».</>,
@@ -99,7 +99,7 @@ function readDone(): Record<string, boolean> {
 
 export function helpUrl(help: SupportHelp, step?: string): string | null {
     const text =
-        `Bonjour NENTIX, j'ai besoin d'aide pour connecter WhatsApp` +
+        `Bonjour ClientlyX, j'ai besoin d'aide pour connecter WhatsApp` +
         (help.organization ? ` (compte ${help.organization})` : '') +
         (step ? `. Je bloque à l'étape : ${step}` : '') +
         '.';
@@ -113,7 +113,7 @@ export function HelpButton({ help, step, className = 'mdash-btn sm' }: { help: S
     if (!url) return null;
     return (
         <a href={url} target="_blank" rel="noopener noreferrer" className={className}>
-            Me faire aider par NENTIX
+            Me faire aider par ClientlyX
         </a>
     );
 }
@@ -161,7 +161,7 @@ export default function WhatsAppGuide({ help, defaultOpen }: { help: SupportHelp
             {open && (
                 <div className="space-y-6 p-5 text-sm text-gray-700 dark:text-gray-300">
                     <p>
-                        Vous pouvez le faire seul en suivant ces étapes. Si vous bloquez, l’équipe NENTIX vous accompagne par WhatsApp ou lors d’une
+                        Vous pouvez le faire seul en suivant ces étapes. Si vous bloquez, l’équipe ClientlyX vous accompagne par WhatsApp ou lors d’une
                         séance à distance.
                     </p>
 

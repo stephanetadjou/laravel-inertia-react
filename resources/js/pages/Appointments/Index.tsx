@@ -1,6 +1,7 @@
 import { Link, router, usePage } from '@inertiajs/react';
 import { useEffect, useMemo, useState } from 'react';
 
+import useIsMobile from '../../layout/useIsMobile';
 import AppLayout from '../../layout/AppLayout';
 import { Page, PlusIcon } from '../../components/page/Page';
 import AppointmentFormModal, { AppointmentRow, CatalogEntry, StaffOption, formatPrice } from '../../components/appointments/AppointmentFormModal';
@@ -211,6 +212,12 @@ function EventCard({ appointment: a, statuses, multiStore, onClose, onEdit, onCh
                     )}
                     <dt>Téléphone</dt>
                     <dd className="mono">{a.phone_e164}</dd>
+                    {a.address && (
+                        <>
+                            <dt>Adresse</dt>
+                            <dd>{a.address}</dd>
+                        </>
+                    )}
                     {a.notes && (
                         <>
                             <dt>Notes</dt>
@@ -676,6 +683,43 @@ const ICONS = {
     list: icon('M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01'),
 };
 
+/** Téléphone : la semaine en bande, un jour = un tap ; ‹ › change de semaine. */
+function DayStrip({ date, view, today, counts, onDay, onWeek }: { date: string; view: View; today: string; counts: Record<string, unknown[]>; onDay: (d: string) => void; onWeek: (d: string) => void }) {
+    const monday = mondayOf(parseDay(date));
+    const days = Array.from({ length: 7 }, (_, i) => addDays(monday, i));
+    const label = monday.toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' });
+    return (
+        <div className="mag-strip">
+            <div className="mag-strip-head">
+                <button type="button" aria-label="Semaine précédente" onClick={() => onWeek(iso(addDays(monday, -7)))}>
+                    ‹
+                </button>
+                <b>{label}</b>
+                <button type="button" className={view === 'week' ? 'on' : ''} onClick={() => onWeek(iso(monday))}>
+                    Semaine
+                </button>
+                <button type="button" aria-label="Semaine suivante" onClick={() => onWeek(iso(addDays(monday, 7)))}>
+                    ›
+                </button>
+            </div>
+            <div className="mag-strip-days">
+                {days.map((d) => {
+                    const key = iso(d);
+                    const on = view === 'day' && key === date;
+                    const n = counts[key]?.length ?? 0;
+                    return (
+                        <button key={key} type="button" className={`${on ? 'on' : ''} ${key === today ? 'today' : ''}`} onClick={() => onDay(key)}>
+                            <small>{d.toLocaleDateString('fr-FR', { weekday: 'short' }).replace('.', '')}</small>
+                            <b>{d.getDate()}</b>
+                            <i className={n > 0 ? 'has' : ''} aria-hidden="true" />
+                        </button>
+                    );
+                })}
+            </div>
+        </div>
+    );
+}
+
 /** Les 4 cartes du haut : mois en cours comparé au mois précédent. */
 function AgendaStatsRow({ stats }: { stats: AgendaStats }) {
     const last = (a: number[]) => a[a.length - 1] ?? 0;
@@ -698,7 +742,19 @@ function AgendaStatsRow({ stats }: { stats: AgendaStats }) {
     );
 }
 
+/** Vocabulaire métier : même agenda, nom de la réservation selon le secteur. */
+const ADD_LABELS: Record<string, string> = {
+    optique: 'Ajouter un examen',
+    sport: 'Ajouter une séance',
+    formation: 'Ajouter une séance d’info',
+    pro: 'Ajouter une réunion',
+    immobilier: 'Ajouter une visite',
+    technique: 'Ajouter une intervention',
+    vehicules: 'Ajouter une réservation',
+};
+
 function AppointmentsIndex() {
+    const sector = (usePage().props as { auth?: { organization?: { sector?: string | null } } }).auth?.organization?.sector ?? '';
     const { view, date, from, store, stores, staff, staffFilter, closures, breaks, statuses, appointments: allAppointments, upcoming, catalog, paymentMethods, rdvEnabled, classSessions, stats, bookingUrl, bookingEnabled, reminders } =
         usePage<PageProps>().props;
     const [search, setSearch] = useState('');
@@ -725,6 +781,9 @@ function AppointmentsIndex() {
             return 'calendar';
         }
     });
+    // Téléphone : la liste seulement, et une bande de dates en haut.
+    const mobile = useIsMobile();
+    const shown = mobile ? 'table' : display;
     function chooseDisplay(d: 'calendar' | 'table') {
         setDisplay(d);
         try {
@@ -794,7 +853,7 @@ function AppointmentsIndex() {
                         )}
                         <button type="button" className="mdash-btn brand" onClick={() => setModal({ appointment: null })} disabled={stores.length === 0}>
                             <PlusIcon />
-                            Ajouter un RDV
+                            {ADD_LABELS[sector] ?? 'Ajouter un RDV'}
                         </button>
                     </>
                 ) : (
@@ -804,6 +863,7 @@ function AppointmentsIndex() {
                 )
             }
         >
+            {mobile && <DayStrip date={date} view={view} today={today} counts={byDay} onDay={(d) => go({ view: 'day', date: d })} onWeek={(d) => go({ view: 'week', date: d })} />}
             {stats && <AgendaStatsRow stats={stats} />}
 
             {rdvEnabled && (
@@ -892,7 +952,7 @@ function AppointmentsIndex() {
                         </div>
                     </div>
 
-                    {display === 'table' ? (
+                    {shown === 'table' ? (
                         <AgendaTable rows={appointments} statuses={statuses} onOpen={setOpened} />
                     ) : view === 'month' ? (
                         <MonthGrid date={date} from={from} byDay={byDay} today={today} onOpen={setOpened} onNew={(start) => setModal({ appointment: null, start })} onDay={(day) => go({ view: 'day', date: day })} closedOn={closedOn} />

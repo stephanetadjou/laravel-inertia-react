@@ -5,7 +5,7 @@ use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
 
 /**
- * Multimarque et RFM v2 (Menentia Retail) :
+ * Multimarque et RFM v2 (ClientlyX Retail) :
  * - customer_brand_metrics : chiffres d'un client dans chaque marque
  *   (premier / dernier achat, tickets, CA net) et son RFM dans la marque ;
  *   recalculés après chaque import et chaque nuit (BrandMetrics) ;

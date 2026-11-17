@@ -87,7 +87,7 @@ function SourcesReport() {
             {noData ? (
                 <Panel>
                     <Empty title="Pas encore de source enregistrée">
-                        Quand un client écrit sur WhatsApp après avoir cliqué sur une pub Facebook ou Instagram (« Click to WhatsApp »), NENTIX note la pub sur sa fiche. Les autres arrivent en « Direct ».
+                        Quand un client écrit sur WhatsApp après avoir cliqué sur une pub Facebook ou Instagram (« Click to WhatsApp »), ClientlyX note la pub sur sa fiche. Les autres arrivent en « Direct ».
                     </Empty>
                 </Panel>
             ) : (

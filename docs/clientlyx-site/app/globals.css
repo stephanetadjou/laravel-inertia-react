@@ -1,0 +1,20 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root { color-scheme: light; }
+html { scroll-behavior: smooth; -webkit-text-size-adjust: 100%; }
+body { background: #ffffff; color: #2B1A3D; }
+h1, h2, h3 { text-wrap: balance; }
+::selection { background: #FFD43B; color: #2B1A3D; }
+[id] { scroll-margin-top: 96px; }
+
+@media (prefers-reduced-motion: reduce) {
+  html { scroll-behavior: auto; }
+  *, *::before, *::after { transition: none !important; animation: none !important; }
+}
+
+/* Règle de marque : ClientlyX en gras, le X en orange (components/BrandMark.tsx). */
+.cx-brand { font-weight: 800; font-size: 1.04em; letter-spacing: -0.01em; }
+.cx-x { color: #E8590C; }
+.bg-green .cx-x, [class*="bg-green "] .cx-x, .bg-warn .cx-x { color: #fff; }

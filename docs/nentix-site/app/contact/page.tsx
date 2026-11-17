@@ -2,7 +2,7 @@ import type { Metadata } from 'next';
 import { Icon } from '@/components/Icon';
 import { PageHero } from '@/components/PageHero';
 import { Container } from '@/components/ui';
-import { APP_URL, families, WHATSAPP_DISPLAY } from '@/lib/site';
+import { APP_URL, families, leadActivity, WHATSAPP_DISPLAY } from '@/lib/site';
 
 export const metadata: Metadata = {
   title: 'Demander une démo',
@@ -40,7 +40,7 @@ export default function Contact() {
               Activité
               <select id="activite" name="activite" className={field} defaultValue="">
                 <option value="" disabled>Choisir…</option>
-                {families.map((f) => <option key={f.slug} value={f.slug}>{f.name}</option>)}
+                {families.map((f) => <option key={f.slug} value={leadActivity(f.slug)}>{f.name}</option>)}
                 <option value="autre">Autre</option>
               </select>
             </label>

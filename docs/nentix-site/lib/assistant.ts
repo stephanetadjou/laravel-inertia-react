@@ -70,6 +70,8 @@ const familyWords: Record<string, string[]> = {
   sport: ['salle', 'fitness', 'coach', 'gym', 'yoga', 'sport', 'abonnes'],
   technique: ['garage', 'mecanicien', 'mecanique', 'voiture', 'auto', 'reparation', 'vidange', 'technique'],
   pro: ['comptable', 'avocat', 'consultant', 'agence', 'assurance', 'juridique', 'professionnel'],
+  formation: ['formation', 'auto-ecole', 'ecole', 'apprenant', 'eleve', 'session', 'examen', 'permis'],
+  vehicules: ['location', 'louer', 'loueur', 'voiture', 'vehicule', 'flotte', 'chauffeur', 'concession'],
   boutiques: ['commerce', 'commercial', 'commerciale', 'retail', 'distribution', 'distributeur', 'magasin', 'boutique', 'supermarche', 'grossiste', 'revendeur', 'enseigne', 'quincaillerie', 'achats', 'base'],
 };
 

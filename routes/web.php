@@ -25,10 +25,12 @@ use App\Http\Controllers\ConversationController;
 use App\Http\Controllers\CustomerController;
 use App\Http\Controllers\CustomerIdentityController;
 use App\Http\Controllers\DashboardController;
+use App\Http\Controllers\DemoSwitchController;
 use App\Http\Controllers\GroupController;
 use App\Http\Controllers\ImportController;
 use App\Http\Controllers\ImportTemplateController;
 use App\Http\Controllers\InstallmentController;
+use App\Http\Controllers\LearnerController;
 use App\Http\Controllers\LoyaltyController;
 use App\Http\Controllers\LoyaltyProgramController;
 use App\Http\Controllers\LoyaltyTrackingController;
@@ -36,6 +38,7 @@ use App\Http\Controllers\ManualSaleController;
 use App\Http\Controllers\MessageTemplateController;
 use App\Http\Controllers\ModuleController;
 use App\Http\Controllers\MultibrandController;
+use App\Http\Controllers\OccupationController;
 use App\Http\Controllers\OrganizationController;
 use App\Http\Controllers\PdfReportController;
 use App\Http\Controllers\PlanController;
@@ -44,6 +47,7 @@ use App\Http\Controllers\PrivacyPolicyController;
 use App\Http\Controllers\ProspectController;
 use App\Http\Controllers\PurchaseController;
 use App\Http\Controllers\ReportController;
+use App\Http\Controllers\ResourceController;
 use App\Http\Controllers\RoleController;
 use App\Http\Controllers\SalesImportController;
 use App\Http\Controllers\SalesTeamController;
@@ -51,14 +55,16 @@ use App\Http\Controllers\ScheduleSettingsController;
 use App\Http\Controllers\SelfServiceController;
 use App\Http\Controllers\SourceReportController;
 use App\Http\Controllers\StoreController;
+use App\Http\Controllers\TrainingController;
 use App\Http\Controllers\UserController;
+use App\Http\Controllers\VehicleController;
 use App\Http\Controllers\WhatsAppSettingsController;
 use App\Http\Controllers\WhatsAppWebhookController;
 use Illuminate\Support\Facades\Route;
 
 // Webhook Meta par établissement : public, authentifié par la signature
 // X-Hub-Signature-256 (exclu de la vérification CSRF, cf. bootstrap/app.php).
-// Webhook unique de l'app Meta de Menentia (numéros gérés par Menentia).
+// Webhook unique de l'app Meta de ClientlyX (numéros gérés par ClientlyX).
 Route::get('/webhooks/whatsapp', [PlatformWhatsAppWebhookController::class, 'verify'])->name('webhooks.whatsapp.platform');
 Route::post('/webhooks/whatsapp', [PlatformWhatsAppWebhookController::class, 'receive']);
 Route::get('/webhooks/whatsapp/{key}', [WhatsAppWebhookController::class, 'verify'])->name('webhooks.whatsapp');
@@ -71,6 +77,9 @@ Route::get('/confidentialite/{organization:slug}', [PrivacyPolicyController::cla
 Route::get('/rdv/{organization:slug}', [BookingController::class, 'show'])->name('booking.show');
 Route::get('/rdv/{organization:slug}/creneaux', [BookingController::class, 'slots'])->middleware('throttle:booking-slots')->name('booking.slots');
 Route::post('/rdv/{organization:slug}', [BookingController::class, 'store'])->middleware('throttle:booking-submit')->name('booking.store');
+// Lien public « Que souhaitez-vous ? » : véhicules libres et envoi d'une demande (cf. App\Support\OnlinePage).
+Route::get('/rdv/{organization:slug}/disponibles', [\App\Http\Controllers\OnlinePageController::class, 'available'])->middleware('throttle:booking-slots')->name('online-page.available');
+Route::post('/rdv/{organization:slug}/demande', [\App\Http\Controllers\OnlinePageController::class, 'submit'])->middleware('throttle:5,1')->name('online-page.submit');
 Route::get('/rdv/{organization:slug}/c/{token}', [BookingController::class, 'confirmation'])->name('booking.confirmation');
 Route::post('/rdv/{organization:slug}/c/{token}/annuler', [BookingController::class, 'cancel'])->middleware('throttle:booking-submit')->name('booking.cancel');
 
@@ -112,6 +121,41 @@ Route::middleware('auth')->group(function () {
         Route::post('/class-sessions/{session}/attendance', [ClassController::class, 'attendance'])->name('class-sessions.attendance');
         Route::post('/class-sessions/{session}/cancel', [ClassController::class, 'cancel'])->name('class-sessions.cancel');
         Route::post('/classes/{class}/makeup', [ClassController::class, 'makeup'])->name('classes.makeup');
+    });
+
+    // Centre de formation (module « formation ») : parcours des apprenants, examens, formations.
+    Route::middleware('module:formation')->group(function () {
+        Route::get('/learners', [LearnerController::class, 'index'])->name('learners.index');
+        Route::post('/learners', [LearnerController::class, 'store'])->name('learners.store');
+        Route::get('/learners/{learner}', [LearnerController::class, 'show'])->name('learners.show');
+        Route::put('/learners/{learner}', [LearnerController::class, 'update'])->name('learners.update');
+        Route::post('/learners/{learner}/exams', [LearnerController::class, 'storeExam'])->name('learners.exams.store');
+        Route::put('/learner-exams/{exam}', [LearnerController::class, 'updateExam'])->name('learners.exams.update');
+        Route::get('/trainings', [TrainingController::class, 'index'])->name('trainings.index');
+        Route::post('/trainings', [TrainingController::class, 'store'])->name('trainings.store');
+        Route::put('/trainings/{training}', [TrainingController::class, 'update'])->name('trainings.update');
+    });
+
+    // Phase de test : bascule vers l'entreprise de démo d'un autre secteur (DEMO_SWITCHER).
+    Route::post('/demo/switch', DemoSwitchController::class)->name('demo.switch');
+
+    // Location et vente de véhicules (module « vehicules ») : flotte, contrats, ventes.
+    Route::middleware('module:vehicules')->group(function () {
+        Route::get('/vehicles', [VehicleController::class, 'index'])->name('vehicles.index');
+        Route::post('/vehicles', [VehicleController::class, 'store'])->name('vehicles.store');
+        Route::put('/vehicles/{vehicle}', [VehicleController::class, 'update'])->name('vehicles.update');
+        Route::post('/vehicles/{vehicle}/sell', [VehicleController::class, 'sell'])->name('vehicles.sell');
+        Route::post('/rentals', [VehicleController::class, 'storeRental'])->name('rentals.store');
+        Route::post('/rentals/{rental}/depart', [VehicleController::class, 'depart'])->name('rentals.depart');
+        Route::post('/rentals/{rental}/return', [VehicleController::class, 'giveBack'])->name('rentals.return');
+        Route::post('/rentals/{rental}/cancel', [VehicleController::class, 'cancelRental'])->name('rentals.cancel');
+    });
+
+    // Véhicules, salles et matériel (module « ressources »).
+    Route::middleware('module:ressources')->group(function () {
+        Route::get('/resources', [ResourceController::class, 'index'])->name('resources.index');
+        Route::post('/resources', [ResourceController::class, 'store'])->name('resources.store');
+        Route::put('/resources/{resource}', [ResourceController::class, 'update'])->name('resources.update');
     });
 
     Route::middleware('module:rdv')->group(function () {
@@ -196,7 +240,7 @@ Route::middleware('auth')->group(function () {
     Route::post('/audiences/group', [AudienceController::class, 'group'])->name('audiences.group');
     Route::get('/actions/export', [ActionController::class, 'export'])->name('actions.export');
     Route::post('/actions/group', [ActionController::class, 'group'])->name('actions.group');
-    // Analyses Menentia Retail : tableaux de bord, exports, rapport de direction.
+    // Analyses ClientlyX Retail : tableaux de bord, exports, rapport de direction.
     Route::get('/rapports', [PdfReportController::class, 'index'])->name('rapports.index');
     Route::get('/rapports/{type}', [PdfReportController::class, 'download'])->name('rapports.download');
     Route::get('/customers/{customer}/fiche.pdf', [PdfReportController::class, 'customer'])->name('customers.pdf');
@@ -264,6 +308,15 @@ Route::middleware('auth')->group(function () {
         Route::get('/settings/reports', [ReportController::class, 'settings'])->name('settings.reports');
         Route::put('/settings/reports', [ReportController::class, 'update'])->name('settings.reports.update');
         Route::post('/settings/reports/test', [ReportController::class, 'test'])->middleware('throttle:5,1')->name('settings.reports.test');
+
+        // Moteur d'occupation : seuils de creux, saturation et immobilisation.
+        // Ma page en ligne : le lien public de l'entreprise (tous secteurs).
+        Route::get('/settings/online-page', [\App\Http\Controllers\OnlinePageController::class, 'settings'])->name('settings.online-page');
+        Route::put('/settings/online-page', [\App\Http\Controllers\OnlinePageController::class, 'saveSettings'])->name('settings.online-page.update');
+        Route::middleware('module:rdv,seances_groupe,ressources,vehicules')->group(function () {
+            Route::get('/settings/occupation', [OccupationController::class, 'settings'])->name('settings.occupation');
+            Route::put('/settings/occupation', [OccupationController::class, 'update'])->name('settings.occupation.update');
+        });
 
         // Intervenants : praticiens des rendez-vous ou coachs des cours.
         Route::middleware('module:rdv,seances_groupe')->group(function () {
@@ -352,7 +405,7 @@ Route::middleware('auth')->group(function () {
         Route::put('/subscriptions/{subscription}/planning', [PlanController::class, 'planning'])->name('subscriptions.planning');
     });
 
-    // Import des ventes v2 (Menentia Retail) : dépôt, mapping, vérification, traitement en file, annulation.
+    // Import des ventes v2 (ClientlyX Retail) : dépôt, mapping, vérification, traitement en file, annulation.
     Route::get('/sales-imports', [SalesImportController::class, 'index'])->name('sales-imports.index');
     Route::post('/sales-imports', [SalesImportController::class, 'store'])->middleware('throttle:20,1')->name('sales-imports.store');
     Route::get('/sales-imports/{batch}', [SalesImportController::class, 'show'])->name('sales-imports.show');
@@ -385,7 +438,7 @@ Route::middleware('auth')->group(function () {
     Route::delete('/templates/{template}', [MessageTemplateController::class, 'destroy'])->middleware('whatsapp-api')->name('templates.destroy');
 });
 
-// Back-office plateforme Menentia (super-admins, cf. menentia:make-admin).
+// Back-office plateforme ClientlyX (super-admins, cf. menentia:make-admin).
 Route::middleware(['auth', 'platform-admin'])->prefix('admin')->name('admin.')->group(function () {
     Route::redirect('/', '/admin/dashboard');
     Route::get('/dashboard', Admin\DashboardController::class)->name('dashboard');

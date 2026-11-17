@@ -14,6 +14,8 @@ use App\Models\Task;
 use App\Models\User;
 use App\Models\WhatsAppInboundMessage;
 use App\Models\WhatsAppOutboundMessage;
+use App\Modules\CarteDigitale\Models\DigitalCard;
+use App\Modules\CarteDigitale\Services\DigitalCards;
 use App\Services\Acquisition;
 use App\Services\CustomerLifecycle;
 use App\Services\ProspectPipeline;
@@ -22,7 +24,7 @@ use Illuminate\Console\Command;
 use Illuminate\Support\Str;
 
 /**
- * Quatre entreprises fictives, une par secteur NENTIX (beauté, sport,
+ * Quatre entreprises fictives, une par secteur ClientlyX (beauté, sport,
  * services pro, boutiques) : préréglage du secteur, prospects à chaque
  * étape, discussions WhatsApp (dont une « à traiter »), sources de pub,
  * budgets, rendez-vous, crédits. Rejouable : seules ces 4 entreprises de
@@ -35,7 +37,7 @@ class SeedNentixSectorsDemo extends Command
 
     protected $signature = 'demo:nentix-secteurs {--force : Autoriser l\'exécution en production}';
 
-    protected $description = 'Crée 4 entreprises de démonstration NENTIX, une par secteur (données de test)';
+    protected $description = 'Crée 4 entreprises de démonstration ClientlyX, une par secteur (données de test)';
 
     /** slug => [secteur, nom, établissement, email, prestations/produits, prospects] */
     private const COMPANIES = [
@@ -43,7 +45,13 @@ class SeedNentixSectorsDemo extends Command
             [['Coupe femme', 8000, 45, 35], ['Tresses', 15000, 180, 60], ['Manucure', 6000, 40, 21], ['Soin visage', 12000, 60, 30]]],
         'demo-nentix-sport' => ['sport', 'Studio Fit Libreville', 'Fit Glass', 'sport@demo-nentix.test',
             [['Séance d’essai', 0, 60, null], ['Abonnement mensuel', 25000, 60, null], ['Coaching privé', 15000, 60, null]]],
+        'demo-nentix-sante' => ['sante', 'Cabinet dentaire Sourire', 'Sourire Batterie IV', 'sante@demo-nentix.test',
+            [['Consultation', 15000, 30, 365], ['Détartrage', 25000, 45, 180], ['Soin de carie', 30000, 60, null], ['Blanchiment', 80000, 90, 365]]],
+        'demo-nentix-garage' => ['technique', 'Garage Atelier Akanda', 'Atelier Owendo', 'garage@demo-nentix.test',
+            [['Vidange', 35000, 60, 90], ['Révision complète', 120000, 180, 365], ['Diagnostic', 15000, 45, null], ['Pose de pneus', 10000, 30, null]]],
         'demo-nentix-pro' => ['pro', 'Agence Nova Digital', 'Nova Bureau', 'pro@demo-nentix.test', []],
+        'demo-nentix-immobilier' => ['immobilier', 'Agence Horizon Immobilier', 'Horizon Batterie IV', 'immobilier@demo-nentix.test',
+            [['Visite de bien', 0, 45, null], ['Estimation', 50000, 60, null], ['Gestion locative (mois)', 75000, 30, null]]],
         'demo-nentix-boutique' => ['commerce', 'Boutique Élégance', 'Élégance Mont-Bouët', 'boutique@demo-nentix.test',
             [['Robe wax', 35000, null, null], ['Sac à main', 28000, null, null], ['Parfum 50 ml', 22000, null, null]]],
     ];
@@ -73,8 +81,12 @@ class SeedNentixSectorsDemo extends Command
 
     private function company(string $slug, string $sector, string $name, string $storeName, string $email, array $catalog): Organization
     {
+        // Comptes ajoutés à la main (tests) : gardés et rattachés à la nouvelle entreprise.
+        $kept = collect();
         if ($previous = Organization::where('slug', $slug)->first()) {
-            User::where('organization_id', $previous->id)->delete();
+            $kept = User::where('organization_id', $previous->id)->where('email', 'not like', '%@demo-nentix.test')->get();
+            User::where('organization_id', $previous->id)->where('email', 'like', '%@demo-nentix.test')->delete();
+            User::whereIn('id', $kept->pluck('id'))->update(['organization_id' => null, 'role_id' => null]);
             $previous->delete();
         }
 
@@ -95,6 +107,7 @@ class SeedNentixSectorsDemo extends Command
         ]);
         $owner = User::create(['name' => 'Gérant '.$name, 'email' => $email, 'password' => self::PASSWORD, 'organization_id' => $org->id,
             'role_id' => $org->roles()->where('name', 'Super administrateur')->value('id')]);
+        User::whereIn('id', $kept->pluck('id'))->update(['organization_id' => $org->id, 'role_id' => $owner->role_id]);
         if ($org->hasModule('prospects')) {
             User::create(['name' => 'Commercial '.$name, 'email' => str_replace('@', '.commercial@', $email), 'password' => self::PASSWORD, 'organization_id' => $org->id,
                 'role_id' => Role::ensureSalesRole($org)->id]);
@@ -170,6 +183,18 @@ class SeedNentixSectorsDemo extends Command
                 }
             }
         });
+
+        // Carte digitale du gérant : visites, scans, clics et un contact reçu (fiche + tâche).
+        $card = DigitalCard::create([
+            'organization_id' => $org->id, 'store_id' => $store->id, 'user_id' => $owner->id, 'slug' => DigitalCard::uniqueSlug($name),
+            'name' => $owner->name, 'job_title' => 'Gérant', 'company' => $name, 'whatsapp_e164' => '24177000001', 'phone_e164' => '24177000001',
+        ]);
+        foreach (['view' => 42, 'scan' => 18, 'whatsapp' => 9, 'call' => 3, 'vcard' => 5, 'booking' => 4] as $type => $count) {
+            foreach (range(1, $count) as $n) {
+                $card->events()->create(['type' => $type, 'created_at' => now()->subDays($n % 28)]);
+            }
+        }
+        DigitalCards::receiveContact($card, 'Prisca Ondo', '24166778899', 'Bonjour, je voudrais connaître vos tarifs.', true);
 
         return $org;
     }

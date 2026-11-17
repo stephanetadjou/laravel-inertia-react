@@ -81,7 +81,7 @@
         <table>
             <tr>
                 <td>
-                    <div class="brand">NENTIX</div>
+                    <div class="brand">ClientlyX</div>
                     <h1>Rapport du {{ $report['day_label'] }}</h1>
                     <div class="sub">{{ $report['organization'] }} · {{ count($report['stores']) }} établissement{{ count($report['stores']) > 1 ? 's' : '' }}{{ count($report['stores']) <= 3 ? ' · '.implode(', ', $report['stores']) : '' }}</div>
                 </td>
@@ -174,6 +174,13 @@
                     <div class="muted">{{ $tm['confirmed'] }} confirmé{{ $tm['confirmed'] > 1 ? 's' : '' }}, <b class="bad">{{ $tm['to_confirm'] }} à confirmer</b> (liste « Rendez-vous à rappeler »).
                         @if ($tm['expected_revenue'] > 0) CA prévu : {{ $money($tm['expected_revenue']) }}. @endif
                         {{ $tm['free_slots'] }} créneau{{ $tm['free_slots'] > 1 ? 'x' : '' }} libre{{ $tm['free_slots'] > 1 ? 's' : '' }}.</div>
+                    @if (! empty($report['occupation']) && count($report['occupation']['top']) > 0)
+                        <div class="muted" style="margin-top:6px"><b>À optimiser :</b>
+                            @foreach ($report['occupation']['top'] as $sig)
+                                {{ $sig['type'] === 'creux' ? 'à remplir' : ($sig['type'] === 'saturation' ? 'saturé' : 'immobilisé') }} : {{ $sig['label'] }} ({{ $sig['detail'] }})@if (! $loop->last) ; @else .@endif
+                            @endforeach
+                        </div>
+                    @endif
                 </td>
             </tr>
         </table>
@@ -236,12 +243,12 @@
             </tr>
         </table>
     </div>
-    <div class="foot">NENTIX · Connaissez mieux vos clients. Faites grandir votre activité.<span>page 1 / 2</span></div>
+    <div class="foot">ClientlyX · Connaissez mieux vos clients. Faites grandir votre activité.<span>page 1 / 2</span></div>
 </div>
 
 <div class="sheet">
     <div class="top" style="padding: 14px 34px">
-        <table><tr><td><div class="brand">NENTIX</div></td><td class="meta" style="vertical-align: middle">Rapport du {{ $report['day_label'] }} · {{ $report['organization'] }}</td></tr></table>
+        <table><tr><td><div class="brand">ClientlyX</div></td><td class="meta" style="vertical-align: middle">Rapport du {{ $report['day_label'] }} · {{ $report['organization'] }}</td></tr></table>
     </div>
     <div class="body">
         <h2>Clients à risque de départ <small>ont dépassé 1,5 à 2 fois leur rythme habituel</small></h2>
@@ -254,7 +261,7 @@
                     <tr><td>{{ $c['name'] }} @if ($c['vip'])<span class="tag vip">VIP</span>@endif</td><td>{{ $c['segment'] }}</td><td>{{ $c['last_visit'] ?? '—' }}</td><td>{{ $c['interval'] ? 'tous les '.$c['interval'].' j' : '—' }}</td><td class="r">{{ $money($c['spent_12m']) }}</td><td><span class="tag {{ $c['risk'] }}">{{ $c['risk'] === 'high' ? 'élevé' : 'moyen' }}</span></td></tr>
                 @endforeach
             </table>
-            <p class="muted">Ces {{ count($report['at_risk']['top']) }} clients pèsent {{ $money($report['at_risk']['top_spent']) }} sur 12 mois. La liste complète ({{ $report['at_risk']['count'] }} clients) est dans NENTIX, rubrique Clients, filtre « Alerte churn ».</p>
+            <p class="muted">Ces {{ count($report['at_risk']['top']) }} clients pèsent {{ $money($report['at_risk']['top_spent']) }} sur 12 mois. La liste complète ({{ $report['at_risk']['count'] }} clients) est dans ClientlyX, rubrique Clients, filtre « Alerte churn ».</p>
         @endif
 
         <table class="two">
@@ -389,7 +396,7 @@
             </ol>
         @endif
     </div>
-    <div class="foot">Généré automatiquement par NENTIX chaque soir. Réglages : Paramètres › Rapports.<span>page 2 / 2</span></div>
+    <div class="foot">Généré automatiquement par ClientlyX chaque soir. Réglages : Paramètres › Rapports.<span>page 2 / 2</span></div>
 </div>
 @if (! empty($autoPrint))
     <script>window.addEventListener('load', () => window.print());</script>

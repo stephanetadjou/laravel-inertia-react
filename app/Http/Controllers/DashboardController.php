@@ -6,12 +6,19 @@ use App\Models\Appointment;
 use App\Models\Contact;
 use App\Models\Customer;
 use App\Models\Installment;
+use App\Models\LearnerExam;
+use App\Models\LearnerTraining;
+use App\Models\Organization;
 use App\Models\Purchase;
+use App\Models\Rental;
 use App\Models\Store;
 use App\Models\Subscription;
 use App\Models\Task;
 use App\Models\User;
+use App\Modules\Location\Models\VehicleRequest;
 use App\Services\ActionLists;
+use App\Services\Fleet;
+use App\Services\Occupation;
 use App\Services\Onboarding;
 use App\Services\ProspectPipeline;
 use Illuminate\Http\Request;
@@ -63,7 +70,30 @@ class DashboardController extends Controller
                 ->map(fn ($count, $key) => ['key' => $key, 'label' => ActionLists::LISTS[$key]['label'], 'description' => ActionLists::LISTS[$key]['description'], 'count' => $count])
                 ->values(),
             'today' => $organization->hasAgenda() ? $this->todayAppointments($storeIds) : [],
+            // Moteur d'occupation : la semaine en cours et les creux / saturations à traiter.
+            'occupation' => Occupation::applies($organization) ? $this->occupation($organization, $storeIds) : null,
         ]);
+    }
+
+    /**
+     * @param  array<int, int>  $storeIds
+     * @return array<string, mixed>
+     */
+    private function occupation(Organization $organization, array $storeIds): array
+    {
+        $engine = new Occupation($organization, $storeIds);
+        $week = $engine->period(today()->startOfWeek(), today()->startOfWeek()->addWeek());
+        $signals = $engine->signals();
+
+        return [
+            'rate' => $week['rate'],
+            'free_hours' => $week['free_hours'],
+            'classes' => $week['classes'],
+            'heatmap' => $week['heatmap'],
+            'resources' => array_slice($week['resources'], 0, 5),
+            'signals' => array_slice($signals, 0, 6),
+            'signal_count' => count($signals),
+        ];
     }
 
     /**
@@ -103,6 +133,26 @@ class DashboardController extends Controller
                     ->where(fn ($q) => $q->whereNull('ends_on')->orWhere('ends_on', '>=', today()->toDateString()))->count(), 'href' => '/plans', 'tone' => 'emerald'],
                 ['key' => 'overdue', 'label' => 'Paiements en retard', 'value' => Installment::overdue()->whereHas('schedule', fn ($q) => $q->whereIn('store_id', $storeIds))->count(), 'href' => '/installments', 'tone' => 'rose'],
                 $newContacts(),
+            ],
+            'formation' => [
+                [...$appointmentsToday(), 'label' => 'Leçons du jour'],
+                ['key' => 'learners', 'label' => 'Apprenants en formation', 'value' => LearnerTraining::active()->whereIn('store_id', $storeIds)->count(), 'href' => '/learners', 'tone' => 'emerald'],
+                ['key' => 'exams', 'label' => 'Examens à venir', 'value' => LearnerExam::where('result', 'scheduled')->whereHas('learnerTraining', fn ($q) => $q->whereIn('store_id', $storeIds))
+                    ->where('exam_on', '>=', today()->toDateString())->where('exam_on', '<=', today()->addDays(30)->toDateString())->count(), 'foot' => '30 prochains jours', 'href' => '/learners?exam=1', 'tone' => 'amber'],
+                ['key' => 'dropping', 'label' => 'Apprenants qui décrochent', 'value' => (int) ($counts['learners_dropping'] ?? 0), 'href' => '/actions?list=learners_dropping', 'tone' => 'rose'],
+            ],
+            'vehicules' => [
+                ['key' => 'vehicles_out', 'label' => 'Véhicules sortis', 'value' => Rental::whereIn('store_id', $storeIds)->where('status', 'ongoing')->count(), 'href' => '/vehicles', 'tone' => 'cyan'],
+                ['key' => 'vehicles_free', 'label' => 'Libres demain', 'value' => Fleet::availableOn($organization->id, today()->addDay(), $storeIds)->count(),
+                    'foot' => 'stock de sécurité : '.$organization->occupationSettings()['safety_stock'], 'href' => '/vehicles', 'tone' => 'emerald'],
+                ['key' => 'late_returns', 'label' => 'Retours en retard', 'value' => Rental::whereIn('store_id', $storeIds)->where('status', 'ongoing')->where('ends_at', '<', now())->count(), 'href' => '/actions?list=rental_late', 'tone' => 'rose'],
+                $revenue(),
+            ],
+            'location' => [
+                ['key' => 'requests', 'label' => 'Demandes à traiter', 'value' => VehicleRequest::whereIn('store_id', $storeIds)->whereIn('status', ['new', 'quoted'])->count(), 'href' => '/location/requests', 'tone' => 'amber'],
+                ['key' => 'vehicles_out', 'label' => 'Véhicules sortis', 'value' => Rental::whereIn('store_id', $storeIds)->where('status', 'ongoing')->count(), 'href' => '/location/planning', 'tone' => 'cyan'],
+                ['key' => 'vehicles_free', 'label' => 'Libres demain', 'value' => Fleet::availableOn($organization->id, today()->addDay(), $storeIds)->count(), 'href' => '/location/planning', 'tone' => 'emerald'],
+                $revenue(),
             ],
             'pro' => [
                 ['key' => 'open_prospects', 'label' => 'Prospects en cours', 'value' => $this->openProspects($user, $storeIds), 'href' => '/prospects', 'tone' => 'cyan'],

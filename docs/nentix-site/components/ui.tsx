@@ -28,11 +28,11 @@ export function Logo({ light = false, id }: { light?: boolean; id?: string }) {
 type BtnProps = { href: string; children: ReactNode; variant?: 'dark' | 'outline' | 'light' | 'brand'; size?: 'md' | 'lg'; className?: string };
 
 export function Button({ href, children, variant = 'dark', size = 'md', className = '' }: BtnProps) {
-  const base = 'inline-flex whitespace-nowrap items-center justify-center gap-2 rounded-full font-semibold transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue';
+  const base = 'inline-flex whitespace-nowrap items-center justify-center gap-2 rounded-lg font-semibold transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue';
   const sizes = { md: 'h-11 px-5 text-[15px]', lg: 'h-[52px] px-7 text-base' };
   const variants = {
     dark: 'bg-navy text-white hover:bg-navy-deep',
-    brand: 'bg-gradient-to-r from-blue to-green text-white hover:brightness-105 shadow-[0_8px_24px_-8px_rgba(14,123,214,.6)]',
+    brand: 'bg-blue text-white hover:bg-blue-text',
     outline: 'border border-line bg-white text-navy hover:border-navy/40',
     light: 'bg-white text-navy hover:bg-soft',
   };

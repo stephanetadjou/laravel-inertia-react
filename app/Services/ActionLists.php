@@ -3,13 +3,17 @@
 namespace App\Services;
 
 use App\Models\Appointment;
+use App\Models\Attendance;
+use App\Models\BookableResource;
 use App\Models\Brand;
+use App\Models\ClassEnrollment;
 use App\Models\ClassSession;
 use App\Models\Contact;
 use App\Models\Customer;
 use App\Models\CustomerFollowUp;
 use App\Models\Group;
 use App\Models\Installment;
+use App\Models\Rental;
 use App\Models\Store;
 use App\Models\Subscription;
 use App\Models\Task;
@@ -90,6 +94,48 @@ class ActionLists
             'cooldown_days' => 14,
             'modules' => ['seances_groupe'],
         ],
+        'learners_dropping' => [
+            'label' => 'Apprenants qui décrochent',
+            'description' => 'Plus de leçon depuis le délai choisi, retard sur le rythme prévu ou échecs répétés à l’examen : appelez avant l’abandon.',
+            'cooldown_days' => 7,
+            'modules' => ['formation'],
+        ],
+        'learners_dropped' => [
+            'label' => 'Abandons à relancer',
+            'description' => 'Apprenants qui ont arrêté leur formation ces 6 derniers mois : proposez-leur de reprendre là où ils en étaient.',
+            'cooldown_days' => 30,
+            'modules' => ['formation'],
+        ],
+        'fill_slots' => [
+            'label' => 'Créneaux libres à remplir',
+            'description' => 'Des heures restent libres dans les prochains jours : proposez-les aux clients venus il y a plus de 3 semaines, sans rendez-vous prévu.',
+            'cooldown_days' => 7,
+            'modules' => ['rdv'],
+        ],
+        'fill_classes' => [
+            'label' => 'Cours peu remplis',
+            'description' => 'Séances à venir sous le seuil de remplissage : invitez les membres qui viennent à d’autres cours.',
+            'cooldown_days' => 7,
+            'modules' => ['seances_groupe'],
+        ],
+        'idle_vehicles' => [
+            'label' => 'Véhicules à faire sortir',
+            'description' => 'Véhicules au parking depuis le délai choisi : proposez-les aux clients qui ont déjà loué cette catégorie.',
+            'cooldown_days' => 14,
+            'modules' => ['vehicules'],
+        ],
+        'rental_late' => [
+            'label' => 'Retours en retard',
+            'description' => 'Locations dont la date de retour est passée : appelez le client avant de bloquer la location suivante.',
+            'cooldown_days' => 1,
+            'modules' => ['vehicules'],
+        ],
+        'rental_ending' => [
+            'label' => 'Locations longue durée à renouveler',
+            'description' => 'Contrats longue durée qui se terminent dans les 30 prochains jours : proposez le renouvellement.',
+            'cooldown_days' => 20,
+            'modules' => ['vehicules'],
+        ],
         'subscription_ending' => [
             'label' => 'Abonnements à renouveler',
             'description' => 'Abonnements qui se terminent dans les 15 prochains jours : proposez le renouvellement.',
@@ -152,6 +198,13 @@ class ActionLists
         'group' => 'Bonjour {prenom}, toute l\'équipe de {boutique} a pensé à vous : passez nous voir cette semaine, une attention vous attend.',
         'cross_sell' => 'Bonjour {prenom}, merci pour votre fidélité chez {boutique}. Saviez-vous que {autre_marque} fait aussi partie de notre groupe ? Passez découvrir la boutique, vous y serez accueilli comme un client fidèle.',
         'absent_members' => 'Bonjour {prenom}, tout va bien ? Nous avons remarqué des absences aux derniers cours{de_beneficiaire}. Dites-nous si nous pouvons aider : nous serons ravis de vous revoir très vite !',
+        'learners_dropping' => 'Bonjour {prenom}, ici {boutique}. La formation « {formation} »{de_beneficiaire} n’a pas avancé depuis quelque temps : tout va bien ? Fixons ensemble la prochaine leçon pour garder le rythme.',
+        'learners_dropped' => 'Bonjour {prenom}, ici {boutique}. La formation « {formation} »{de_beneficiaire} s’est arrêtée à {heures} : souhaitez-vous la reprendre là où vous en étiez ? Nous pouvons vous proposer un nouveau planning.',
+        'fill_slots' => 'Bonjour {prenom}, ici {boutique}. Il nous reste de la place {creneaux} : voulez-vous qu’on vous réserve un moment ?',
+        'fill_classes' => 'Bonjour {prenom}, il reste des places au cours de {cours} du {date_cours} à {heure_cours}. On vous inscrit ?',
+        'idle_vehicles' => 'Bonjour {prenom}, ici {boutique}. {vehicule} est disponible dès maintenant : besoin d’un véhicule pour vos prochains déplacements ?',
+        'rental_late' => 'Bonjour {prenom}, ici {boutique}. Le retour de {vehicule} était prévu le {retour}. Pouvez-vous nous dire quand vous le ramenez ?',
+        'rental_ending' => 'Bonjour {prenom}, votre location de {vehicule} se termine le {fin}. Souhaitez-vous la prolonger ? Nous pouvons préparer le nouveau contrat.',
         'subscription_ending' => 'Bonjour {prenom}, l’abonnement « {formule} »{de_beneficiaire} se termine le {fin}. Souhaitez-vous le renouveler ? Nous pouvons le préparer dès maintenant.',
         'prospect_followup' => 'Bonjour {prenom}, ici {boutique}. Je reviens vers vous suite à notre dernier échange : avez-vous pu y réfléchir ? Je reste disponible pour en parler ou vous montrer comment ça marche.',
         'class_cancelled' => 'Bonjour {prenom}, le cours de {cours} du {date_cours} à {heure_cours} est annulé ({motif}). Nous vous tiendrons au courant du rattrapage. Merci de votre compréhension !',
@@ -161,6 +214,20 @@ class ActionLists
 
     /** Segments considérés comme « fidèles » pour la vente croisée. */
     public const CROSS_SELL_SEGMENTS = ['champions', 'loyal', 'cant_lose'];
+
+    /** Listes qui concernent encore un apprenant qui a terminé sa formation. */
+    public const STILL_FOR_TRAINED = ['installment_due', 'tasks', 'appointment_reminder'];
+
+    /** Apprenants formés (module « formation »), chargés une fois. @var array<int, int>|null */
+    private ?array $trained = null;
+
+    /** @return array<int, int> */
+    private function trained(): array
+    {
+        return $this->trained ??= $this->user->organization->hasModule('formation')
+            ? Learners::trainedQuery($this->user->organization_id)->pluck('customer_id')->flip()->all()
+            : [];
+    }
 
     /** Nombre maximum de lignes affichées par liste. */
     public const LIMIT = 200;
@@ -232,6 +299,12 @@ class ActionLists
             'service_cycle' => $this->serviceCycle(),
             'quote_followup' => $this->quoteFollowUps(),
             'class_cancelled', 'class_makeup' => $this->sessionNotices($key),
+            'learners_dropping' => $this->learnersDropping(),
+            'learners_dropped' => $this->learnersDropped(),
+            'fill_slots' => $this->fillSlots(),
+            'fill_classes' => $this->fillClasses(),
+            'idle_vehicles' => $this->idleVehicles(),
+            'rental_late', 'rental_ending' => $this->rentals($key),
             default => $this->customerList($key),
         };
     }
@@ -640,6 +713,198 @@ class ActionLists
             ->all();
     }
 
+    /**
+     * Apprenants en cours de formation avec une alerte de décrochage
+     * (cf. Learners) ; le message part au responsable d'une personne suivie.
+     *
+     * @return list<array<string, mixed>>
+     */
+    /** Clients à qui proposer les heures libres des prochains jours. */
+    private function fillSlots(): array
+    {
+        $gaps = (new Occupation($this->user->organization, $this->storeIds))->gaps();
+
+        if ($gaps->isEmpty()) {
+            return [];
+        }
+
+        $today = today();
+        $slots = $gaps->sortBy('rate')->take(3)
+            ->map(fn ($g) => Occupation::dayLabel(Carbon::parse($g['date']), $today).' avec '.$g['name'])
+            ->join(', ', ' ou ');
+        $this->vars = ['{creneaux}' => $slots];
+
+        $rows = $this->customers('fill_slots')
+            ->whereHas('appointments', fn ($q) => $q->whereIn('store_id', $this->storeIds)->where('status', 'done')->where('starts_at', '<', now()->subDays(21)))
+            ->whereDoesntHave('appointments', fn ($q) => $q->whereIn('status', Appointment::OPEN_STATUSES)->where('starts_at', '>=', now()))
+            ->withMax(['appointments as last_visit' => fn ($q) => $q->where('status', 'done')], 'starts_at')
+            ->get()
+            ->filter(fn (Customer $c) => $c->last_visit !== null && Carbon::parse($c->last_visit)->gte(now()->subDays(180)))
+            ->sortBy('last_visit')
+            ->map(fn (Customer $c) => $this->row('fill_slots', $c, 'Dernière visite il y a '.(int) Carbon::parse($c->last_visit)->diffInDays($today).' jours · libre : '.$slots))
+            ->filter()
+            ->take(self::LIMIT)
+            ->values()
+            ->all();
+        $this->vars = [];
+
+        return $rows;
+    }
+
+    /** Membres d'autres cours à inviter aux séances peu remplies. */
+    private function fillClasses(): array
+    {
+        $sessions = (new Occupation($this->user->organization, $this->storeIds))->lowSessions();
+        $rows = [];
+        $seen = [];
+
+        foreach ($sessions as $session) {
+            $enrolled = ClassEnrollment::where('group_class_id', $session['group_class_id'])
+                ->where(fn ($q) => $q->whereNull('ended_on')->orWhere('ended_on', '>', $session['date']))
+                ->pluck('customer_id');
+            $this->vars = ['{cours}' => $session['name'], '{date_cours}' => self::date(Carbon::parse($session['date'])), '{heure_cours}' => str_replace(':', 'h', $session['time'])];
+
+            $customers = $this->customers('fill_classes')
+                ->whereNotIn('id', $enrolled)
+                ->whereIn('id', Attendance::where('status', 'present')->where('created_at', '>=', now()->subDays(90))
+                    ->whereHas('session.groupClass', fn ($q) => $q->whereIn('store_id', $this->storeIds))->select('customer_id'))
+                ->get();
+
+            foreach ($customers as $customer) {
+                if (isset($seen[$customer->id])) {
+                    continue;
+                }
+                $seen[$customer->id] = true;
+                $rows[] = $this->row('fill_classes', $customer, "{$session['name']} · ".self::date(Carbon::parse($session['date']))." {$session['time']} : {$session['filled']} inscrits sur {$session['capacity']}");
+            }
+        }
+        $this->vars = [];
+
+        return array_values(array_slice(array_filter($rows), 0, self::LIMIT));
+    }
+
+    /** Clients ayant déjà loué la catégorie d'un véhicule immobilisé. */
+    private function idleVehicles(): array
+    {
+        $idleDays = $this->user->organization->occupationSettings()['idle_days'];
+        $rows = [];
+        $seen = [];
+
+        $vehicles = BookableResource::fleet($this->user->organization_id)->where('status', 'available')
+            ->where(fn ($q) => $q->whereNull('store_id')->orWhereIn('store_id', $this->storeIds))
+            ->get()
+            ->filter(function (BookableResource $v) use ($idleDays) {
+                if (Rental::where('resource_id', $v->id)->blocking()->where('starts_at', '<', now()->addDays(2))->exists()) {
+                    return false;
+                }
+                $last = Rental::where('resource_id', $v->id)->where('status', 'returned')->max('returned_at');
+
+                return Carbon::parse($last ?? $v->created_at)->lte(now()->subDays($idleDays));
+            });
+
+        foreach ($vehicles as $vehicle) {
+            $sameCategory = BookableResource::where('organization_id', $this->user->organization_id)->where('kind', 'vehicule')
+                ->when($vehicle->category, fn ($q) => $q->where('category', $vehicle->category))->pluck('id');
+            $this->vars = ['{vehicule}' => $vehicle->name];
+
+            $customers = $this->customers('idle_vehicles')
+                ->whereIn('id', Rental::whereIn('resource_id', $sameCategory)->where('status', 'returned')->select('customer_id'))
+                ->whereNotIn('id', Rental::blocking()->where('organization_id', $this->user->organization_id)->select('customer_id'))
+                ->get();
+
+            foreach ($customers as $customer) {
+                if (isset($seen[$customer->id])) {
+                    continue;
+                }
+                $seen[$customer->id] = true;
+                $rows[] = $this->row('idle_vehicles', $customer, $vehicle->label().' au parking'.(BookableResource::CATEGORIES[$vehicle->category] ?? null ? ' · catégorie déjà louée : '.mb_strtolower(BookableResource::CATEGORIES[$vehicle->category]) : ''), null, $vehicle->store_id ? [$vehicle->store_id] : null);
+            }
+        }
+        $this->vars = [];
+
+        return array_values(array_slice(array_filter($rows), 0, self::LIMIT));
+    }
+
+    /** Retours en retard ou contrats longue durée à renouveler. */
+    private function rentals(string $key): array
+    {
+        $reachable = $this->customers($key)->pluck('customers.id')->flip();
+
+        $rentals = Rental::where('organization_id', $this->user->organization_id)
+            ->whereIn('store_id', $this->storeIds)
+            ->when($key === 'rental_late', fn ($q) => $q->where('status', 'ongoing')->where('ends_at', '<', now()))
+            ->when($key === 'rental_ending', fn ($q) => $q->where('kind', 'long')->blocking()->whereBetween('ends_at', [now(), now()->addDays(30)]))
+            ->with(['customer', 'vehicle:id,name,reference'])
+            ->orderBy('ends_at')
+            ->get()
+            ->filter(fn (Rental $r) => isset($reachable[$r->customer_id]))
+            // Renouvellement : pas si le client a déjà un contrat qui suit.
+            ->reject(fn (Rental $r) => $key === 'rental_ending' && Rental::where('customer_id', $r->customer_id)->blocking()->where('starts_at', '>=', $r->ends_at->copy()->subDay())->whereKeyNot($r->id)->exists());
+
+        return $rentals->map(function (Rental $r) use ($key) {
+            $this->vars = ['{vehicule}' => (string) $r->vehicle?->name, '{retour}' => self::date($r->ends_at), '{fin}' => self::date($r->ends_at)];
+            $reason = $key === 'rental_late'
+                ? $r->vehicle?->label().' · retour prévu le '.self::date($r->ends_at).' ('.(int) $r->ends_at->diffInDays(now()).' j de retard)'
+                : $r->vehicle?->label().' · fin du contrat le '.self::date($r->ends_at);
+            $row = $this->row($key, $r->customer, $reason, null, [$r->store_id], 'rental-'.$r->id);
+            $this->vars = [];
+
+            return $row;
+        })->filter()->take(self::LIMIT)->values()->all();
+    }
+
+    private function learnersDropping(): array
+    {
+        $reachable = $this->customers('learners_dropping')->pluck('customers.id')->flip();
+
+        return app(Learners::class)->dropouts($this->user->organization, $this->storeIds)
+            ->filter(fn (array $d) => isset($reachable[$d['learner']->customer_id]))
+            ->map(function (array $d) {
+                $learner = $d['learner'];
+                $summary = $d['summary'];
+                $this->vars = ['{formation}' => (string) $learner->training->name];
+                $reason = $summary['alert'].' · '.$learner->training->name.' · '.$summary['hours_done'].' h / '.$summary['hours_total'].' h'
+                    .($learner->staffMember ? ' · '.$learner->staffMember->name : '');
+                $row = $this->row('learners_dropping', $learner->customer, $reason, null, [$learner->store_id]);
+                $this->vars = [];
+
+                return $row;
+            })
+            ->filter()
+            ->take(self::LIMIT)
+            ->values()
+            ->all();
+    }
+
+    /**
+     * Abandons récents à relancer pour reprendre la formation.
+     *
+     * @return list<array<string, mixed>>
+     */
+    private function learnersDropped(): array
+    {
+        $reachable = $this->customers('learners_dropped')->pluck('customers.id')->flip();
+
+        return app(Learners::class)->dropped($this->user->organization, $this->storeIds)
+            ->filter(fn (array $d) => isset($reachable[$d['learner']->customer_id]))
+            ->unique(fn (array $d) => $d['learner']->customer_id)
+            ->map(function (array $d) {
+                $learner = $d['learner'];
+                $summary = $d['summary'];
+                $done = $summary['hours_total'] > 0 ? $summary['hours_done'].' h sur '.$summary['hours_total'].' h' : $summary['percent'].' %';
+                $this->vars = ['{formation}' => (string) $learner->training->name, '{heures}' => $done];
+                $reason = 'Arrêt le '.self::date(Carbon::parse($learner->ended_on)).' · '.$learner->training->name.' · '.$done.($learner->end_reason ? ' · '.$learner->end_reason : '');
+                $row = $this->row('learners_dropped', $learner->customer, $reason, null, [$learner->store_id]);
+                $this->vars = [];
+
+                return $row;
+            })
+            ->filter()
+            ->take(self::LIMIT)
+            ->values()
+            ->all();
+    }
+
     /** @return list<array<string, mixed>> */
     private function noShows(): array
     {
@@ -723,6 +988,12 @@ class ActionLists
     private function row(string $key, ?Customer $customer, string $reason, ?Appointment $appointment = null, ?array $storeIds = null, ?string $reference = null): ?array
     {
         if ($customer === null) {
+            return null;
+        }
+
+        // Centre de formation : un apprenant formé n'a plus besoin du centre. Seules
+        // restent ses tranches encore dues, ses demandes et ses rendez-vous pris.
+        if (! in_array($key, self::STILL_FOR_TRAINED, true) && isset($this->trained()[$customer->id])) {
             return null;
         }
 

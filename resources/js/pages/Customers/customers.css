@@ -633,7 +633,7 @@
 .mloy-bar i {
     display: block;
     height: 100%;
-    background: linear-gradient(90deg, #06b6d4, #1d4ed8);
+    background: linear-gradient(90deg, #f08c2e, #e8590c);
 }
 .mloy-rewards {
     list-style: none;
@@ -717,10 +717,10 @@
     margin-bottom: -1px;
 }
 .mcust-tabs button:hover {
-    color: var(--ink, #0b1f3a);
+    color: var(--ink, #2b1a3d);
 }
 .mcust-tabs button.on {
-    color: var(--ink, #0b1f3a);
+    color: var(--ink, #2b1a3d);
     font-weight: 600;
     border-bottom-color: var(--brand);
 }
@@ -748,7 +748,7 @@
     font-size: 11.5px;
 }
 .mloy-next .mloy-steps li.current {
-    border-color: #06b6d4;
+    border-color: #f08c2e;
     background: var(--surface-2);
 }
 .mloy-next .mloy-steps li.reached {

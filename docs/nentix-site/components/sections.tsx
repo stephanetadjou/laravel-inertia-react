@@ -2,9 +2,52 @@ import { families, featureGroups, links, objections, plans, problems } from '@/l
 import { Icon } from './Icon';
 import { Button, Container, SectionTitle } from './ui';
 
+export function ResourceOverview() {
+  return (
+    <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+      {families.map((f) => (
+        <a key={f.slug} href={`/activites/${f.slug}#ressource`} className="group flex flex-col gap-3 rounded-2xl border border-line bg-white p-6 transition hover:border-blue/40">
+          <span className="inline-flex items-center gap-2 text-[14px] font-semibold text-blue-text">
+            <Icon name={f.icon} className="h-4 w-4" /> {f.name}
+          </span>
+          <span className="font-display text-[19px] font-bold leading-snug text-navy">{f.resource.name}</span>
+          <span className="text-[14.5px] leading-relaxed text-muted">{f.resource.goal}</span>
+        </a>
+      ))}
+    </div>
+  );
+}
+
+export function ResourceDetail({ family }: { family: (typeof families)[number] }) {
+  const r = family.resource;
+  return (
+    <div className="grid gap-10 lg:grid-cols-[0.9fr_1.1fr] lg:items-start">
+      <div className="flex flex-col gap-4">
+        <p className="text-[14px] font-semibold text-green-text">La ressource à rentabiliser</p>
+        <h2 className="font-display text-[2rem] font-bold leading-tight text-navy">{r.name}</h2>
+        <p className="text-[17px] leading-relaxed text-muted">{r.goal}</p>
+        <p className="text-[14.5px] leading-relaxed text-muted">
+          NENTIX mesure chaque jour le taux d’occupation de cette ressource, repère les creux à remplir, les jours trop pleins et ce qui reste inutilisé trop longtemps, puis vous propose les bons clients à contacter, message prêt.
+        </p>
+      </div>
+      <ol className="flex flex-col divide-y divide-line overflow-hidden rounded-2xl border border-line bg-white">
+        {r.levers.map(([title, text], i) => (
+          <li key={title} className="flex gap-4 p-6">
+            <span className="font-display text-[15px] font-bold text-blue-text">{String(i + 1).padStart(2, '0')}</span>
+            <div className="flex flex-col gap-1">
+              <h3 className="font-display text-[17px] font-bold text-navy">{title}</h3>
+              <p className="text-[15px] leading-relaxed text-muted">{text}</p>
+            </div>
+          </li>
+        ))}
+      </ol>
+    </div>
+  );
+}
+
 export function FamilyStrip() {
   return (
-    <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
+    <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
       {families.map((f) => (
         <a key={f.slug} href={`/activites/${f.slug}`} className="group flex flex-col gap-3 rounded-2xl border border-line bg-white p-5 transition hover:-translate-y-0.5 hover:border-blue/40 hover:shadow-card">
           <span className="grid h-11 w-11 place-items-center rounded-xl bg-gradient-to-br from-blue/10 to-green/15 text-blue-text">

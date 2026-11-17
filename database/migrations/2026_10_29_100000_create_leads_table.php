@@ -5,8 +5,8 @@ use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
 
 /**
- * Demandes de démonstration envoyées depuis le site vitrine (menentia.com,
- * page Contact). Ce sont des prospects de Menentia, pas les clients d'une
+ * Demandes de démonstration envoyées depuis le site vitrine (clientlyx.com,
+ * page Contact). Ce sont des prospects de ClientlyX, pas les clients d'une
  * organisation : aucune clé vers organizations.
  */
 return new class extends Migration

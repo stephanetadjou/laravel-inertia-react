@@ -1,6 +1,7 @@
 import { Link, router, useForm, usePage } from '@inertiajs/react';
 import { FormEventHandler, useState } from 'react';
 
+import useIsMobile from '../../layout/useIsMobile';
 import AppLayout from '../../layout/AppLayout';
 import { Empty, Page, Panel, PlusIcon, SearchFilter, Seg, SelectFilter, useQueryFilters } from '../../components/page/Page';
 import { Modal } from '../../components/ui/modal';
@@ -31,13 +32,15 @@ export interface ProspectCard {
     lost_reason: string | null;
     owner: string | null;
     owner_id: number | null;
+    source: string | null;
     whatsapp_url: string | null;
 }
 
 interface PageProps {
     stages: Stage[];
     prospects: ProspectCard[];
-    filters: { owner: number | null; q: string; late: boolean; view: 'kanban' | 'list' };
+    sources: { value: string; label: string }[];
+    filters: { owner: number | null; source: string | null; q: string; late: boolean; view: 'kanban' | 'list' };
     owners: { id: number; name: string }[];
     stores: { id: number; name: string }[];
     canAssign: boolean;
@@ -175,6 +178,7 @@ function Card({ p, stages }: { p: ProspectCard; stages: Stage[] }) {
                 {p.days} j dans l’étape{p.late ? ' · à relancer' : ''}
                 {p.owner ? ` · ${p.owner}` : ''}
             </span>
+            {p.source && <span className="mt-1 inline-block rounded-full bg-orange-50 px-2 py-0.5 text-[11px] font-medium text-[#B8460A]">{p.source}</span>}
             {p.lost_reason && <span className="block text-xs text-gray-500">Raison : {p.lost_reason}</span>}
             <div className="mt-2 flex items-center gap-1.5">
                 <div className="grow">
@@ -191,7 +195,7 @@ function Card({ p, stages }: { p: ProspectCard; stages: Stage[] }) {
 }
 
 function ProspectsIndex() {
-    const { stages, prospects, filters, owners } = usePage<PageProps>().props;
+    const { stages, prospects, filters, owners, sources } = usePage<PageProps>().props;
     const [creating, setCreating] = useState(false);
     const [dragOver, setDragOver] = useState<string | null>(null);
     // Glisser-déposer entre colonnes : même enregistrement que le choix d'étape (« perdu » demande la raison).
@@ -202,6 +206,9 @@ function ProspectsIndex() {
     };
     const visit = useQueryFilters('/prospects', { ...filters, view: filters.view === 'kanban' ? null : filters.view, late: filters.late ? 1 : null });
     const late = prospects.filter((p) => p.late).length;
+    const mobile = useIsMobile();
+    const [mobileStage, setMobileStage] = useState<string | null>(null);
+    const activeStage = mobileStage ?? stages.find((s) => prospects.some((p) => p.stage === s.key))?.key ?? stages[0]?.key;
 
     return (
         <Page
@@ -225,6 +232,7 @@ function ProspectsIndex() {
                         onChange={(view) => visit({ view: view === 'kanban' ? null : view })}
                     />
                     {owners.length > 0 && <SelectFilter label="Commercial" value={filters.owner} options={owners.map((o) => ({ value: o.id, label: o.name }))} allLabel="Toute l’équipe" onChange={(owner) => visit({ owner })} />}
+                    <SelectFilter label="Source" value={filters.source} options={sources} allLabel="Toutes" onChange={(source) => visit({ source })} />
                     <Seg
                         label="Relances"
                         value={filters.late ? 'late' : 'all'}
@@ -244,6 +252,35 @@ function ProspectsIndex() {
                         Ajoutez les entreprises ou personnes que vous démarchez avec « Nouveau prospect » : chaque étape a un délai de relance, et les retards arrivent dans « À faire ».
                     </Empty>
                 </Panel>
+            ) : mobile && filters.view === 'kanban' ? (
+                // Téléphone : une étape à la fois (onglets), cartes en pleine largeur.
+                <div>
+                    <div className="no-scrollbar -mx-3 mb-3 flex gap-2 overflow-x-auto px-3">
+                        {stages.map((s) => {
+                            const n = prospects.filter((p) => p.stage === s.key).length;
+                            const on = s.key === activeStage;
+                            return (
+                                <button
+                                    key={s.key}
+                                    type="button"
+                                    onClick={() => setMobileStage(s.key)}
+                                    className={`flex shrink-0 items-center gap-1.5 rounded-full border px-3.5 py-1.5 text-[13px] font-semibold ${on ? 'border-[#0B1F3A] bg-[#0B1F3A] text-white' : 'border-gray-200 bg-white text-gray-700 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-200'}`}
+                                >
+                                    {s.label}
+                                    <span className={`rounded-full px-1.5 text-[11px] ${on ? 'bg-white/20' : 'bg-gray-100 dark:bg-white/10'}`}>{n}</span>
+                                </button>
+                            );
+                        })}
+                    </div>
+                    <div className="space-y-2">
+                        {prospects
+                            .filter((p) => p.stage === activeStage)
+                            .map((p) => (
+                                <Card key={p.id} p={p} stages={stages} />
+                            ))}
+                        {prospects.every((p) => p.stage !== activeStage) && <p className="rounded-xl border border-dashed border-gray-300 px-3 py-8 text-center text-sm text-gray-400">Aucun prospect à cette étape.</p>}
+                    </div>
+                </div>
             ) : filters.view === 'kanban' ? (
                 <div className="flex gap-3 overflow-x-auto pb-4">
                     {stages.map((s) => {

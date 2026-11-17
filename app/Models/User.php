@@ -38,7 +38,7 @@ class User extends Authenticatable
         return (string) $this->referral_code;
     }
 
-    /** Super-admin Menentia : accès au back-office plateforme (/admin). Jamais attribuable depuis une entreprise. */
+    /** Super-admin ClientlyX : accès au back-office plateforme (/admin). Jamais attribuable depuis une entreprise. */
     public function isPlatformAdmin(): bool
     {
         return (bool) $this->is_platform_admin;

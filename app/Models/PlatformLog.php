@@ -6,7 +6,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 /**
- * Journal du back-office plateforme : actions des super-admins Menentia sur
+ * Journal du back-office plateforme : actions des super-admins ClientlyX sur
  * les entreprises (essai, offre, suspension) et les demandes de démo.
  */
 class PlatformLog extends Model
@@ -21,7 +21,7 @@ class PlatformLog extends Model
         'organization.reactivated' => 'Entreprise réactivée',
         'lead.updated' => 'Demande de démo mise à jour',
         'leads.exported' => 'Demandes de démo exportées',
-        'store.whatsapp_managed' => 'WhatsApp géré par Menentia',
+        'store.whatsapp_managed' => 'WhatsApp géré par ClientlyX',
     ];
 
     protected $fillable = ['user_id', 'organization_id', 'lead_id', 'action', 'description', 'payload', 'ip_address'];

@@ -5,7 +5,7 @@ import AppLayout from '../../layout/AppLayout';
 import { Page, Panel } from '../../components/page/Page';
 
 /*
- * Paramètres › Réponses automatiques : ce que NENTIX répond tout seul sur
+ * Paramètres › Réponses automatiques : ce que ClientlyX répond tout seul sur
  * WhatsApp (accueil, hors horaires, menu à boutons, rappel de la veille).
  * Règles simples, sans IA ; l'aperçu à droite montre le message tel qu'il
  * arrive sur le téléphone du client.
@@ -97,7 +97,7 @@ function AutoRepliesSettings() {
     return (
         <Page
             title="Réponses automatiques"
-            subtitle="Ce que NENTIX répond tout seul sur WhatsApp : accueil, hors horaires, menu à boutons"
+            subtitle="Ce que ClientlyX répond tout seul sur WhatsApp : accueil, hors horaires, menu à boutons"
             actions={
                 <button type="button" className="mdash-btn ghost" onClick={() => router.post('/settings/sector-preset', {}, { preserveScroll: true })}>
                     Réappliquer le préréglage du secteur

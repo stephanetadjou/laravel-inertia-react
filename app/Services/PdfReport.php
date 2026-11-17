@@ -189,7 +189,7 @@ class PdfReport
     private function render(string $title, string $subtitle, array $sections): DomPdfWrapper
     {
         $organization = $this->user->organization;
-        $logo = 'data:image/svg+xml;base64,'.base64_encode(str_replace('url(#menentia-gradient)', '#0E7BD6', (string) file_get_contents(public_path('menentia-symbol.svg'))));
+        $logo = 'data:image/svg+xml;base64,'.base64_encode((string) file_get_contents(public_path('clientlyx-symbol.svg')));
         $pdf = Pdf::loadView('reports.pdf', compact('organization', 'title', 'subtitle', 'sections', 'logo'))->setPaper('a4')->setOption('isFontSubsettingEnabled', true);
         $dompdf = $pdf->getDomPDF();
         $dompdf->render();

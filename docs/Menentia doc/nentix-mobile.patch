@@ -1,0 +1,139 @@
+diff --git a/resources/css/nentix.css b/resources/css/nentix.css
+index c396f44..99008e1 100755
+--- a/resources/css/nentix.css
++++ b/resources/css/nentix.css
+@@ -118,3 +118,62 @@
+ @media (prefers-reduced-motion: reduce) { .nx-pulse i { animation: none; } }
+ .nx-comb { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px 8px; }
+ @media (min-width: 640px) { .nx-comb { grid-template-columns: repeat(4, 1fr); row-gap: 40px; } .nx-comb > :nth-child(4n+2), .nx-comb > :nth-child(4n+4) { transform: translateY(38px); } }
++
++/* ── Téléphone : NENTIX se comporte comme une application ─────────────────
++   Moins d'éléments que sur PC : sous-titres masqués, filtres repliés derrière
++   « Filtrer », chiffres en carrousel, tableaux réduits aux colonnes clés,
++   bouton principal flottant au-dessus de la barre du bas. */
++.mpage-filter-toggle { display: none; }
++@media (max-width: 767px) {
++  .nx-app main { padding: 12px 12px 0; }
++  .nx-app { -webkit-tap-highlight-color: transparent; }
++  .nx-app .nx-pulse-label { display: none; }
++  .nx-app .nx-pulse:not(:first-of-type) { display: none; }
++  .nx-app .nx-pulse { font-size: 12.5px; padding: 4px 10px 4px 7px; }
++
++  .nx-app .mdash-top { margin: 0 -12px; padding: 10px 12px; }
++  .nx-app .mdash-top h1 { font-size: 19px; }
++  .nx-app .mdash-top small, .nx-app .mdash-panel .mdash-sub { display: none; }
++  .nx-app .mdash-top-in { flex-wrap: nowrap; gap: 8px; }
++  .nx-app .mdash-top-in > div:first-child { min-width: 0; flex: 1; }
++  .nx-app .mpage-filter-toggle { display: inline-flex; align-items: center; gap: 6px; flex-shrink: 0; height: 34px; padding: 0 14px; border-radius: 999px;
++    border: 1px solid var(--line); background: var(--surface); font-size: 13px; font-weight: 600; color: var(--ink); }
++  .nx-app .mpage-filter-toggle[aria-expanded='true'] { background: #0b1f3a; color: #fff; border-color: #0b1f3a; }
++  .nx-app .mpage-filters { display: none !important; }
++  .nx-app .mpage-filters.is-open { display: flex !important; flex-direction: column; align-items: stretch; gap: 10px; padding-top: 10px; }
++  .nx-app .mpage-filters.is-open .mdash-seg { overflow-x: auto; scrollbar-width: none; }
++  .nx-app .mpage-filters.is-open .mdash-seg button { white-space: nowrap; }
++
++  /* Actions : seul le bouton principal reste, en bouton flottant. */
++  .nx-app .mpage-actions > :not(.brand):not(.primary) { display: none; }
++  .nx-app .mpage-actions > :is(.brand, .primary) { position: fixed; right: 16px; bottom: calc(78px + env(safe-area-inset-bottom)); z-index: 9998; height: 50px;
++    padding: 0 20px; border-radius: 999px; font-size: 14.5px; box-shadow: 0 10px 24px -6px rgba(29, 78, 216, 0.55); }
++  .nx-app .mpage-actions > :is(.brand, .primary) ~ :is(.brand, .primary) { display: none; }
++
++  /* Chiffres : carrousel horizontal, cartes compactes. */
++  .nx-app .mpage-stats, .nx-app .nx-stats { flex-wrap: nowrap; overflow-x: auto; scroll-snap-type: x mandatory; scrollbar-width: none; margin: 0 -12px; padding: 0 12px 2px; }
++  .nx-app .mpage-stats::-webkit-scrollbar { display: none; }
++  .nx-app .mpage-stat { flex: 0 0 auto; min-width: 140px; scroll-snap-align: start; padding: 10px 12px; }
++  .nx-app .mpage-stat b { font-size: 19px; }
++  .nx-app .mpage-stat small { display: none; }
++
++  /* Tableaux : les 2 premières colonnes et la dernière (souvent montant ou action). */
++  .nx-app .mpage-table th:nth-child(n + 3):not(:last-child),
++  .nx-app .mpage-table td:nth-child(n + 3):not(:last-child) { display: none; }
++  .nx-app .mpage-table th, .nx-app .mpage-table td { padding-left: 8px; padding-right: 8px; }
++  .nx-app .mpage-table td { white-space: normal; }
++  .nx-app .mdash-panel, .nx-app .mpage-panel { border-radius: 16px; }
++  .nx-app .mpage-pager .btns { margin-left: auto; }
++
++  /* Pas d'effets de survol sur un écran tactile. */
++  .nx-app .group:hover .group-hover\:-translate-y-0\.5, .nx-app .nx-pulse:hover { transform: none; }
++
++  /* Fiches clients : la recherche et « Nouveau client » suffisent sur téléphone. */
++  .nx-app .mcust-actions select, .nx-app .mcust-consent, .nx-app .mcust-actions > :not(.brand):not(.mcust-search) { display: none; }
++  .nx-app .mcust-actions .mcust-search { width: 100%; height: 42px; border-radius: 999px; padding: 0 16px; }
++  .nx-app .mcust-actions > .brand { position: fixed; right: 16px; bottom: calc(78px + env(safe-area-inset-bottom)); z-index: 9998; height: 50px; padding: 0 20px;
++    border-radius: 999px; font-size: 14.5px; box-shadow: 0 10px 24px -6px rgba(29, 78, 216, 0.55); }
++  .nx-app .mpage-rowlinks > * { white-space: nowrap; }
++  .nx-app .mcust-actions .mdash-btn:not(.brand) { display: none; }
++  .nx-app main { overflow-x: clip; }
++}
+diff --git a/resources/js/components/page/Page.tsx b/resources/js/components/page/Page.tsx
+index a08eaa3..7e19126 100755
+--- a/resources/js/components/page/Page.tsx
++++ b/resources/js/components/page/Page.tsx
+@@ -23,6 +23,7 @@ interface PageProps {
+ 
+ export function Page({ title, subtitle, actions, filters, className = '', children }: PageProps) {
+     const flash = usePage<{ flash?: { success: string | null; error: string | null } }>().props.flash;
++    const [filtersOpen, setFiltersOpen] = useState(false);
+ 
+     return (
+         <div className={`mdash mpage ${className}`}>
+@@ -34,9 +35,14 @@ export function Page({ title, subtitle, actions, filters, className = '', childr
+                         <h1>{title}</h1>
+                         {subtitle && <small>{subtitle}</small>}
+                     </div>
++                    {filters && (
++                        <button type="button" className="mpage-filter-toggle" aria-expanded={filtersOpen} onClick={() => setFiltersOpen((v) => !v)}>
++                            {filtersOpen ? 'Masquer' : 'Filtrer'}
++                        </button>
++                    )}
+                     {actions && <div className="mpage-actions">{actions}</div>}
+                 </div>
+-                {filters && <div className="mpage-filters">{filters}</div>}
++                {filters && <div className={`mpage-filters ${filtersOpen ? 'is-open' : ''}`}>{filters}</div>}
+             </header>
+ 
+             {flash?.success && <div className="mdash-flash ok">{flash.success}</div>}
+diff --git a/resources/js/layout/AppHeader.tsx b/resources/js/layout/AppHeader.tsx
+index 34de04e..b168c70 100755
+--- a/resources/js/layout/AppHeader.tsx
++++ b/resources/js/layout/AppHeader.tsx
+@@ -100,7 +100,7 @@ function PulseStrip({ app }: { app?: string }) {
+     if (items.length === 0) return null;
+     return (
+         <div className="no-scrollbar flex items-center gap-2 overflow-x-auto px-4 pb-3 md:px-6">
+-            <span className="shrink-0 text-[11px] font-bold tracking-wider text-gray-400 uppercase">Pouls client</span>
++            <span className="nx-pulse-label shrink-0 text-[11px] font-bold tracking-wider text-gray-400 uppercase">Pouls client</span>
+             {items.map((p) => (
+                 <Link key={p.text} href={p.href} className={`nx-pulse shrink-0 ${p.tone}`}>
+                     <i aria-hidden="true" />
+diff --git a/resources/js/pages/Apps/Index.tsx b/resources/js/pages/Apps/Index.tsx
+index cb810dc..c04b4aa 100644
+--- a/resources/js/pages/Apps/Index.tsx
++++ b/resources/js/pages/Apps/Index.tsx
+@@ -41,7 +41,7 @@ interface PageProps {
+ 
+ function FeedBlock({ title, dot, empty, children, count }: { title: string; dot: string; empty: string; children: React.ReactNode; count: number }) {
+     return (
+-        <section className="rounded-2xl border border-gray-200 bg-white p-4 dark:border-gray-800 dark:bg-gray-900">
++        <section className={`rounded-2xl border border-gray-200 bg-white p-4 dark:border-gray-800 dark:bg-gray-900 ${count === 0 ? 'hidden md:block' : ''}`}>
+             <h2 className="mb-2 flex items-center gap-2 text-[13px] font-bold tracking-wide text-gray-500 uppercase">
+                 <span className={`h-2 w-2 rounded-full ${dot}`} aria-hidden="true" />
+                 {title}
+@@ -76,7 +76,7 @@ function AppsIndex() {
+             <div className="mb-5 flex flex-wrap items-end justify-between gap-3">
+                 <div>
+                     <p className="text-[13px] font-medium text-cyan-700 capitalize dark:text-cyan-300">{today}</p>
+-                    <h1 className="text-2xl font-bold text-[#0B1F3A] sm:text-[28px] dark:text-white">
++                    <h1 className="text-[22px] leading-tight font-bold text-[#0B1F3A] sm:text-[28px] dark:text-white">
+                         {greeting} {first}, voici vos clients du jour.
+                     </h1>
+                     <p className="mt-1 text-[14.5px] text-gray-500">
+@@ -84,7 +84,7 @@ function AppsIndex() {
+                     </p>
+                 </div>
+                 <div className="flex items-center gap-2">
+-                    {auth.organization?.pack_label && <span className="rounded-full border border-blue-200 bg-blue-50 px-3 py-1 text-xs font-semibold text-blue-700">Pack {auth.organization.pack_label}</span>}
++                    {auth.organization?.pack_label && <span className="hidden rounded-full md:inline border border-blue-200 bg-blue-50 px-3 py-1 text-xs font-semibold text-blue-700">Pack {auth.organization.pack_label}</span>}
+                     {todo > 0 && (
+                         <Link href="/actions" className="rounded-full bg-gradient-to-r from-blue-700 to-cyan-500 px-4 py-2 text-sm font-semibold text-white shadow hover:opacity-95">
+                             Commencer les relances

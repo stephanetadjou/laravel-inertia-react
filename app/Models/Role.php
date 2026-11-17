@@ -86,7 +86,7 @@ class Role extends Model
     }
 
     /**
-     * Rôles types d'un réseau de vente (Menentia Retail), créés pour une
+     * Rôles types d'un réseau de vente (ClientlyX Retail), créés pour une
      * entreprise du commerce et ajoutables depuis Utilisateurs & rôles. Même
      * système que les autres rôles : un périmètre (groupe, marque, point de
      * vente) et trois droits (gérer l'entreprise, importer, exporter).

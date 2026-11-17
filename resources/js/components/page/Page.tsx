@@ -23,6 +23,7 @@ interface PageProps {
 
 export function Page({ title, subtitle, actions, filters, className = '', children }: PageProps) {
     const flash = usePage<{ flash?: { success: string | null; error: string | null } }>().props.flash;
+    const [filtersOpen, setFiltersOpen] = useState(false);
 
     return (
         <div className={`mdash mpage ${className}`}>
@@ -34,9 +35,14 @@ export function Page({ title, subtitle, actions, filters, className = '', childr
                         <h1>{title}</h1>
                         {subtitle && <small>{subtitle}</small>}
                     </div>
+                    {filters && (
+                        <button type="button" className="mpage-filter-toggle" aria-expanded={filtersOpen} onClick={() => setFiltersOpen((v) => !v)}>
+                            {filtersOpen ? 'Masquer' : 'Filtrer'}
+                        </button>
+                    )}
                     {actions && <div className="mpage-actions">{actions}</div>}
                 </div>
-                {filters && <div className="mpage-filters">{filters}</div>}
+                {filters && <div className={`mpage-filters ${filtersOpen ? 'is-open' : ''}`}>{filters}</div>}
             </header>
 
             {flash?.success && <div className="mdash-flash ok">{flash.success}</div>}

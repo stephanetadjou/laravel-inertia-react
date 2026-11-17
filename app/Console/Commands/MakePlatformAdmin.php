@@ -7,14 +7,14 @@ use Illuminate\Console\Command;
 
 /**
  * Donne (ou retire) l'accès au back-office plateforme /admin à un compte
- * existant. Seul moyen de créer un super-admin Menentia : aucun écran ne le
+ * existant. Seul moyen de créer un super-admin ClientlyX : aucun écran ne le
  * permet, ni pour une entreprise, ni pour un autre super-admin.
  */
 class MakePlatformAdmin extends Command
 {
     protected $signature = 'menentia:make-admin {email : Adresse du compte existant} {--revoke : Retirer l\'accès}';
 
-    protected $description = 'Donne ou retire l’accès au back-office plateforme Menentia (/admin)';
+    protected $description = 'Donne ou retire l’accès au back-office plateforme ClientlyX (/admin)';
 
     public function handle(): int
     {

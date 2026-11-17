@@ -45,6 +45,10 @@ class Customer extends Model
         'facebook_ad' => 'Pub Facebook',
         'instagram_ad' => 'Pub Instagram',
         'direct' => 'Direct',
+        'carte' => 'Carte digitale',
+        'site' => 'Site web',
+        'recommandation' => 'Recommandation',
+        'salon' => 'Salon / événement',
     ];
 
     public function sourceLabel(): ?string
@@ -99,6 +103,7 @@ class Customer extends Model
         'lost_reason',
         'owner_user_id',
         'acquisition_source',
+        'acquisition_card_id',
         'acquisition_data',
         'acquired_at',
     ];

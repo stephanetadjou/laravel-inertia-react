@@ -27,6 +27,7 @@ class GroupClass extends Model
         'starts_on',
         'ends_on',
         'active',
+        'training_id',
     ];
 
     protected function casts(): array

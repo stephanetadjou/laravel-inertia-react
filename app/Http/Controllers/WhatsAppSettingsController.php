@@ -53,7 +53,7 @@ class WhatsAppSettingsController extends Controller
                 'webhook_url' => $store->webhookUrl(),
                 'webhook_verify_token' => $store->webhook_verify_token,
             ]),
-            // Guide pas à pas : bouton « Me faire aider par NENTIX » (WhatsApp prérempli, sinon email).
+            // Guide pas à pas : bouton « Me faire aider par ClientlyX » (WhatsApp prérempli, sinon email).
             'help' => [
                 'whatsapp' => preg_replace('/\D+/', '', (string) config('services.menentia.support_whatsapp')) ?: null,
                 'email' => config('services.menentia.support_email'),
@@ -67,7 +67,7 @@ class WhatsAppSettingsController extends Controller
         $this->authorizeStore($request, $store);
 
         if ($store->whatsapp_managed) {
-            return back()->with('error', "Le WhatsApp de {$store->name} est géré par NENTIX : contactez l'équipe NENTIX pour le modifier.");
+            return back()->with('error', "Le WhatsApp de {$store->name} est géré par ClientlyX : contactez l'équipe ClientlyX pour le modifier.");
         }
 
         $data = $request->validate([

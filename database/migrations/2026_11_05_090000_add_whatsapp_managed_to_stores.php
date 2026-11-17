@@ -5,8 +5,8 @@ use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
 
 /**
- * Numéro WhatsApp « géré par Menentia » : le client a partagé son compte
- * WhatsApp Business avec le portefeuille Menentia, qui envoie avec son
+ * Numéro WhatsApp « géré par ClientlyX » : le client a partagé son compte
+ * WhatsApp Business avec le portefeuille ClientlyX, qui envoie avec son
  * propre token (MENENTIA_WHATSAPP_TOKEN) et reçoit les événements sur le
  * webhook unique /webhooks/whatsapp. Seul le back-office le règle.
  */

@@ -11,8 +11,8 @@ use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Queue;
 
 /*
- * « WhatsApp géré par Menentia » : le client partage son compte WhatsApp
- * avec le portefeuille Menentia, qui envoie avec son token et reçoit tout
+ * « WhatsApp géré par ClientlyX » : le client partage son compte WhatsApp
+ * avec le portefeuille ClientlyX, qui envoie avec son token et reçoit tout
  * sur le webhook unique /webhooks/whatsapp.
  */
 
@@ -59,7 +59,7 @@ function postPlatformWebhook($test, array $payload, ?string $secret = 'menentia-
     return $test->call('POST', '/webhooks/whatsapp', [], [], [], $headers, $body);
 }
 
-it('lets the Menentia team connect a shared WhatsApp account to a point of sale', function () {
+it('lets the ClientlyX team connect a shared WhatsApp account to a point of sale', function () {
     $this->store->update(['whatsapp_access_token' => 'old-token', 'whatsapp_app_secret' => 'old-secret']);
 
     $this->actingAs($this->admin)->put("/admin/organizations/{$this->salon->id}/stores/{$this->store->id}/whatsapp", [
@@ -94,7 +94,7 @@ it('keeps the managed setting out of reach of company users', function () {
         'managed' => true, 'business_account_id' => '1', 'phone_number_id' => '777777777',
     ])->assertForbidden();
 
-    // Depuis ses Paramètres WhatsApp, l'entreprise ne peut pas pointer le token Menentia vers un autre numéro.
+    // Depuis ses Paramètres WhatsApp, l'entreprise ne peut pas pointer le token ClientlyX vers un autre numéro.
     $this->actingAs($owner)->put("/settings/whatsapp/{$this->store->id}", ['phone_number_id' => '777777777'])
         ->assertSessionHas('error');
 
@@ -102,7 +102,7 @@ it('keeps the managed setting out of reach of company users', function () {
         ->and((new Store)->isFillable('whatsapp_managed'))->toBeTrue();
 });
 
-it('sends with the Menentia token for a managed number', function () {
+it('sends with the ClientlyX token for a managed number', function () {
     Http::fake(['graph.facebook.com/*' => Http::response(['messages' => [['id' => 'wamid.OUT']]], 200)]);
     $this->store->update(['whatsapp_managed' => true, 'whatsapp_phone_number_id' => '555444333']);
 
@@ -112,7 +112,7 @@ it('sends with the Menentia token for a managed number', function () {
         && $request->hasHeader('Authorization', 'Bearer menentia-token'));
 });
 
-it('answers the verification of the single webhook with the Menentia verify token only', function () {
+it('answers the verification of the single webhook with the ClientlyX verify token only', function () {
     $this->get('/webhooks/whatsapp?hub.mode=subscribe&hub.verify_token=menentia-verify&hub.challenge=42')
         ->assertOk()->assertSee('42');
 
@@ -125,7 +125,7 @@ it('answers the verification of the single webhook with the Menentia verify toke
 it('routes each event of the single webhook to the managed point of sale owning the number', function () {
     Queue::fake();
     $this->store->update(['whatsapp_managed' => true, 'whatsapp_phone_number_id' => '555444333']);
-    // Même numéro saisi ailleurs sans être géré : jamais destinataire du webhook Menentia.
+    // Même numéro saisi ailleurs sans être géré : jamais destinataire du webhook ClientlyX.
     Store::factory()->create(['whatsapp_phone_number_id' => '111000111']);
 
     postPlatformWebhook($this, managedPayload('555444333'))->assertOk();
@@ -135,7 +135,7 @@ it('routes each event of the single webhook to the managed point of sale owning 
     Queue::assertPushed(ProcessWhatsAppWebhookJob::class, fn ($job) => $job->storeId === $this->store->id);
 });
 
-it('rejects single webhook calls that are not signed with the Menentia App Secret', function (?string $secret) {
+it('rejects single webhook calls that are not signed with the ClientlyX App Secret', function (?string $secret) {
     Queue::fake();
     $this->store->update(['whatsapp_managed' => true, 'whatsapp_phone_number_id' => '555444333']);
 
@@ -152,7 +152,7 @@ it('records the inbound message of a managed number end to end', function () {
     expect(WhatsAppInboundMessage::where('wa_message_id', 'wamid.E2E')->value('store_id'))->toBe($this->store->id);
 });
 
-it('accepts the per-store webhook of a managed number with the Menentia App Secret', function () {
+it('accepts the per-store webhook of a managed number with the ClientlyX App Secret', function () {
     Queue::fake();
     $this->store->update(['whatsapp_managed' => true, 'whatsapp_phone_number_id' => '555444333']);
     $this->store->ensureWebhookCredentials();

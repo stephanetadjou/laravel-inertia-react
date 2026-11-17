@@ -1,0 +1,12 @@
+Photos des professionnels, une par secteur, affichées en tête des pages Activités.
+
+Noms attendus : beaute.png, sante.png, sport.png, technique.png, pro.png
+(.webp ou .jpg acceptés aussi).
+
+Conseils :
+- portrait vertical, la personne détourée sur fond transparent (PNG), environ 1000 x 1300 px ;
+- une personne qui regarde l'objectif, en tenue de travail, avec un objet du métier ;
+- uniquement des photos dont vous avez la licence (achetée, ou libre comme Unsplash et Pexels).
+  Les aperçus avec filigrane (Dreamstime, Shutterstock, iStock) ne peuvent pas être publiés.
+
+Sans photo, l'emblème dessiné du secteur reste affiché. Relancer « npm run build » après l'ajout.

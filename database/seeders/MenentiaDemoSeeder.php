@@ -28,7 +28,7 @@ use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\Auth;
 
 /**
- * Entreprise fictive « Menentia Solutions digitales » (Libreville, services
+ * Entreprise fictive « ClientlyX Solutions digitales » (Libreville, services
  * professionnels) : démonstration du suivi des prospects et des commerciaux.
  * Un directeur, deux commerciaux, ~40 prospects (instituts, salles de sport,
  * clubs, cabinets, garages), 12 clients abonnés, primes. Données fictives.
@@ -59,7 +59,7 @@ class MenentiaDemoSeeder extends Seeder
         }
 
         $organization = Organization::create([
-            'name' => 'Menentia Solutions digitales', 'slug' => self::SLUG, 'sector' => 'pro', 'currency' => 'XAF', 'timezone' => 'Africa/Libreville',
+            'name' => 'ClientlyX Solutions digitales', 'slug' => self::SLUG, 'sector' => 'pro', 'currency' => 'XAF', 'timezone' => 'Africa/Libreville',
             'whatsapp_api_enabled' => false, 'status' => Organization::STATUS_ACTIVE, 'plan' => 'premium',
             'report_settings' => ['enabled' => true, 'recipients' => ['directeur@demo-menentia.test'], 'send_at' => '19:00', 'monthly_target' => 3000000],
         ]);
@@ -70,8 +70,8 @@ class MenentiaDemoSeeder extends Seeder
 
         Role::seedDefaultsFor($organization);
         $sales = Role::ensureSalesRole($organization);
-        $brand = Brand::create(['organization_id' => $organization->id, 'name' => 'Menentia']);
-        $store = Store::create(['organization_id' => $organization->id, 'brand_id' => $brand->id, 'name' => 'Menentia Libreville', 'city' => 'Libreville']);
+        $brand = Brand::create(['organization_id' => $organization->id, 'name' => 'ClientlyX']);
+        $store = Store::create(['organization_id' => $organization->id, 'brand_id' => $brand->id, 'name' => 'ClientlyX Libreville', 'city' => 'Libreville']);
 
         $director = User::create(['name' => 'Stéphane Fotsing (directeur)', 'email' => 'directeur@demo-menentia.test', 'password' => $password, 'organization_id' => $organization->id,
             'role_id' => Role::where('organization_id', $organization->id)->where('name', 'Super administrateur')->value('id')]);
@@ -139,14 +139,14 @@ class MenentiaDemoSeeder extends Seeder
                     ProspectStageChange::where('customer_id', $customer->id)->where('to_stage', $key)->update(['changed_at' => $at]);
                     if (in_array($key, ['visite', 'demo'], true)) {
                         Appointment::create(['store_id' => $store->id, 'customer_id' => $customer->id, 'starts_at' => $at, 'duration_minutes' => $key === 'demo' ? 45 : 30,
-                            'service' => $key === 'demo' ? 'Démo Menentia' : 'Visite commerciale', 'status' => 'done', 'kind' => $key, 'created_by' => $rep->id, 'staff_user_id' => $rep->id]);
+                            'service' => $key === 'demo' ? 'Démo ClientlyX' : 'Visite commerciale', 'status' => 'done', 'kind' => $key, 'created_by' => $rep->id, 'staff_user_id' => $rep->id]);
                     }
                 }
 
                 // Prochaines visites et démos de la semaine.
                 if (in_array($stage, ['prospect', 'visite'], true) && $i % 3 === 0) {
                     Appointment::create(['store_id' => $store->id, 'customer_id' => $customer->id, 'starts_at' => now()->addDays(1 + $i % 4)->setTime(9 + $i % 8, 0), 'duration_minutes' => 45,
-                        'service' => $stage === 'prospect' ? 'Visite commerciale' : 'Démo Menentia', 'status' => 'planned', 'kind' => $stage === 'prospect' ? 'visite' : 'demo', 'created_by' => $rep->id, 'staff_user_id' => $rep->id]);
+                        'service' => $stage === 'prospect' ? 'Visite commerciale' : 'Démo ClientlyX', 'status' => 'planned', 'kind' => $stage === 'prospect' ? 'visite' : 'demo', 'created_by' => $rep->id, 'staff_user_id' => $rep->id]);
                 }
 
                 if ($stage !== 'client') {

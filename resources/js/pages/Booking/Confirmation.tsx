@@ -96,7 +96,7 @@ export default function BookingConfirmation({ organization, appointment: a, what
             </div>
 
             <footer className="mbook-foot">
-                <MenentiaSymbol className="h-4 w-4" /> Réservation par NENTIX
+                <MenentiaSymbol className="h-4 w-4" /> Réservation par ClientlyX
             </footer>
         </div>
     );

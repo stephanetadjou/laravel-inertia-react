@@ -5,7 +5,7 @@ use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
 
 /**
- * NENTIX par secteur (09/11/2026) :
+ * ClientlyX par secteur (09/11/2026) :
  * - customers : source d'acquisition (Pub Facebook / Instagram / Direct) et données brutes du referral ;
  * - contacts : état de la discussion WhatsApp (à traiter, attribuée, robot en pause, accueil envoyé) ;
  * - whatsapp_outbound_messages : messages de session et réponses automatiques envoyés ;

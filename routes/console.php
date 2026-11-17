@@ -21,6 +21,10 @@ Schedule::command('crm:sales-morning')->dailyAt('07:30')->withoutOverlapping();
 Schedule::command('crm:appointment-reminders')->dailyAt('17:00')->withoutOverlapping();
 // Planning des abonnements : prolonge chaque nuit les séances dans l'agenda (horizon de 8 semaines).
 Schedule::command('crm:subscription-planning')->dailyAt('03:00')->withoutOverlapping();
+// Loueurs de véhicules : devis sans réponse (24 h / 72 h), rappel la veille, remerciement et avis.
+Schedule::command('location:relances')->hourlyAt(5)->between('08:00', '20:00')->withoutOverlapping();
+// Tunnels de vente : séquence WhatsApp J0 / J+1 / J+3, arrêtée dès l'achat ou au STOP.
+Schedule::command('tunnels:relances')->hourlyAt(20)->between('08:00', '20:00')->withoutOverlapping();
 
 Artisan::command('inspire', function () {
     $this->comment(Inspiring::quote());

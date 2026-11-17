@@ -76,7 +76,7 @@ it('lists companies with search and filters', function () {
         ->assertInertia(fn ($page) => $page->component('Admin/Organizations/Index')->where('organizations.total', 3));
 
     $this->actingAs($this->admin)->get('/admin/organizations?offer=retail')
-        ->assertInertia(fn ($page) => $page->has('organizations.data', 1)->where('organizations.data.0.name', 'Retail Group')->where('organizations.data.0.offer', 'NENTIX · Boutiques'));
+        ->assertInertia(fn ($page) => $page->has('organizations.data', 1)->where('organizations.data.0.name', 'Retail Group')->where('organizations.data.0.offer', 'ClientlyX · Analyse'));
     $this->actingAs($this->admin)->get('/admin/organizations?status=trial&sector=beaute&q=awa')
         ->assertInertia(fn ($page) => $page->has('organizations.data', 1)
             ->where('organizations.data.0.name', 'Salon Awa')
@@ -92,7 +92,7 @@ it('extends a trial, changes the plan and activates the subscription, with a log
     expect($this->salon->fresh()->trial_ends_at->toDateString())->toBe('2026-11-09');
 
     $this->actingAs($this->admin)->put("/admin/organizations/{$this->salon->id}/plan", ['plan' => 'equipe'])->assertSessionHas('success');
-    $this->actingAs($this->admin)->put("/admin/organizations/{$this->salon->id}/plan", ['plan' => 'gratuit'])->assertSessionHasErrors('plan');
+    $this->actingAs($this->admin)->put("/admin/organizations/{$this->salon->id}/plan", ['plan' => 'platinum'])->assertSessionHasErrors('plan');
     expect($this->salon->fresh()->plan)->toBe('equipe');
 
     $this->actingAs($this->admin)->post("/admin/organizations/{$this->salon->id}/activate")->assertSessionHas('success');

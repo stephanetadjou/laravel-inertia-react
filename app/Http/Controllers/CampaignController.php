@@ -12,6 +12,7 @@ use App\Models\MessageTemplate;
 use App\Models\Store;
 use App\Services\ContactImporter;
 use App\Services\CustomerSearch;
+use App\Services\Learners;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
@@ -239,7 +240,11 @@ class CampaignController extends Controller
                 return back()->with('error', 'Aucune boutique valide sélectionnée.');
             }
 
-            $contactIds = $this->segmentQuery($stores, $data)->pluck('id');
+            $contactIds = $this->segmentQuery($stores, $data)
+                // Centre de formation : pas de campagne aux apprenants qui ont terminé leur formation.
+                ->when($request->user()->organization->hasModule('formation'), fn ($q) => $q->where(fn ($w) => $w->whereNull('customer_id')
+                    ->orWhereNotIn('customer_id', Learners::trainedQuery($organizationId))))
+                ->pluck('id');
             $filters = array_filter([
                 'gender' => $data['gender'] ?? null,
                 'group_ids' => $data['group_ids'] ?? null,
@@ -267,7 +272,7 @@ class CampaignController extends Controller
             }
             if ($creditCost > (int) $organization->message_credits) {
                 return back()->with('error', sprintf(
-                    'Crédits insuffisants : cette campagne coûte %s FCFA (%d messages × %d FCFA), votre solde est de %s FCFA. Demandez une recharge à NENTIX.',
+                    'Crédits insuffisants : cette campagne coûte %s FCFA (%d messages × %d FCFA), votre solde est de %s FCFA. Demandez une recharge à ClientlyX.',
                     number_format($creditCost, 0, ',', ' '), $contactIds->count(), $organization->marketingMessageCost(), number_format((int) $organization->message_credits, 0, ',', ' '),
                 ));
             }

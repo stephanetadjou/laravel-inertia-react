@@ -1,0 +1,104 @@
+<title>ClientlyX et Mercure Tech</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Sora:wght@500;700;800&family=Inter:wght@400;500;600&display=swap">
+<style>
+/* Layout : une piste par bande, logo à gauche, palette et usages à droite */
+:root{--bg:#F6F5F2;--fg:#1B1A1F;--muted:#5E5B66;--card:#FFFFFF;--line:#E3E0DA;
+--display:'Sora',system-ui,sans-serif;--body:'Inter',system-ui,sans-serif}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#141318;--fg:#F1EFEA;--muted:#A7A3AF;--card:#1E1D23;--line:#2E2C34;color-scheme:dark}}
+:root[data-theme="dark"]{--bg:#141318;--fg:#F1EFEA;--muted:#A7A3AF;--card:#1E1D23;--line:#2E2C34;color-scheme:dark}
+body{background:var(--bg);color:var(--fg);font-family:var(--body);line-height:1.55}
+.wrap{max-width:1040px;margin:0 auto;padding-block:40px 64px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));display:flex;flex-direction:column;gap:28px}
+h1{font-family:var(--display);font-size:clamp(1.8rem,4vw,2.6rem);margin:0;letter-spacing:-.02em;text-wrap:balance}
+.lead{color:var(--muted);max-width:62ch;margin:0}
+.piste{background:var(--card);border:1px solid var(--line);border-radius:14px;display:grid;grid-template-columns:1.1fr 1fr;overflow:hidden}
+@media (max-width:760px){.piste{grid-template-columns:1fr}}
+.stage{padding:36px 28px;display:flex;flex-direction:column;gap:18px;justify-content:center;min-width:0}
+.stage svg{width:100%;max-width:420px;height:auto}
+.info{padding:28px;border-left:1px solid var(--line);display:flex;flex-direction:column;gap:14px;min-width:0}
+@media (max-width:760px){.info{border-left:0;border-top:1px solid var(--line)}}
+.tag{font-size:12px;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);font-weight:600}
+h2{font-family:var(--display);margin:0;font-size:1.35rem}
+.info p{margin:0;color:var(--muted)}
+.sw{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
+.sw div{border-radius:8px;height:56px;display:flex;align-items:flex-end;padding:6px;font:500 11px/1 var(--body);font-variant-numeric:tabular-nums}
+.apps{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.apps svg{width:52px;height:52px}
+.foot{color:var(--muted);font-size:13px}
+</style>
+<div class="wrap">
+  <h1>ClientlyX et Mercure Tech</h1>
+  <p class="lead">Les deux logos retenus : ClientlyX, le SaaS, et Mercure Tech, l'entreprise. Ce sont des esquisses à faire finaliser en vectoriel par un graphiste.</p>
+
+  <!-- Piste A -->
+  <section class="piste">
+    <div class="stage" style="background:#FFF7EE">
+      <svg viewBox="0 0 420 110" role="img" aria-label="Logo ClientlyX piste A">
+        <g transform="translate(8,15)">
+          <circle cx="40" cy="40" r="38" fill="#E8590C"/>
+          <path d="M58 22a26 26 0 1 0 0 36" fill="none" stroke="#FFF7EE" stroke-width="9" stroke-linecap="round"/>
+          <path d="M52 46l14-14m0 0h-10m10 0v10" fill="none" stroke="#FFD43B" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>
+        </g>
+        <text x="100" y="66" font-family="Sora" font-weight="800" font-size="44" fill="#2B1A3D" letter-spacing="-1">Cliently<tspan fill="#E8590C">X</tspan></text>
+        <text x="102" y="92" font-family="Inter" font-size="13" fill="#6B5A7A">The AI Customer Growth Platform for Africa.</text>
+      </svg>
+    </div>
+    <div class="info">
+      <span class="tag">SaaS</span>
+      <h2>Soleil et prune</h2>
+      <p>Chaude et énergique. Orange terre et jaune soleil pour la croissance, prune profond pour le sérieux. C'est la piste la plus « Afrique », et elle se démarque fortement des CRM bleus.</p>
+      <div class="sw">
+        <div style="background:#E8590C;color:#fff">#E8590C</div>
+        <div style="background:#FFD43B;color:#2B1A3D">#FFD43B</div>
+        <div style="background:#2B1A3D;color:#fff">#2B1A3D</div>
+        <div style="background:#FFF7EE;color:#2B1A3D;border:1px solid #eadfce">#FFF7EE</div>
+      </div>
+      <div class="apps"><svg viewBox="0 0 52 52"><rect width="52" height="52" rx="12" fill="#E8590C"/><path d="M34 16a14 14 0 1 0 0 20" fill="none" stroke="#fff" stroke-width="6" stroke-linecap="round"/><circle cx="36" cy="26" r="4" fill="#FFD43B"/></svg><span class="foot">Icône de l'app</span></div>
+    </div>
+  </section>
+
+  <section class="piste" id="mercure">
+    <div style="background:#FFF7EE;padding:36px 28px;display:flex;flex-direction:column;gap:18px;justify-content:center;min-width:0">
+      <svg viewBox="0 0 440 110" role="img" aria-label="Logo Mercure Tech" style="width:100%;max-width:440px;height:auto">
+        <g transform="translate(8,12)">
+          <path d="M43 0l37 21.5v43L43 86 6 64.5v-43z" fill="#E8590C"/>
+          <path d="M43 13l26 15v30L43 73 17 58V28z" fill="#2B1A3D"/>
+          <path d="M43 28l13 7.5v15L43 58l-13-7.5v-15z" fill="#FFD43B"/>
+        </g>
+        <text x="104" y="60" font-family="Sora" font-weight="800" font-size="40" fill="#2B1A3D" letter-spacing="-1">Mercure<tspan fill="#E8590C"> Tech</tspan></text>
+        <text x="106" y="88" font-family="Inter" font-size="13" fill="#6B5A7A">Solutions digitales · Data marketing · Cloud</text>
+      </svg>
+    </div>
+    <div class="info">
+      <span class="tag">Entreprise</span>
+      <h2>Mercure Tech</h2>
+      <p>Le même hexagone que NENTIX, repeint dans la palette de ClientlyX : orange, jaune et prune. « Mercure » en prune, « Tech » en orange : la même construction que ClientlyX, pour qu'on voie tout de suite que les deux marques sont de la même famille.</p>
+      <div class="sw">
+        <div style="background:#2B1A3D;color:#fff">#2B1A3D</div>
+        <div style="background:#FFF7EE;color:#2B1A3D;border:1px solid #eadfce">#FFF7EE</div>
+        <div style="background:#E8590C;color:#fff">#E8590C</div>
+        <div style="background:#FFD43B;color:#2B1A3D">#FFD43B</div>
+      </div>
+      <p class="foot">Signature commune : « ClientlyX, by Mercure Tech ».</p>
+    </div>
+  </section>
+
+  <script>
+  (function(){
+    var pillars=[['AI-Powered CRM','<circle cx="12" cy="12" r="8"/><path d="M9 15l1.5-6h3L15 15M9.8 12.5h4.4"/>'],
+      ['Dynamic Booking','<rect x="4" y="6" width="16" height="14" rx="2"/><path d="M8 3v5M16 3v5M4 11h16M9 15h2M13 15h2"/>'],
+      ['Growth Marketing','<path d="M4 10v4h3l7 4V6l-7 4z"/><path d="M18 9a4 4 0 0 1 0 6"/>'],
+      ['Advanced Analytics','<path d="M5 20V14M10 20V10M15 20V12M20 20V6"/><path d="M5 9l5-4 4 3 6-5"/>']];
+    var colors=[['#E8590C','#2B1A3D'],['#5B3DF5','#16123A'],['#0F3D2E','#0F3D2E']];
+    document.querySelectorAll('.stage').forEach(function(st,i){
+      var row=document.createElement('div');
+      row.style.cssText='display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px 16px;border-top:1px solid rgba(0,0,0,.08);padding-top:16px';
+      pillars.forEach(function(p){
+        row.insertAdjacentHTML('beforeend','<div style="display:flex;gap:8px;align-items:center;color:'+colors[i][1]+';font:600 13px/1.2 Inter,system-ui,sans-serif"><svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="'+colors[i][0]+'" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">'+p[1]+'</svg>'+p[0]+'</div>');
+      });
+      st.appendChild(row);
+    });
+  })();
+  </script>
+
+</div>
