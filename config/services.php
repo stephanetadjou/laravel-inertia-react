@@ -40,12 +40,12 @@ return [
 
     // Site vitrine : retour après le formulaire de démo, et adresse qui reçoit les demandes.
     'menentia' => [
-        'site_url' => env('MENENTIA_SITE_URL', 'https://clientlyx.com'),
-        'leads_email' => env('MENENTIA_LEADS_EMAIL'),
+        'site_url' => env('CLIENTLYX_SITE_URL') ?: env('MENENTIA_SITE_URL', 'https://clientlyx.com'),
+        'leads_email' => env('CLIENTLYX_LEADS_EMAIL') ?: env('MENENTIA_LEADS_EMAIL'),
         // Affiché aux entreprises suspendues.
-        'support_email' => env('MENENTIA_SUPPORT_EMAIL', 'contact@clientlyx.com'),
+        'support_email' => env('CLIENTLYX_SUPPORT_EMAIL') ?: env('MENENTIA_SUPPORT_EMAIL', 'contact@clientlyx.com'),
         // Lien « Besoin d'aide ? » (numéro WhatsApp du support, format international sans +) ; à défaut, l'email.
-        'support_whatsapp' => env('MENENTIA_SUPPORT_WHATSAPP'),
+        'support_whatsapp' => env('CLIENTLYX_SUPPORT_WHATSAPP') ?: env('MENENTIA_SUPPORT_WHATSAPP'),
     ],
 
     // ClientlyX : coût par défaut d'un message marketing (FCFA), modifiable par entreprise dans /admin.
@@ -70,9 +70,9 @@ return [
         // signe le webhook unique /webhooks/whatsapp et son jeton de
         // vérification (à recopier dans l'app Meta).
         'platform' => [
-            'token' => env('MENENTIA_WHATSAPP_TOKEN'),
-            'app_secret' => env('MENENTIA_WHATSAPP_APP_SECRET'),
-            'verify_token' => env('MENENTIA_WHATSAPP_VERIFY_TOKEN'),
+            'token' => env('CLIENTLYX_WHATSAPP_TOKEN') ?: env('MENENTIA_WHATSAPP_TOKEN'),
+            'app_secret' => env('CLIENTLYX_WHATSAPP_APP_SECRET') ?: env('MENENTIA_WHATSAPP_APP_SECRET'),
+            'verify_token' => env('CLIENTLYX_WHATSAPP_VERIFY_TOKEN') ?: env('MENENTIA_WHATSAPP_VERIFY_TOKEN'),
         ],
         // Envoi des campagnes : messages par lot (un job par lot) et pause
         // entre deux messages pour rester sous le débit autorisé par Meta.

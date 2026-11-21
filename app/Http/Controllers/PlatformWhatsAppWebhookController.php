@@ -12,8 +12,8 @@ use Symfony\Component\HttpFoundation\Response;
  * Webhook unique de l'app Meta de ClientlyX (URL {APP_URL}/webhooks/whatsapp),
  * pour les numéros « gérés par ClientlyX » : Meta envoie ici les événements de
  * tous les comptes WhatsApp partagés avec le portefeuille ClientlyX.
- * - GET : vérification avec MENENTIA_WHATSAPP_VERIFY_TOKEN ;
- * - POST : signature X-Hub-Signature-256 avec MENENTIA_WHATSAPP_APP_SECRET,
+ * - GET : vérification avec CLIENTLYX_WHATSAPP_VERIFY_TOKEN ;
+ * - POST : signature X-Hub-Signature-256 avec CLIENTLYX_WHATSAPP_APP_SECRET,
  *   puis chaque changement est confié à l'établissement dont c'est le Phone
  *   Number ID (traitement en file, comme le webhook par établissement).
  */

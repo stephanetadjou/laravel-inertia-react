@@ -273,7 +273,7 @@ function OrganizationShow() {
 
                 <Panel title="WhatsApp géré par ClientlyX" sub="Compte WhatsApp du client partagé avec le portefeuille ClientlyX" className="c12">
                     {!platform_whatsapp_ready && (
-                        <p className="px-5 pt-4 text-sm text-warning-600">MENENTIA_WHATSAPP_TOKEN n’est pas renseigné sur le serveur : les numéros gérés ne pourront pas envoyer.</p>
+                        <p className="px-5 pt-4 text-sm text-warning-600">CLIENTLYX_WHATSAPP_TOKEN n’est pas renseigné sur le serveur : les numéros gérés ne pourront pas envoyer.</p>
                     )}
                     {stores.length === 0 ? <Empty title="Aucun point de vente" /> : stores.map((s) => <ManagedWhatsAppRow key={s.id} organizationId={o.id} store={s} />)}
                 </Panel>
