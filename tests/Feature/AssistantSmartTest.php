@@ -7,6 +7,7 @@ use App\Models\KnowledgeEntry;
 use App\Models\KnowledgeQuestion;
 use App\Models\WhatsAppOutboundMessage;
 use App\Services\Assistant;
+use App\Services\AssistantStats;
 use App\Support\BookingRequest;
 use Illuminate\Support\Carbon;
 
@@ -108,4 +109,26 @@ it('répond à plusieurs questions dans un même message', function () {
     asText($store, 'Quels moyens de paiement acceptez-vous ? Vous faites des drones ?');
     expect(WhatsAppOutboundMessage::where('origin', 'assistant')->where('body', 'like', '%Airtel Money%Pour le reste%')->exists())->toBeTrue()
         ->and(KnowledgeQuestion::where('organization_id', $org->id)->value('question'))->toContain('drones');
+});
+
+it('affiche le tableau de suivi de l’assistant', function () {
+    $org = asOrg();
+    $store = asStore($org);
+    [$famille] = smartServices($org->id);
+    KnowledgeEntry::create(['organization_id' => $org->id, 'section' => 'regles', 'title' => 'Moyens de paiement', 'content' => 'Nous acceptons Airtel Money et les espèces.', 'is_active' => true]);
+
+    asText($store, 'Quels moyens de paiement acceptez-vous ?');
+    asText($store, 'Vous faites des drones ?');
+    $ymd = now()->addDays(2)->format('Ymd');
+    asButton($store, 'bk:ok:'.$famille->id.':'.$ymd.'1000');
+
+    $stats = AssistantStats::for($org);
+    expect($stats['current']['answered'])->toBeGreaterThanOrEqual(1)
+        ->and($stats['current']['handoffs'])->toBe(1)
+        ->and($stats['current']['appointments'])->toBe(1)
+        ->and($stats['current']['conversations'])->toBe(1)
+        ->and($stats['daily'])->toHaveCount(14);
+
+    $this->actingAs(asAdmin($org))->get('/assistant?tab=stats')->assertOk()
+        ->assertInertia(fn ($page) => $page->where('stats.current.appointments', 1));
 });

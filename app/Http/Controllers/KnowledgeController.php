@@ -10,6 +10,7 @@ use App\Models\Store;
 use App\Models\Task;
 use App\Services\Assistant;
 use App\Services\AssistantNeeds;
+use App\Services\AssistantStats;
 use App\Services\Audit;
 use App\Services\KnowledgeBase;
 use App\Services\VoiceNotes;
@@ -62,6 +63,7 @@ class KnowledgeController extends Controller
                 'answer' => AssistantQuestionnaire::answers($organization)[$key] ?? ['choices' => [], 'text' => ''],
             ])->values(),
             'initialTab' => $request->query('tab'),
+            'stats' => AssistantStats::for($organization),
             'outcomes' => collect(AssistantNeeds::OUTCOMES)->map(fn ($label, $key) => ['key' => $key, 'label' => $label])->values(),
             'status' => [
                 'ai_global' => (bool) config('clientlyx_ai.enabled') && filled(config('clientlyx_ai.anthropic_key')),

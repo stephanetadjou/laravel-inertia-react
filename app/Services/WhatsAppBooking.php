@@ -397,7 +397,7 @@ class WhatsAppBooking
                 'duration_minutes' => $duration,
                 'service' => $service->name,
                 'status' => $this->settings['auto_confirm'] ? 'confirmed' : 'requested',
-                'notes' => 'Pris sur WhatsApp par l’assistant ClientlyX',
+                'notes' => AssistantStats::BOOKED_NOTE,
                 'source' => Appointment::SOURCE_ONLINE,
                 'cancel_token' => Str::random(40),
                 'staff_member_id' => $staff?->id,
