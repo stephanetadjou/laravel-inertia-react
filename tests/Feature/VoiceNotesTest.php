@@ -7,6 +7,8 @@ use App\Models\WhatsAppOutboundMessage;
 use Illuminate\Http\Client\Request as HttpRequest;
 use Illuminate\Support\Facades\Http;
 
+require_once __DIR__.'/../Support/AssistantHelpers.php';
+
 /*
  * Notes vocales : téléchargement chez Meta, transcription, puis réponse de
  * l'assistant comme à un message écrit ; sans transcription, le client est

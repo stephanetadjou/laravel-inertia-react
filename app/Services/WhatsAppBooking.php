@@ -6,6 +6,8 @@ use App\Models\Appointment;
 use App\Models\CatalogItem;
 use App\Models\Contact;
 use App\Models\Store;
+use App\Models\Task;
+use App\Support\BookingRequest;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
@@ -19,7 +21,9 @@ use Illuminate\Support\Str;
  * l'établissement, statut « À confirmer » ou confirmé selon les réglages.
  *
  * Identifiants des boutons : bk:s:{prestation}, bk:d:{prestation}:{AAAAMMJJ},
- * bk:t:{prestation}:{AAAAMMJJHHMM}, bk:ok:{prestation}:{AAAAMMJJHHMM}, bk:no.
+ * bk:t:{prestation}:{AAAAMMJJHHMM}, bk:ok:{prestation}:{AAAAMMJJHHMM}, bk:no ;
+ * suffixe :r{rdv} quand le client décale un rendez-vous ; annulation :
+ * bk:cx:{rdv}, bk:mv:{rdv} (décaler) ou bk:keep.
  */
 class WhatsAppBooking
 {
@@ -28,6 +32,9 @@ class WhatsAppBooking
     private const MAX_PENDING = 3;
 
     private array $settings;
+
+    /** Rendez-vous déplacé par ce parcours (« décaler »), annulé une fois le nouveau pris. */
+    private ?int $moving = null;
 
     public function __construct(private Contact $contact)
     {
@@ -78,6 +85,94 @@ class WhatsAppBooking
         });
     }
 
+    /**
+     * Demande écrite complète (« shooting famille samedi 10 h ») : va
+     * directement à l'étape utile (récapitulatif, heures du jour, jours, ou
+     * liste des prestations).
+     */
+    public function fromRequest(BookingRequest $request): void
+    {
+        $services = $this->services();
+        $service = $request->service ?? ($services->count() === 1 ? $services->first() : null);
+
+        if ($service === null) {
+            $this->start();
+
+            return;
+        }
+
+        $this->goTo($service, $request);
+    }
+
+    /** Prochain rendez-vous à venir du client (pour l'annuler ou le décaler). */
+    public function nextAppointment(): ?Appointment
+    {
+        if ($this->contact->customer_id === null) {
+            return null;
+        }
+
+        return Appointment::where('customer_id', $this->contact->customer_id)
+            ->whereIn('status', Appointment::OPEN_STATUSES)
+            ->where('starts_at', '>=', now())
+            ->orderBy('starts_at')
+            ->first();
+    }
+
+    /** « Annuler mon rdv » : demande de confirmation par boutons. */
+    public function askCancel(): void
+    {
+        $appointment = $this->nextAppointment();
+        if ($appointment === null) {
+            WhatsAppConversation::text($this->contact, 'Je ne trouve aucun rendez-vous à venir à votre nom. Écrivez « RDV » pour en prendre un.', 'assistant');
+
+            return;
+        }
+
+        WhatsAppConversation::interactive($this->contact, [
+            'type' => 'button',
+            'body' => ['text' => 'Vous souhaitez annuler votre rendez-vous '.$this->describe($appointment).' ?'],
+            'action' => ['buttons' => [
+                ['type' => 'reply', 'reply' => ['id' => self::PREFIX.'cx:'.$appointment->id, 'title' => 'Oui, annuler']],
+                ['type' => 'reply', 'reply' => ['id' => self::PREFIX.'mv:'.$appointment->id, 'title' => 'Plutôt décaler']],
+                ['type' => 'reply', 'reply' => ['id' => self::PREFIX.'keep', 'title' => 'Non, je garde']],
+            ]],
+        ], 'assistant');
+    }
+
+    /** « Décaler mon rdv (à jeudi 15 h) » : nouveau créneau pour la même prestation. */
+    public function reschedule(?Appointment $appointment = null, ?BookingRequest $request = null): void
+    {
+        $appointment ??= $this->nextAppointment();
+        if ($appointment === null) {
+            WhatsAppConversation::text($this->contact, 'Je ne trouve aucun rendez-vous à venir à votre nom. Écrivez « RDV » pour en prendre un.', 'assistant');
+
+            return;
+        }
+
+        $service = $this->serviceOf($appointment);
+        if ($service === null) {
+            // Prestation non réservable en ligne : l'équipe recase le rendez-vous.
+            $this->contact->forceFill(['needs_attention' => true])->saveQuietly();
+            Task::open([
+                'organization_id' => $this->contact->store->organization_id,
+                'store_id' => $this->contact->store_id,
+                'contact_id' => $this->contact->id,
+                'assigned_user_id' => $this->contact->assigned_user_id,
+                'kind' => 'reschedule',
+                'title' => 'Rendez-vous à recaser',
+                'details' => 'Le client souhaite décaler son rendez-vous '.$this->describe($appointment),
+                'customer_id' => $this->contact->customer_id,
+                'appointment_id' => $appointment->id,
+            ]);
+            WhatsAppConversation::text($this->contact, 'C’est noté : l’équipe vous propose un nouveau créneau très vite.', 'assistant');
+
+            return;
+        }
+
+        $this->moving = $appointment->id;
+        $this->goTo($service, $request);
+    }
+
     /** Réponse à un bouton du parcours. */
     public function handle(string $reply): void
     {
@@ -88,6 +183,29 @@ class WhatsAppBooking
             WhatsAppConversation::text($this->contact, 'C’est noté, aucune réservation. Écrivez-moi quand vous voulez.', 'assistant');
 
             return;
+        }
+
+        if ($step === 'keep') {
+            WhatsAppConversation::text($this->contact, 'Parfait, votre rendez-vous est maintenu. À bientôt !', 'assistant');
+
+            return;
+        }
+
+        if (in_array($step, ['cx', 'mv'], true)) {
+            $appointment = $this->ownAppointment((int) ($parts[1] ?? 0));
+            if ($appointment === null) {
+                WhatsAppConversation::text($this->contact, 'Ce rendez-vous n’est plus modifiable. L’équipe reste disponible si besoin.', 'assistant');
+
+                return;
+            }
+            $step === 'cx' ? $this->cancel($appointment) : $this->reschedule($appointment);
+
+            return;
+        }
+
+        $last = end($parts);
+        if (is_string($last) && preg_match('/^r(\d+)$/', $last, $m)) {
+            $this->moving = $this->ownAppointment((int) $m[1])?->id;
         }
 
         $service = $this->services()->firstWhere('id', (int) ($parts[1] ?? 0));
@@ -123,6 +241,67 @@ class WhatsAppBooking
             ->values();
     }
 
+    private function goTo(CatalogItem $service, ?BookingRequest $request): void
+    {
+        $start = $request?->start();
+        if ($start !== null) {
+            if ($start->isFuture() && $this->availability()->isFree($start, $this->duration($service), [$service->id])) {
+                $this->confirm($service, $start);
+
+                return;
+            }
+            WhatsAppConversation::text($this->contact, ucfirst($this->dayLabel($start)).' à '.$start->format('H\hi').', ce n’est pas libre. Voici ce que je peux vous proposer :', 'assistant');
+        }
+
+        if ($request?->day !== null && $request->day->gte(now()->startOfDay())) {
+            $this->slots($service, $request->day->copy());
+
+            return;
+        }
+
+        $this->days($service);
+    }
+
+    private function cancel(Appointment $appointment): void
+    {
+        $appointment->update(['status' => 'cancelled', 'client_response' => 'cancelled', 'client_response_at' => now()]);
+        WhatsAppConversation::text($this->contact, 'Votre rendez-vous '.$this->describe($appointment).' est annulé. Écrivez « RDV » quand vous voulez en reprendre un.', 'assistant');
+    }
+
+    /** Rendez-vous à venir et encore ouvert de ce client. */
+    private function ownAppointment(int $id): ?Appointment
+    {
+        if ($this->contact->customer_id === null) {
+            return null;
+        }
+
+        return Appointment::whereKey($id)
+            ->where('customer_id', $this->contact->customer_id)
+            ->whereIn('status', Appointment::OPEN_STATUSES)
+            ->where('starts_at', '>=', now())
+            ->first();
+    }
+
+    private function serviceOf(Appointment $appointment): ?CatalogItem
+    {
+        $itemId = $appointment->items()->value('catalog_item_id');
+        $services = $this->services();
+
+        return $services->firstWhere('id', $itemId)
+            ?? $services->first(fn (CatalogItem $s) => Str::lower($s->name) === Str::lower((string) $appointment->service));
+    }
+
+    private function describe(Appointment $appointment): string
+    {
+        return ($appointment->service ? '« '.$appointment->service.' » ' : '').'du '.$this->dayLabel($appointment->starts_at).' à '.$appointment->starts_at->format('H\hi');
+    }
+
+    /** Suffixe des boutons quand le parcours décale un rendez-vous. */
+    private function suffix(): string
+    {
+        return $this->moving ? ':r'.$this->moving : '';
+    }
+
     private function days(CatalogItem $service): void
     {
         $days = collect($this->availability()->openDays($this->duration($service), [$service->id]))->take(10);
@@ -134,7 +313,7 @@ class WhatsAppBooking
         }
 
         $this->send("« {$service->name} » : quel jour vous arrange ?", 'Choisir un jour', $days->mapWithKeys(fn ($date) => [
-            self::PREFIX.'d:'.$service->id.':'.str_replace('-', '', $date) => ['title' => $this->dayLabel(Carbon::parse($date))],
+            self::PREFIX.'d:'.$service->id.':'.str_replace('-', '', $date).$this->suffix() => ['title' => $this->dayLabel(Carbon::parse($date))],
         ])->all());
     }
 
@@ -153,7 +332,7 @@ class WhatsAppBooking
         $picked = $slots->count() <= 10 ? $slots : collect(range(0, 9))->map(fn ($i) => $slots[(int) floor($i * ($slots->count() - 1) / 9)])->unique()->values();
 
         $this->send('À quelle heure, '.$this->dayLabel($day).' ?', 'Choisir l’heure', $picked->mapWithKeys(fn ($time) => [
-            self::PREFIX.'t:'.$service->id.':'.$day->format('Ymd').str_replace(':', '', $time) => ['title' => str_replace(':', 'h', $time)],
+            self::PREFIX.'t:'.$service->id.':'.$day->format('Ymd').str_replace(':', '', $time).$this->suffix() => ['title' => str_replace(':', 'h', $time)],
         ])->all());
     }
 
@@ -166,15 +345,15 @@ class WhatsAppBooking
         }
 
         $currency = $this->contact->store->organization->currencySymbol();
-        $body = "Je récapitule :\n• {$service->name}".($service->price > 0 ? ' ('.number_format($service->price, 0, ',', ' ').' '.$currency.')' : '')
+        $body = ($this->moving ? 'Nouveau créneau (l’ancien sera annulé) :' : 'Je récapitule :')."\n• {$service->name}".($service->price > 0 ? ' ('.number_format($service->price, 0, ',', ' ').' '.$currency.')' : '')
             ."\n• ".$this->dayLabel($start).' à '.$start->format('H\hi')."\n• {$this->contact->store->name}\n\nJe confirme ?";
 
         WhatsAppConversation::interactive($this->contact, [
             'type' => 'button',
             'body' => ['text' => $body],
             'action' => ['buttons' => [
-                ['type' => 'reply', 'reply' => ['id' => self::PREFIX.'ok:'.$service->id.':'.$start->format('YmdHi'), 'title' => 'Je confirme']],
-                ['type' => 'reply', 'reply' => ['id' => self::PREFIX.'d:'.$service->id.':'.$start->format('Ymd'), 'title' => 'Autre heure']],
+                ['type' => 'reply', 'reply' => ['id' => self::PREFIX.'ok:'.$service->id.':'.$start->format('YmdHi').$this->suffix(), 'title' => 'Je confirme']],
+                ['type' => 'reply', 'reply' => ['id' => self::PREFIX.'d:'.$service->id.':'.$start->format('Ymd').$this->suffix(), 'title' => 'Autre heure']],
                 ['type' => 'reply', 'reply' => ['id' => self::PREFIX.'no', 'title' => 'Annuler']],
             ]],
         ], 'assistant');
@@ -193,7 +372,7 @@ class WhatsAppBooking
             ->where('starts_at', '>=', now())
             ->count();
 
-        if ($this->contact->customer_id === null || $pending >= self::MAX_PENDING) {
+        if ($this->contact->customer_id === null || ($pending >= self::MAX_PENDING && $this->moving === null)) {
             WhatsAppConversation::text($this->contact, 'Vous avez déjà plusieurs rendez-vous à venir : l’équipe vous recontacte pour en ajouter un.', 'assistant');
 
             return;
@@ -230,6 +409,12 @@ class WhatsAppBooking
                 'duration_minutes' => (int) $service->duration_minutes,
             ]);
 
+            // Décalage : l'ancien rendez-vous est libéré une fois le nouveau enregistré.
+            if ($this->moving !== null) {
+                Appointment::whereKey($this->moving)->whereIn('status', Appointment::OPEN_STATUSES)
+                    ->update(['status' => 'cancelled', 'client_response' => 'reschedule', 'client_response_at' => now()]);
+            }
+
             return $appointment;
         });
 
@@ -244,6 +429,14 @@ class WhatsAppBooking
         $this->contact->customer?->forceFill(['need' => 'RDV : '.$service->name.' le '.$start->format('d/m/Y H:i'), 'need_kind' => 'rdv', 'need_at' => now()])->save();
 
         $when = $this->dayLabel($start).' à '.$start->format('H\hi');
+        if ($this->moving !== null) {
+            WhatsAppConversation::text($this->contact, $appointment->status === 'confirmed'
+                ? "C’est décalé ✅ « {$service->name} » le {$when} chez {$this->contact->store->name}. À bientôt !"
+                : "Demande de changement enregistrée ✅ « {$service->name} » le {$when}. L’équipe vous confirme très vite.", 'assistant');
+
+            return;
+        }
+
         WhatsAppConversation::text($this->contact, $appointment->status === 'confirmed'
             ? "C’est réservé ✅ « {$service->name} » le {$when} chez {$this->contact->store->name}. À bientôt !"
             : "Demande enregistrée ✅ « {$service->name} » le {$when}. L’équipe vous confirme très vite.", 'assistant');

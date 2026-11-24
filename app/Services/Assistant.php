@@ -14,6 +14,7 @@ use App\Models\Task;
 use App\Models\WhatsAppInboundMessage;
 use App\Models\WhatsAppOutboundMessage;
 use App\Support\AssistantQuestionnaire;
+use App\Support\BookingRequest;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 use RuntimeException;
@@ -68,6 +69,11 @@ class Assistant
             return true;
         }
 
+        // Demande complète (« shooting famille samedi 10 h »), annulation ou décalage d'un RDV.
+        if ($reply === null && ($message['type'] ?? null) === 'text' && $text !== '' && self::handleBookingRequest($contact, $text)) {
+            return true;
+        }
+
         $short = $text !== '' && str_word_count(Str::ascii($text)) <= 4;
 
         // Demande de devis, démo ou essai, même dans une phrase (« je peux avoir une démo ? »).
@@ -103,6 +109,32 @@ class Assistant
         return true;
     }
 
+    private static function handleBookingRequest(Contact $contact, string $text): bool
+    {
+        if (! $contact->store->organization->hasAgenda()) {
+            return false;
+        }
+
+        $booking = new WhatsAppBooking($contact);
+        $request = BookingRequest::parse($text, $booking->services());
+
+        if (in_array($request->intent, [BookingRequest::CANCEL, BookingRequest::RESCHEDULE], true) && $booking->nextAppointment() !== null) {
+            $request->intent === BookingRequest::CANCEL ? $booking->askCancel() : $booking->reschedule(null, $request);
+
+            return true;
+        }
+
+        // Réservation : une phrase courte (« rdv samedi ? ») ou qui précise la prestation, le jour ou l'heure.
+        $precise = $request->service !== null || $request->day !== null || $request->time !== null;
+        if ($request->intent === BookingRequest::BOOK && ($precise || str_word_count(Str::ascii($text)) <= 4) && WhatsAppBooking::available($contact)) {
+            $booking->fromRequest($request);
+
+            return true;
+        }
+
+        return false;
+    }
+
     /** Répond aux derniers messages écrits du contact (en file d'attente). */
     public static function respond(Contact $contact): void
     {
@@ -114,7 +146,11 @@ class Assistant
         $decision = self::decide($contact->store->organization, $contact->store, $question, AiAgents::history($contact), WhatsAppBooking::available($contact));
 
         if ($decision['text'] !== null) {
-            WhatsAppConversation::text($contact, $decision['text'], 'assistant');
+            $partial = $decision['unanswered'] !== [];
+            WhatsAppConversation::text($contact, $decision['text'].($partial ? "\n\nPour le reste de votre message, je transmets à l’équipe, qui vous répond très vite." : ''), 'assistant');
+            if ($partial) {
+                self::toLearn($contact, implode(' ? ', $decision['unanswered']), false);
+            }
             (new AssistantNeeds($contact))->offer();
 
             return;
@@ -128,14 +164,44 @@ class Assistant
      * l'écran Assistant IA). text = null : question à apprendre.
      *
      * @param  list<array{role: string, content: string}>  $history
-     * @return array{text: ?string, via: 'ia'|'base'|'inconnu', matches: list<array{title: string, score: float}>}
+     *                                                               Plusieurs questions dans un même message (« vos prix ? et vous êtes
+     *                                                               où ? ») : chacune est cherchée à part ; unanswered = celles qui restent
+     *                                                               sans réponse (à apprendre par l'équipe).
+     * @return array{text: ?string, via: 'ia'|'base'|'inconnu', matches: list<array{title: string, score: float}>, unanswered: list<string>}
      */
     public static function decide(Organization $organization, Store $store, string $question, array $history = [], bool $canBook = false): array
     {
         $base = new KnowledgeBase($organization);
+        $parts = self::questions($question);
         $results = $base->search($question, $store, 6);
+
+        // Fiches de chaque question, en plus de celles du message entier.
+        $perPart = [];
+        if (count($parts) > 1) {
+            foreach ($parts as $part) {
+                $perPart[$part] = $base->search($part, $store, 3);
+            }
+            $results = collect($results)->concat(collect($perPart)->flatten(1))
+                ->sortByDesc('score')->unique(fn ($r) => $r['entry']->id)->take(10)->values()->all();
+        }
+
         $matches = array_map(fn ($r) => ['title' => $r['entry']->title, 'score' => $r['score']], $results);
-        $direct = ($results[0]['score'] ?? 0) >= KnowledgeBase::DIRECT_SCORE ? $results[0]['entry']->content : null;
+        $unanswered = [];
+
+        if ($perPart !== []) {
+            $answers = [];
+            foreach ($perPart as $part => $found) {
+                if (($found[0]['score'] ?? 0) >= KnowledgeBase::DIRECT_SCORE) {
+                    $answers[$found[0]['entry']->id] = $found[0]['entry']->content;
+                } else {
+                    $unanswered[] = $part;
+                }
+            }
+            $direct = $answers !== [] ? implode("\n\n", $answers) : null;
+        } else {
+            $direct = ($results[0]['score'] ?? 0) >= KnowledgeBase::DIRECT_SCORE ? $results[0]['entry']->content : null;
+            $unanswered = $direct === null ? [$question] : [];
+        }
 
         if (self::aiAllowed($organization)) {
             try {
@@ -144,9 +210,15 @@ class Assistant
                     $history !== [] ? $history : [['role' => 'user', 'content' => $question]]);
                 AiUsage::countQuestion($organization);
 
-                return str_contains($text, self::UNKNOWN)
-                    ? ['text' => null, 'via' => 'inconnu', 'matches' => $matches]
-                    : ['text' => $text, 'via' => 'ia', 'matches' => $matches];
+                // Réponse partielle : ce qui est connu part au client, le reste à l'équipe.
+                $known = trim(str_replace(self::UNKNOWN, '', $text));
+                if (! str_contains($text, self::UNKNOWN)) {
+                    return ['text' => $text, 'via' => 'ia', 'matches' => $matches, 'unanswered' => []];
+                }
+
+                return mb_strlen($known) >= 20
+                    ? ['text' => $known, 'via' => 'ia', 'matches' => $matches, 'unanswered' => [$question]]
+                    : ['text' => null, 'via' => 'inconnu', 'matches' => $matches, 'unanswered' => [$question]];
             } catch (RuntimeException $e) {
                 // Repli sur la recherche seule.
                 Log::warning('Assistant IA : réponse IA impossible', ['organization_id' => $organization->id, 'error' => $e->getMessage()]);
@@ -154,8 +226,21 @@ class Assistant
         }
 
         return $direct !== null
-            ? ['text' => $direct, 'via' => 'base', 'matches' => $matches]
-            : ['text' => null, 'via' => 'inconnu', 'matches' => $matches];
+            ? ['text' => $direct, 'via' => 'base', 'matches' => $matches, 'unanswered' => $unanswered]
+            : ['text' => null, 'via' => 'inconnu', 'matches' => $matches, 'unanswered' => $unanswered];
+    }
+
+    /**
+     * Questions distinctes d'un message : coupé aux « ? », aux retours à la
+     * ligne et aux « ; », chaque morceau gardé s'il contient un mot utile.
+     *
+     * @return list<string>
+     */
+    public static function questions(string $message): array
+    {
+        $parts = preg_split('/\?+|\n+|;/u', $message, -1, PREG_SPLIT_NO_EMPTY) ?: [];
+
+        return array_values(array_filter(array_map('trim', $parts), fn ($p) => mb_strlen($p) >= 4 && KnowledgeBase::tokens($p) !== []));
     }
 
     /**
@@ -212,7 +297,8 @@ class Assistant
     }
 
     /** Question sans réponse : l'équipe répond, le gérant validera la réponse pour la base. */
-    public static function toLearn(Contact $contact, string $question): void
+    /** $reply = false : le client a déjà reçu une réponse partielle, pas de second message. */
+    public static function toLearn(Contact $contact, string $question, bool $reply = true): void
     {
         $organization = $contact->store->organization;
 
@@ -235,7 +321,9 @@ class Assistant
         ]);
 
         $contact->forceFill(['needs_attention' => true])->saveQuietly();
-        WhatsAppConversation::text($contact, $organization->assistantSettings()['unknown_reply'], 'assistant');
+        if ($reply) {
+            WhatsAppConversation::text($contact, $organization->assistantSettings()['unknown_reply'], 'assistant');
+        }
     }
 
     /** Une réponse de l'équipe à un contact qui a une question en attente : gardée pour validation. */
@@ -269,7 +357,7 @@ class Assistant
 
         return implode("\n\n", array_filter([
             "Tu es l'assistant WhatsApp de « {$organization->name} » ({$store->name}). Tu réponds aux clients en français (ou dans leur langue), poliment, en 1 à 4 phrases courtes, sans Markdown.",
-            "Réponds UNIQUEMENT à partir des fiches ci-dessous. N'invente jamais un prix, une disponibilité, une adresse ou une promesse. Si les fiches ne permettent pas de répondre, réponds exactement ".self::UNKNOWN.' et rien d’autre.',
+            "Réponds UNIQUEMENT à partir des fiches ci-dessous. N'invente jamais un prix, une disponibilité, une adresse ou une promesse. Si les fiches ne permettent pas de répondre, réponds exactement ".self::UNKNOWN.' et rien d’autre. Si le message contient plusieurs questions, réponds à chacune ; pour celles que les fiches ne couvrent pas, écris '.self::UNKNOWN.' à la place de la réponse.',
             $booking.' Tu ne réserves et n’encaisses rien toi-même. Ne demande jamais de code ni de carte bancaire.',
             $instructions !== [] ? "Consignes de l'entreprise pour mener la conversation :\n- ".implode("\n- ", $instructions) : null,
             $forbidden !== [] ? 'À ne pas faire (réponds alors '.self::UNKNOWN.") :\n- ".implode("\n- ", $forbidden) : null,

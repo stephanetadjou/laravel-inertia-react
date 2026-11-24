@@ -1,20 +1,15 @@
 <?php
 
-use App\Jobs\ProcessWhatsAppWebhookJob;
 use App\Models\AiUsage;
 use App\Models\Appointment;
 use App\Models\CatalogItem;
 use App\Models\Contact;
 use App\Models\KnowledgeEntry;
 use App\Models\KnowledgeQuestion;
-use App\Models\Organization;
-use App\Models\Store;
 use App\Models\Task;
-use App\Models\User;
 use App\Models\WhatsAppOutboundMessage;
 use App\Services\Assistant;
 use App\Services\KnowledgeBase;
-use App\Support\SectorPresets;
 use Illuminate\Http\Client\Request as HttpRequest;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Http;
@@ -26,59 +21,7 @@ use Inertia\Testing\AssertableInertia as Assert;
  * recours facultatif à Haiku.
  */
 
-function asOrg(array $settings = []): Organization
-{
-    $org = Organization::factory()->create(['sector' => 'pro', 'whatsapp_api_enabled' => true, 'timezone' => 'Africa/Libreville']);
-    SectorPresets::apply($org);
-    $org->setModules([...$org->enabledModules(), 'assistant', 'rdv', 'catalogue']);
-    $org->assistant_settings = $settings ?: null;
-    $org->booking_settings = ['enabled' => true, 'auto_confirm' => true, 'min_notice_minutes' => 0];
-    $org->save();
-
-    return $org->fresh();
-}
-
-function asStore(Organization $org): Store
-{
-    return Store::factory()->create([
-        'organization_id' => $org->id,
-        'whatsapp_phone_number_id' => '555000333',
-        'whatsapp_access_token' => 'token-test',
-        'booking_hours' => array_fill_keys(range(1, 7), ['open' => '08:00', 'close' => '18:00']),
-    ]);
-}
-
-function asAdmin(Organization $org): User
-{
-    return User::factory()->create(['organization_id' => $org->id, 'role_id' => defaultRole($org, 'Super administrateur')->id]);
-}
-
-function asMessage(Store $store, array $message, string $from = '24166112233'): void
-{
-    $payload = ['object' => 'whatsapp_business_account', 'entry' => [['id' => 'WABA', 'changes' => [['field' => 'messages', 'value' => [
-        'messaging_product' => 'whatsapp',
-        'metadata' => ['phone_number_id' => $store->whatsapp_phone_number_id],
-        'contacts' => [['wa_id' => $from, 'profile' => ['name' => 'Paul Mba']]],
-        'messages' => [['timestamp' => (string) time(), 'id' => 'wa'.uniqid(), 'from' => $from, ...$message]],
-    ]]]]]];
-
-    (new ProcessWhatsAppWebhookJob($store->id, $payload))->handle();
-}
-
-function asText(Store $store, string $body): void
-{
-    asMessage($store, ['type' => 'text', 'text' => ['body' => $body]]);
-}
-
-function asButton(Store $store, string $id): void
-{
-    asMessage($store, ['type' => 'interactive', 'interactive' => ['type' => 'list_reply', 'list_reply' => ['id' => $id, 'title' => 'x']]]);
-}
-
-function lastOut(): WhatsAppOutboundMessage
-{
-    return WhatsAppOutboundMessage::latest('id')->first();
-}
+require_once __DIR__.'/../Support/AssistantHelpers.php';
 
 beforeEach(function () {
     Http::fake(['graph.facebook.com/*' => Http::response(['messages' => [['id' => 'wamid.OUT.'.uniqid()]]])]);
@@ -136,8 +79,9 @@ it('books an appointment through WhatsApp buttons and records the need', functio
     $store = asStore($org);
     $service = CatalogItem::create(['organization_id' => $org->id, 'type' => 'service', 'name' => 'Shooting famille', 'price' => 45000, 'duration_minutes' => 60, 'active' => true, 'bookable_online' => true]);
 
+    // Une seule prestation réservable : l'assistant passe directement au choix du jour.
     asText($store, 'Je veux un rendez-vous');
-    expect(json_encode(lastOut()->payload))->toContain('bk:s:'.$service->id);
+    expect(json_encode(lastOut()->payload))->toContain('bk:d:'.$service->id.':');
 
     asButton($store, 'bk:s:'.$service->id);
     $day = now()->addDays(2)->format('Ymd');
