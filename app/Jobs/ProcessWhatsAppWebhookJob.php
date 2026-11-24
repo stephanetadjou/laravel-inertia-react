@@ -10,6 +10,7 @@ use App\Models\WhatsAppInboundMessage;
 use App\Services\Acquisition;
 use App\Services\AutoReplies;
 use App\Services\ProspectPipeline;
+use App\Services\VoiceNotes;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
 use Illuminate\Support\Carbon;
@@ -193,6 +194,13 @@ class ProcessWhatsAppWebhookJob implements ShouldQueue
 
         // Pas de réponse automatique à un vieux message rejoué par Meta.
         if ($receivedAt->gt(now()->subHours(6))) {
+            // Note vocale : transcrite en file, puis traitée comme un message écrit.
+            if (($message['type'] ?? null) === 'audio' && VoiceNotes::wanted($contact)) {
+                TranscribeVoiceNoteJob::dispatch($store->id, $contact->id, $id, $message);
+
+                return;
+            }
+
             AutoReplies::handle($contact->fresh(['store.organization', 'customer']), $message);
         }
     }

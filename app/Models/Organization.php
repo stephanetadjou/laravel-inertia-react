@@ -862,7 +862,9 @@ class Organization extends Model
             'use_ai' => false,
             'unknown_reply' => 'Bonne question ! Je transmets à l’équipe, qui vous répond très vite.',
             'outcomes' => ['rdv', 'devis', 'rappel'],
-            ...array_intersect_key($this->assistant_settings ?? [], array_flip(['enabled', 'use_ai', 'unknown_reply', 'outcomes'])),
+            'voice' => true,
+            'voice_unavailable_reply' => 'Je ne peux pas encore écouter les messages vocaux. Pouvez-vous m’écrire votre demande ? Merci !',
+            ...array_intersect_key($this->assistant_settings ?? [], array_flip(['enabled', 'use_ai', 'unknown_reply', 'outcomes', 'voice'])),
         ];
     }
 

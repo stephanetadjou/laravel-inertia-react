@@ -232,7 +232,7 @@ it('can be switched off, and is protected when the module is off', function () {
     $store = asStore($org);
     $admin = asAdmin($org);
 
-    $this->actingAs($admin)->put('/assistant/settings', ['enabled' => false, 'use_ai' => false, 'unknown_reply' => 'Je transmets.', 'outcomes' => ['devis']])->assertRedirect();
+    $this->actingAs($admin)->put('/assistant/settings', ['enabled' => false, 'use_ai' => false, 'voice' => true, 'unknown_reply' => 'Je transmets.', 'outcomes' => ['devis']])->assertRedirect();
     asText($store, 'Proposez-vous des séances photo sous-marines ?');
     expect(KnowledgeQuestion::count())->toBe(0)->and(WhatsAppOutboundMessage::where('origin', 'assistant')->count())->toBe(0);
 
@@ -289,7 +289,7 @@ it('reads the configuration and completes it with the guided questionnaire', fun
         ->and(Assistant::readiness($org->fresh())['percent'])->toBeGreaterThan($before);
 
     // Les réglages n'effacent pas les réponses ; une réponse vidée retire sa fiche.
-    $this->actingAs($admin)->put('/assistant/settings', ['enabled' => true, 'use_ai' => false, 'unknown_reply' => 'Je transmets.', 'outcomes' => ['rdv']]);
+    $this->actingAs($admin)->put('/assistant/settings', ['enabled' => true, 'use_ai' => false, 'voice' => true, 'unknown_reply' => 'Je transmets.', 'outcomes' => ['rdv']]);
     expect($org->fresh()->assistant_settings['questionnaire'])->toHaveKey('paiements');
     $this->actingAs($admin)->put('/assistant/questionnaire/adresse', ['choices' => [], 'text' => '']);
     expect(KnowledgeEntry::where('external_id', 'q:adresse')->exists())->toBeFalse();

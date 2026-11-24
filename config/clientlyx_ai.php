@@ -19,6 +19,15 @@ return [
         'model' => env('CLIENTLYX_EMBEDDINGS_MODEL'),
     ],
 
+    // Notes vocales : transcription (openai | none), puis réponse comme à un message écrit.
+    'transcription' => [
+        'driver' => env('CLIENTLYX_TRANSCRIPTION_DRIVER', 'openai'),
+        'key' => env('CLIENTLYX_TRANSCRIPTION_KEY'),
+        'model' => env('CLIENTLYX_TRANSCRIPTION_MODEL', 'gpt-4o-mini-transcribe'),
+        // Taille maximale d'une note (WhatsApp ne donne pas la durée) : ~5 min.
+        'max_bytes' => 5 * 1024 * 1024,
+    ],
+
     // Questions IA par mois et par entreprise (null = illimité).
     'monthly_questions' => [
         'gratuit' => 50,

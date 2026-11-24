@@ -146,7 +146,7 @@ class ConversationController extends Controller
     private function thread(Contact $contact): array
     {
         $in = WhatsAppInboundMessage::where('contact_id', $contact->id)->latest('received_at')->limit(100)->get()
-            ->map(fn ($m) => ['id' => 'in-'.$m->id, 'direction' => 'in', 'body' => $m->body ?? '['.$m->type.']', 'at' => $m->received_at, 'origin' => null, 'status' => null, 'author' => null]);
+            ->map(fn ($m) => ['id' => 'in-'.$m->id, 'direction' => 'in', 'body' => self::inboundBody($m->type, $m->body), 'at' => $m->received_at, 'origin' => null, 'status' => null, 'author' => null]);
         $out = WhatsAppOutboundMessage::where('contact_id', $contact->id)->with('user:id,name')->latest('sent_at')->limit(100)->get()
             ->map(fn ($m) => ['id' => 'out-'.$m->id, 'direction' => 'out', 'body' => $m->body, 'at' => $m->sent_at, 'origin' => $m->origin, 'status' => $m->status, 'author' => $m->user?->name]);
         $campaigns = CampaignMessage::where('contact_id', $contact->id)->whereNotNull('sent_at')->with('campaign:id,name')->latest('sent_at')->limit(30)->get()
@@ -183,7 +183,17 @@ class ConversationController extends Controller
             return 'Vous : '.mb_strimwidth((string) $out->body, 0, 70, '…');
         }
 
-        return $in ? mb_strimwidth((string) ($in->body ?? '['.$in->type.']'), 0, 70, '…') : null;
+        return $in ? mb_strimwidth(self::inboundBody($in->type, $in->body), 0, 70, '…') : null;
+    }
+
+    /** Texte affiché d'un message reçu : une note vocale montre sa transcription. */
+    private static function inboundBody(string $type, ?string $body): string
+    {
+        if ($type === 'audio') {
+            return $body !== null ? '🎤 '.$body : '🎤 Note vocale';
+        }
+
+        return $body ?? '['.$type.']';
     }
 
     private function displayName(Contact $contact): string

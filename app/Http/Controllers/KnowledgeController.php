@@ -12,6 +12,7 @@ use App\Services\Assistant;
 use App\Services\AssistantNeeds;
 use App\Services\Audit;
 use App\Services\KnowledgeBase;
+use App\Services\VoiceNotes;
 use App\Support\AssistantQuestionnaire;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
@@ -66,6 +67,8 @@ class KnowledgeController extends Controller
                 'ai_global' => (bool) config('clientlyx_ai.enabled') && filled(config('clientlyx_ai.anthropic_key')),
                 'ai_allowed' => Assistant::aiAllowed($organization),
                 'embeddings' => (new KnowledgeBase($organization))->embeddingsEnabled(),
+                'voice_global' => VoiceNotes::configured(),
+                'voice_minutes' => AiUsage::voiceMinutesThisMonth($organization),
                 'used' => AiUsage::questionsThisMonth($organization),
                 'quota' => Assistant::monthlyQuota($organization),
                 'api_enabled' => $organization->usesWhatsAppApi(),
@@ -225,6 +228,7 @@ class KnowledgeController extends Controller
         $data = $request->validate([
             'enabled' => ['required', 'boolean'],
             'use_ai' => ['required', 'boolean'],
+            'voice' => ['required', 'boolean'],
             'unknown_reply' => ['required', 'string', 'max:500'],
             'outcomes' => ['present', 'array'],
             'outcomes.*' => [Rule::in(array_keys(AssistantNeeds::OUTCOMES))],

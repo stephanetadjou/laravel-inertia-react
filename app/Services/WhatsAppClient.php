@@ -305,6 +305,36 @@ class WhatsAppClient
     }
 
     /**
+     * Télécharge un média reçu (note vocale, image…) : l'API donne d'abord une
+     * adresse temporaire, qui se lit avec le même token. null en simulation
+     * ou si le fichier dépasse $maxBytes.
+     *
+     * @return array{content: string, mime: string}|null
+     */
+    public function downloadMedia(string $mediaId, int $maxBytes): ?array
+    {
+        if (self::simulated()) {
+            return null;
+        }
+
+        $meta = $this->baseRequest()->get("/{$mediaId}");
+        if ($meta->failed() || blank($meta->json('url'))) {
+            throw new WhatsAppApiException($mediaId, $meta->status(), $meta->json());
+        }
+
+        if ((int) $meta->json('file_size', 0) > $maxBytes) {
+            return null;
+        }
+
+        $file = Http::withToken($this->token)->timeout(60)->get((string) $meta->json('url'));
+        if ($file->failed()) {
+            throw new WhatsAppApiException($mediaId, $file->status(), null);
+        }
+
+        return ['content' => $file->body(), 'mime' => (string) ($meta->json('mime_type') ?: 'audio/ogg')];
+    }
+
+    /**
      * Envoi simulé : journalisé, réponse au format Meta. Les numéros qui se
      * terminent par 000 échouent comme un numéro absent de WhatsApp (131026),
      * pour pouvoir tester l'affichage des échecs.

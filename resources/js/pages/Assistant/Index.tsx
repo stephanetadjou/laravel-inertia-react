@@ -35,6 +35,7 @@ interface Question {
 interface Settings {
     enabled: boolean;
     use_ai: boolean;
+    voice: boolean;
     unknown_reply: string;
     outcomes: string[];
 }
@@ -45,7 +46,7 @@ interface PageProps {
     sections: { key: string; label: string }[];
     outcomes: { key: string; label: string }[];
     settings: Settings;
-    status: { ai_global: boolean; ai_allowed: boolean; embeddings: boolean; used: number; quota: number | null; api_enabled: boolean; booking: boolean; learned: number };
+    status: { ai_global: boolean; ai_allowed: boolean; embeddings: boolean; voice_global: boolean; voice_minutes: number; used: number; quota: number | null; api_enabled: boolean; booking: boolean; learned: number };
     readiness: { percent: number; checks: { key: string; label: string; done: boolean; url: string }[] };
     facts: { section: string; title: string; content: string }[];
     questionnaire: QuestionItem[];
@@ -398,6 +399,17 @@ function SettingsPanel() {
                             Désactivée : l’assistant répond seulement avec la fiche la plus proche, sinon il passe la main à l’équipe.
                             {!status.ai_global && ' L’IA n’est pas encore activée sur la plateforme ClientlyX.'}
                             {status.ai_global && ` ${status.used} question(s) IA ce mois${status.quota !== null ? ` sur ${status.quota}` : ''}.`}
+                        </span>
+                    </span>
+                </label>
+                <label className="flex items-start gap-2">
+                    <input type="checkbox" className="mt-0.5" checked={data.voice} onChange={(e) => setData('voice', e.target.checked)} />
+                    <span>
+                        <b className="block text-gray-800 dark:text-white/90">Écouter les notes vocales</b>
+                        <span className="text-xs text-gray-500">
+                            La note est transcrite, puis l’assistant répond comme à un message écrit. Le texte apparaît dans Discussions.
+                            {!status.voice_global && ' La transcription n’est pas encore activée sur la plateforme ClientlyX : le client est invité à écrire.'}
+                            {status.voice_global && ` ${status.voice_minutes} minute(s) écoutée(s) ce mois.`}
                         </span>
                     </span>
                 </label>

@@ -252,7 +252,7 @@ class Assistant
         $lastOut = WhatsAppOutboundMessage::where('contact_id', $contact->id)->latest('id')->value('created_at');
 
         return WhatsAppInboundMessage::where('contact_id', $contact->id)
-            ->where('type', 'text')
+            ->whereIn('type', ['text', 'audio'])
             ->when($lastOut, fn ($q) => $q->where('received_at', '>=', $lastOut))
             ->orderBy('received_at')
             ->limit(5)
