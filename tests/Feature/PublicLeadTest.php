@@ -1,6 +1,10 @@
 <?php
 
+use App\Models\Contact;
 use App\Models\Lead;
+use App\Models\Organization;
+use App\Models\Store;
+use App\Models\Task;
 use Illuminate\Support\Facades\Mail;
 
 function leadForm(array $overrides = []): array
@@ -79,4 +83,32 @@ it('limits repeated submissions from the same address', function () {
     }
 
     $this->postJson('/api/public/v1/leads', leadForm())->assertTooManyRequests();
+});
+
+it('turns a demo request into a prospect file in the ClientlyX house company, source « site »', function () {
+    $house = Organization::factory()->create(['slug' => 'mercure-solutions']);
+    $house->setModules([...$house->enabledModules(), 'prospects']);
+    $house->save();
+    $store = Store::factory()->create(['organization_id' => $house->id]);
+    config(['services.menentia.house_org' => 'mercure-solutions']);
+
+    $this->postJson('/api/public/v1/leads', leadForm())->assertCreated();
+
+    $contact = Contact::where('store_id', $store->id)->sole();
+    $customer = $contact->customer;
+    expect($contact->phone_e164)->toBe('24162605054')
+        ->and($contact->consent_status)->toBe('opt_in')
+        ->and($customer->acquisition_source)->toBe('site')
+        ->and($customer->need_kind)->toBe('demo')
+        ->and($customer->need)->toContain('Salon Élégance')
+        ->and($customer->prospect_stage)->not->toBeNull()
+        ->and(Task::where('organization_id', $house->id)->where('customer_id', $customer->id)->sole()->title)->toBe('Démo demandée sur le site');
+});
+
+it('keeps the demo request even without a house company', function () {
+    config(['services.menentia.house_org' => 'inexistante']);
+
+    $this->postJson('/api/public/v1/leads', leadForm())->assertCreated();
+
+    expect(Lead::count())->toBe(1)->and(Contact::count())->toBe(0);
 });

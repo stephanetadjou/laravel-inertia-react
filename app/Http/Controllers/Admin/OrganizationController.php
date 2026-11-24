@@ -287,6 +287,7 @@ class OrganizationController extends Controller
             'name' => $o->name,
             'sector' => $o->sector,
             'sector_label' => Organization::SECTORS[$o->sector]['label'] ?? 'Non renseigné',
+            'signup_source' => $o->signup_source,
             'offer' => $o->offerLabel(),
             'plan' => $o->plan,
             'plan_label' => Organization::PLANS[$o->plan]['label'] ?? $o->plan,

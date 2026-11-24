@@ -1,0 +1,22 @@
+<?php
+
+namespace App\Models;
+
+use Illuminate\Database\Eloquent\Model;
+
+/** Questions IA (Haiku) consommées par une entreprise et par mois (plafond selon l'offre). */
+class AiUsage extends Model
+{
+    protected $fillable = ['organization_id', 'month', 'questions', 'input_tokens', 'output_tokens'];
+
+    public static function questionsThisMonth(Organization $organization): int
+    {
+        return (int) self::where('organization_id', $organization->id)->where('month', now()->format('Y-m'))->value('questions');
+    }
+
+    public static function countQuestion(Organization $organization): void
+    {
+        $usage = self::firstOrCreate(['organization_id' => $organization->id, 'month' => now()->format('Y-m')]);
+        $usage->increment('questions');
+    }
+}

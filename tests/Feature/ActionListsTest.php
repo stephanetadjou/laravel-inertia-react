@@ -5,10 +5,12 @@ use App\Models\Brand;
 use App\Models\Contact;
 use App\Models\Customer;
 use App\Models\CustomerFollowUp;
+use App\Models\Group;
 use App\Models\Organization;
 use App\Models\Purchase;
 use App\Models\Store;
 use App\Models\User;
+use App\Services\ActionLists;
 use App\Services\CustomerScoring;
 use App\Services\NotificationService;
 
@@ -285,4 +287,37 @@ it('shows whole weeks around the month in the calendar month view, and the next 
             ->where('to', '2026-11-01')
             ->where('appointments', fn ($rows) => count($rows) === 2)
             ->where('upcoming.0.starts_at', '2026-10-30T09:00'));
+});
+
+it('records several follow-ups at once, and groups only the selected rows', function () {
+    // Eva : même profil qu'Aïcha → deux clients dans « À risque ».
+    $eva = Contact::factory()->create(['store_id' => $this->store->id, 'phone_e164' => '24174000444', 'name' => 'Eva Moussavou', 'consent_status' => 'unknown']);
+    foreach ([70, 60, 50, 40] as $days) {
+        Purchase::factory()->create(['contact_id' => $eva->id, 'store_id' => $this->store->id, 'amount' => 50000, 'purchased_at' => now()->subDays($days)]);
+    }
+    $this->artisan('crm:refresh-lifecycle')->assertSuccessful();
+
+    $keys = collect((new ActionLists($this->admin))->rows('at_risk'))->pluck('key', 'name')->all();
+    expect($keys)->toHaveCount(2);
+
+    // Ranger dans un groupe : seulement la ligne cochée.
+    $this->actingAs($this->admin)->post('/actions/group', ['list' => 'at_risk', 'keys' => [$keys['Eva Moussavou']], 'name' => 'Relance hiver'])->assertRedirect();
+    expect(Group::where('name', 'Relance hiver')->sole()->contacts()->pluck('contacts.id')->all())->toBe([$eva->id]);
+
+    // Marquer comme fait : les deux d'un coup, puis la liste est vide.
+    $this->actingAs($this->admin)->post('/actions/done-many', ['list' => 'at_risk', 'keys' => array_values($keys)])
+        ->assertRedirect()->assertSessionHas('success', '2 relances enregistrées.');
+
+    expect(CustomerFollowUp::where('action', 'at_risk')->pluck('customer_id')->sort()->values()->all())
+        ->toBe(collect([$this->aicha->customer_id, $eva->customer_id])->sort()->values()->all())
+        ->and(CustomerFollowUp::where('action', 'at_risk')->pluck('channel')->unique()->all())->toBe(['other']);
+
+    $this->actingAs($this->admin)->get('/actions?list=at_risk')->assertInertia(fn ($page) => $page->where('rows', []));
+});
+
+it('ignores keys that are not in the list and needs at least one row', function () {
+    $this->actingAs($this->admin)->post('/actions/done-many', ['list' => 'at_risk', 'keys' => ['inconnu-999']])->assertRedirect();
+    expect(CustomerFollowUp::count())->toBe(0);
+
+    $this->actingAs($this->admin)->post('/actions/done-many', ['list' => 'at_risk', 'keys' => []])->assertSessionHasErrors('keys');
 });

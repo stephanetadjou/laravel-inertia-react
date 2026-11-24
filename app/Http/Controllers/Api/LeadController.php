@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\Lead;
+use App\Services\HouseLeads;
 use App\Services\PhoneNormalizer;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
@@ -49,6 +50,13 @@ class LeadController extends Controller
             'consent_at' => now(),
             'ip_address' => $request->ip(),
         ]);
+
+        // Fiche prospect dans le CRM de ClientlyX (entreprise maison), source « site ».
+        try {
+            HouseLeads::record($lead);
+        } catch (\Throwable $e) {
+            Log::warning('Demande du site non copiée dans le CRM maison', ['lead_id' => $lead->id, 'error' => $e->getMessage()]);
+        }
 
         $this->notify($lead);
 

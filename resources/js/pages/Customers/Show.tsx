@@ -15,6 +15,9 @@ import { CustomerTabs, ModuleProps, useModuleTabs } from './CustomerModules';
 import '../Dashboard/dashboard.css';
 import './customers.css';
 
+/** Suite demandée à l'Assistant IA. */
+const NEED_KINDS: Record<string, string> = { rdv: 'Rendez-vous', devis: 'Devis', demo: 'Démo', essai: 'Essai', rappel: 'Être rappelé' };
+
 interface CustomerData {
     id: number;
     name: string;
@@ -28,6 +31,9 @@ interface CustomerData {
     source?: string | null;
     source_headline?: string | null;
     acquired_at?: string | null;
+    need?: string | null;
+    need_kind?: string | null;
+    need_at?: string | null;
     created_at: string;
 }
 
@@ -508,6 +514,13 @@ function CustomerShow() {
                                 {customer.source}
                                 {customer.source_headline && <span className="sub">« {customer.source_headline} »</span>}
                                 {customer.acquired_at && <span className="sub">le {formatDate(customer.acquired_at)}</span>}
+                            </Field>
+                        )}
+                        {customer.need && (
+                            <Field label="Besoin">
+                                {customer.need}
+                                {customer.need_kind && <span className="sub">{NEED_KINDS[customer.need_kind] ?? customer.need_kind}</span>}
+                                {customer.need_at && <span className="sub">le {formatDate(customer.need_at)}</span>}
                             </Field>
                         )}
                         {customer.identity_confirmed && <Field label="Identité">✓ confirmée à la main</Field>}

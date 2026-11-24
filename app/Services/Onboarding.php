@@ -44,6 +44,10 @@ class Onboarding
             $steps[] = ['key' => 'whatsapp', 'label' => 'Connecter WhatsApp', 'help' => 'Le numéro de votre établissement : chaque client qui écrit a sa fiche, avec la pub qui l’a fait venir.', 'url' => $org->usesWhatsAppApi() ? '/settings/whatsapp?guide=1' : '/organisation',
                 'done' => $org->usesWhatsAppApi() && Store::where('organization_id', $id)->whereNotNull('whatsapp_phone_number_id')->exists()];
         }
+        if ($has('assistant')) {
+            $steps[] = ['key' => 'assistant', 'label' => 'Préparer l’Assistant IA', 'help' => 'Vérifiez ce qu’il sait déjà de votre configuration et répondez au questionnaire guidé : il répond ensuite seul à vos clients sur WhatsApp.', 'url' => '/assistant?tab=start',
+                'done' => Assistant::readiness($org)['percent'] >= 80];
+        }
         if ($has('reponses_auto')) {
             $steps[] = ['key' => 'auto_replies', 'label' => 'Vérifier les réponses automatiques', 'help' => 'Accueil, hors horaires et menu à boutons : relisez les textes préparés pour votre secteur.', 'url' => '/settings/auto-replies',
                 'done' => ! empty($org->auto_replies['welcome'])];

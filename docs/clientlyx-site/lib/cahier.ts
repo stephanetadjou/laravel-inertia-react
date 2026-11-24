@@ -35,7 +35,7 @@ export const cahier = [
   'Menu de l’application, volontairement simple : Accueil, À faire, Agenda, Clients, Ventes (onglets Ventes, Catalogue, Catégories), Campagnes (si l’API WhatsApp est activée), Paramètres. Le stock n’est pas géré.',
 
   '## Ce qui arrive ensuite (sans date annoncée)',
-  '- Pour les 5 secteurs (beauté et salons, fitness et bien-être, services pro et agences, boutiques, centres de formation) : fiche créée au premier message avec la source de la pub, accueil et réponse hors horaires, réponses automatiques à boutons préparées pour chaque secteur, suivi des prospects en glisser-déposer, confirmation du RDV par bouton, tableau par source de pub, crédits de messages.',
+  '- Pour les 5 secteurs (beauté et salons, fitness et bien-être, services pro et agences, boutiques, centres de formation) : fiche créée au premier message avec la source de la pub, accueil et réponse hors horaires, réponses automatiques à boutons préparées pour chaque secteur, suivi des prospects en glisser-déposer, confirmation du RDV par bouton, tableau par source de pub.',
   '- Ensuite : acompte et paiement Mobile Money, connexion du numéro en quelques minutes, application mobile, Instagram et Messenger.',
   '- IA : rédaction des campagnes, assistant WhatsApp qui répond et réserve, groupes automatiques, valeur vie client, prévision d’affluence.',
   '- Marketplace des entreprises de Libreville avec avis vérifiés, puis ouverture du Cameroun (Douala, Yaoundé) et d’autres pays d’Afrique francophone.',

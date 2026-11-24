@@ -5,7 +5,10 @@ export type Block =
   | { h: string }
   | { p: string }
   | { ul: string[] }
-  | { tip: string };
+  | { tip: string }
+  | { ol: string[] } // liste numérotée (étapes)
+  | { see: string } // encadré « Ce que vous devez voir à l’écran »
+  | { table: { head: string[]; rows: string[][] } };
 
 export type Post = {
   slug: string;
@@ -137,39 +140,167 @@ export const posts: Post[] = [
   },
   {
     slug: 'configurer-api-whatsapp-etapes',
-    title: 'Brancher l’API WhatsApp officielle : le guide étape par étape',
-    excerpt: 'Compte Meta, vérification de l’entreprise, numéro, modèles de messages : ce qu’il faut préparer et dans quel ordre, sans être informaticien.',
+    title: 'Brancher l’API WhatsApp officielle à ClientlyX : le guide pas à pas',
+    excerpt: 'Vous n’avez qu’un compte Facebook personnel et vous n’êtes pas informaticien ? Ce guide vous fait connecter votre numéro WhatsApp à ClientlyX et envoyer votre premier message test, étape par étape. Avec le bon choix de numéro, neuf ou déjà utilisé.',
     category: 'API WhatsApp',
-    date: '2026-11-10',
+    date: '2026-11-19',
     icon: 'play',
     sectors: ['Beauté', 'Sport', 'Services pro', 'Boutique'],
     body: [
-      { p: 'Connecter l’API WhatsApp fait peur, mais c’est surtout une affaire de préparation. Comptez une à deux heures de manipulation, puis quelques jours d’attente pour les validations de Meta.' },
-      { h: 'Avant de commencer, préparez' },
+      { p: 'L’API WhatsApp officielle permet à ClientlyX d’envoyer vos rappels, vos relances et vos campagnes depuis le numéro de votre entreprise, et de recevoir les réponses de vos clients dans l’écran Discussions. Elle se branche une fois, en 30 à 45 minutes. Ce guide suppose que vous n’avez jamais touché à un outil Meta : chaque étape correspond à une seule action, suivie de ce que vous devez voir à l’écran pour savoir que tout s’est bien passé.' },
+      { tip: 'Deux façons de faire. Vous pouvez tout faire vous-même en suivant ce guide. Ou bien vous pouvez laisser l’équipe ClientlyX s’en charger : votre numéro est alors « géré par ClientlyX » (c’est le libellé affiché dans Paramètres › WhatsApp), et ClientlyX s’occupe du token et du webhook à votre place. Écrivez-nous sur WhatsApp pour choisir cette option.' },
+
+      { h: 'Avant de commencer (5 minutes)' },
+      { p: 'Rassemblez ces éléments avant de vous lancer, de préférence sur un ordinateur.' },
       { ul: [
-        'Un document officiel de l’entreprise (RCCM, NIF ou équivalent) et une facture récente au nom de l’entreprise.',
-        'Un numéro de téléphone qui recevra un code par SMS ou appel. S’il est déjà utilisé sur WhatsApp, il faudra le libérer ou utiliser la coexistence quand elle est disponible dans votre pays.',
-        'Un site web ou une page Facebook de l’entreprise, avec le même nom et la même adresse que sur vos documents.',
-        'Un moyen de paiement accepté par Meta pour les messages facturés.',
+        'Votre compte Facebook personnel, avec son mot de passe. Il sert seulement à vous connecter aux outils de Meta : rien n’est publié sur votre profil, et vos amis ne voient rien.',
+        'Un numéro de téléphone pour l’entreprise, capable de recevoir un SMS ou un appel venant de l’étranger, avec le téléphone à portée de main. Lisez la section suivante avant de choisir ce numéro.',
+        'Une adresse e-mail professionnelle que vous consultez (celle de l’entreprise, ou à défaut la vôtre).',
+        'Le nom officiel de l’entreprise, écrit exactement comme sur vos documents (RCCM, NIF) et sur votre page Facebook si vous en avez une.',
+        'Une carte bancaire, pour payer à Meta les conversations au-delà de ce qui est gratuit (les campagnes marketing surtout). Vous pourrez l’ajouter à la fin.',
+        'Environ 30 à 45 minutes sans interruption.',
       ] },
-      { h: 'Les étapes' },
+      { p: 'Sécurisez d’abord votre compte Facebook. Meta bloque facilement les comptes qui lui paraissent suspects, et un compte bloqué bloque aussi tout ce qui en dépend.' },
+      { ol: [
+        'Vérifiez que votre profil Facebook porte votre vrai nom et qu’il est actif depuis un certain temps.',
+        'Activez la double authentification : Facebook › Paramètres › Espace comptes › Mot de passe et sécurité › Authentification à deux facteurs.',
+        'Ne créez jamais de faux profil « au nom de l’entreprise » pour l’occasion : Meta le détecte et peut bloquer le profil et le compte WhatsApp qui lui est rattaché.',
+      ] },
+
+      { h: 'Quel numéro utiliser ? Trois cas' },
+      { p: 'C’est la question qui bloque le plus d’entreprises. Un numéro ne peut pas être à la fois dans l’application WhatsApp classique et dans l’API, sauf dans le cas C ci-dessous. Choisissez votre cas avant l’étape 1.' },
+      { p: 'Cas A : un numéro neuf (recommandé pour débuter). C’est une puce neuve, qui n’a jamais été utilisée sur WhatsApp ni sur WhatsApp Business. C’est le plus simple : rien à supprimer, rien à migrer. Vous communiquerez ensuite ce numéro à vos clients (cartes, statut, affiches).' },
+      { p: 'Cas B : un numéro déjà sur WhatsApp ou WhatsApp Business, que vous voulez passer entièrement sur l’API. Vous devez d’abord supprimer le compte WhatsApp de ce numéro, sinon Meta refusera de l’ajouter.' },
+      { ol: [
+        'Sauvegardez vos discussions importantes : dans l’application, Paramètres › Discussions › Sauvegarde, ou exportez les discussions une par une.',
+        'Supprimez le compte : WhatsApp › Paramètres › Compte › Supprimer mon compte, puis confirmez avec le numéro. Attention : supprimer le compte n’est pas la même chose que désinstaller l’application. Désinstaller ne suffit pas.',
+        'Attendez quelques minutes avant de passer à l’étape 4 du guide.',
+      ] },
+      { p: 'Ensuite, ce numéro ne fonctionne plus dans l’application WhatsApp sur le téléphone : vous l’utilisez seulement depuis ClientlyX (écran Discussions). Vos clients continuent de vous écrire au même numéro, sans rien changer de leur côté.' },
+      { p: 'Cas C : vous gérez déjà vos clients sur WhatsApp Business et voulez garder le même numéro ET l’application. Meta propose pour cela la « coexistence » : le numéro reste dans l’application WhatsApp Business de votre téléphone et il est aussi connecté à l’API. Vous continuez à répondre depuis le téléphone, et ClientlyX envoie les messages automatiques.' },
       { ul: [
-        '1. Créer un portefeuille business Meta (business.facebook.com) au nom exact de l’entreprise.',
-        '2. Lancer la vérification de l’entreprise et envoyer les documents. Meta répond en général en quelques jours.',
-        '3. Créer un compte WhatsApp Business dans le gestionnaire WhatsApp, choisir le nom affiché (il doit correspondre à votre marque).',
-        '4. Ajouter le numéro et le valider avec le code reçu.',
-        '5. Relier le compte à votre logiciel : dans ClientlyX CRM, Paramètres › WhatsApp vous guide et vérifie chaque information.',
-        '6. Rédiger vos premiers modèles de messages (rappel, relance, anniversaire) et les soumettre à Meta.',
-        '7. Envoyer un message test à votre propre numéro, puis activer les envois automatiques.',
+        'Conditions : une application WhatsApp Business à jour, un numéro actif dans cette application depuis un certain temps, et une connexion faite par l’inscription intégrée de Meta, en scannant un QR code depuis l’application (le menu s’appelle Appareils connectés ou Compte de plateforme professionnelle, selon la version de l’application). L’historique récent des discussions peut être importé.',
+        'Disponibilité : elle dépend du pays. Vérifiez au moment de la connexion si l’option est ouverte au Gabon ; si elle n’apparaît pas, passez au cas A ou au cas B.',
+        'Ce qui change dans l’application : certaines fonctions sont limitées ou ne se synchronisent pas (messages éphémères, listes de diffusion, groupes), et les messages automatiques partent par l’API.',
+        'Avec ClientlyX aujourd’hui : l’écran Paramètres › WhatsApp n’a pas encore de bouton d’inscription intégrée Meta. Pour la coexistence, l’équipe ClientlyX fait la connexion avec vous : écrivez-nous sur WhatsApp avant de commencer.',
       ] },
-      { h: 'Les erreurs qui bloquent le plus souvent' },
+      { table: {
+        head: ['Votre situation', 'Ce que vous faites', 'L’application sur le téléphone', 'Difficulté'],
+        rows: [
+          ['A. Numéro neuf', 'Vous suivez ce guide tel quel', 'Non utilisée', 'La plus simple'],
+          ['B. Numéro déjà sur WhatsApp, passage à l’API', 'Vous sauvegardez, supprimez le compte WhatsApp du numéro, puis suivez le guide', 'Ne marche plus pour ce numéro', 'Moyenne'],
+          ['C. Garder le numéro et l’application', 'Coexistence de Meta, connexion faite avec l’équipe ClientlyX', 'Continue de marcher', 'Selon la disponibilité au Gabon'],
+        ],
+      } },
+
+      { h: 'Étape 1 : créer le portefeuille d’entreprise Meta' },
+      { p: 'Le portefeuille (anciennement « Business Manager ») est le dossier de votre entreprise chez Meta. Tout ce qui suit sera rangé dedans.' },
+      { ol: [
+        'Allez sur business.facebook.com et connectez-vous avec votre compte Facebook personnel.',
+        'Cliquez sur « Créer un compte » (ou « Créer un portefeuille », selon l’affichage).',
+        'Saisissez le nom de l’entreprise (le nom officiel), votre nom et votre adresse e-mail professionnelle, puis validez.',
+        'Ouvrez l’e-mail envoyé par Meta et cliquez sur le lien de confirmation.',
+      ] },
+      { see: 'la page d’accueil de Meta Business Suite avec le nom de votre entreprise en haut à gauche.' },
+
+      { h: 'Étape 2 : créer l’application Meta' },
+      { p: 'L’« application » est la porte par laquelle ClientlyX parlera à WhatsApp. Pas d’inquiétude : vous n’écrivez aucune ligne de code.' },
+      { ol: [
+        'Allez sur developers.facebook.com et cliquez sur « Commencer » pour vous inscrire comme développeur avec le même compte Facebook (on vous demande de confirmer votre téléphone ou votre e-mail).',
+        'Ouvrez « Mes apps », puis « Créer une app ».',
+        'Choisissez le cas d’usage « Se connecter avec les clients via WhatsApp » ou, selon l’affichage, le type « Entreprise ».',
+        'Donnez un nom à l’app (par exemple « ClientlyX + nom de votre entreprise ») et rattachez-la au portefeuille créé à l’étape 1.',
+      ] },
+      { see: 'le tableau de bord de votre app, avec en haut son identifiant (App ID), une suite de chiffres.' },
+
+      { h: 'Étape 3 : ajouter WhatsApp et faire un premier essai avec le numéro de test de Meta' },
+      { p: 'Meta fournit un numéro de test gratuit. Il permet de vérifier que tout marche avant d’ajouter votre vrai numéro.' },
+      { ol: [
+        'Dans l’app, ajoutez le produit WhatsApp (bouton « Configurer » sur la carte WhatsApp). Meta crée alors votre compte WhatsApp Business.',
+        'Ouvrez WhatsApp › Configuration de l’API (ou « Démarrage rapide », selon l’affichage).',
+        'Dans la zone « À », ajoutez votre numéro WhatsApp personnel comme destinataire et saisissez le code reçu sur ce numéro.',
+        'Cliquez sur « Envoyer un message » : Meta envoie le modèle « hello_world ».',
+      ] },
+      { see: 'un message « Hello World » reçu sur votre WhatsApp personnel, envoyé par le numéro de test de Meta.' },
+      { p: 'Le jeton (token) affiché sur cette page est temporaire : il expire au bout de 24 heures. Ne l’utilisez pas dans ClientlyX, vous créerez un jeton permanent à l’étape 5.' },
+
+      { h: 'Étape 4 : ajouter le vrai numéro de l’entreprise' },
+      { p: 'Reprenez le cas choisi plus haut : numéro neuf (cas A) ou compte WhatsApp supprimé (cas B). Pour le cas C, arrêtez-vous ici et contactez l’équipe ClientlyX.' },
+      { ol: [
+        'Toujours dans WhatsApp › Configuration de l’API, cliquez sur « Ajouter un numéro de téléphone ».',
+        'Saisissez le nom d’affichage : le nom de l’entreprise que vos clients connaissent, identique à votre page Facebook ou à votre enseigne. Évitez un mot générique seul (« Salon », « Boutique »), Meta le refuse.',
+        'Choisissez la catégorie de votre activité et, si on vous le demande, une courte description.',
+        'Saisissez le numéro et choisissez la vérification par SMS ou par appel vocal, puis entrez le code reçu.',
+      ] },
+      { see: 'votre numéro dans la liste des numéros de la page Configuration de l’API, à côté du numéro de test.' },
+
+      { h: 'Étape 5 : créer le jeton d’accès permanent' },
+      { p: 'Le jeton est le mot de passe que ClientlyX utilisera pour envoyer vos messages. Celui de l’étape 3 expire en 24 heures ; celui-ci n’expire jamais.' },
+      { ol: [
+        'Allez dans Paramètres de l’entreprise (business.facebook.com › Paramètres) › Utilisateurs › Utilisateurs système, puis cliquez sur « Ajouter ».',
+        'Donnez-lui un nom (par exemple « ClientlyX ») et le rôle Admin.',
+        'Cliquez sur « Ajouter des éléments » (ou « Attribuer des éléments ») : cochez votre app, puis votre compte WhatsApp, chaque fois avec le contrôle total.',
+        'Cliquez sur « Générer un jeton », choisissez votre app, l’expiration « Jamais », et cochez les deux autorisations whatsapp_business_messaging et whatsapp_business_management.',
+        'Copiez le jeton tout de suite et gardez-le dans un endroit sûr : Meta ne le réaffiche pas.',
+      ] },
+      { see: 'une longue suite de lettres et de chiffres (le jeton), avec un bouton pour le copier.' },
+      { tip: 'Ne partagez jamais ce jeton : ni par WhatsApp, ni par e-mail, ni en capture d’écran. Collez-le uniquement dans ClientlyX. Si vous pensez qu’il a fuité, supprimez-le dans Meta et générez-en un autre.' },
+
+      { h: 'Étape 6 : noter les identifiants et la clé secrète' },
+      { p: 'ClientlyX a besoin de quatre informations en plus du jeton. Ouvrez un bloc-notes et recopiez-les.' },
+      { ol: [
+        'Dans WhatsApp › Configuration de l’API, sélectionnez votre vrai numéro et notez l’« Identifiant du numéro de téléphone » : c’est le Phone Number ID demandé par ClientlyX.',
+        'Sur la même page, notez l’« Identifiant du compte WhatsApp Business » : c’est le WABA ID demandé par ClientlyX.',
+        'Notez l’App ID, affiché en haut du tableau de bord de l’app.',
+        'Dans l’app › Paramètres de l’app › Général, cliquez sur « Afficher » à côté de la Clé secrète : c’est l’App Secret demandé par ClientlyX.',
+      ] },
+      { see: 'trois suites de chiffres (Phone Number ID, WABA ID, App ID) et une clé secrète de lettres et de chiffres dans votre bloc-notes.' },
+
+      { h: 'Étape 7 : tout saisir dans ClientlyX' },
+      { ol: [
+        'Connectez-vous à ClientlyX. Si le menu Paramètres › WhatsApp n’apparaît pas, activez d’abord « Envoi automatique par l’API WhatsApp » dans Organisation.',
+        'Ouvrez Paramètres › WhatsApp. Chaque établissement a son bloc, marqué « Non connecté » tant que rien n’est saisi.',
+        'Remplissez les champs : WABA ID, Phone Number ID et App ID (étape 6), Token d’accès permanent (étape 5), App Secret (étape 6).',
+        'Cliquez sur « Enregistrer », puis sur « Tester ».',
+      ] },
+      { see: 'dans « Dernier test », le Nom vérifié de votre entreprise, votre Numéro, la Qualité et la Limite d’envoi. Le token et l’App Secret sont chiffrés : ClientlyX ne les réaffiche jamais.' },
+
+      { h: 'Étape 8 : configurer le webhook dans Meta' },
+      { p: 'Le webhook permet à Meta de prévenir ClientlyX quand un client vous écrit ou qu’un message est lu. Sans lui, vous pouvez envoyer, mais vous ne recevez rien.' },
+      { ol: [
+        'Dans ClientlyX, Paramètres › WhatsApp, repérez la zone Webhook : elle affiche une URL de rappel et un Jeton de vérification, chacun avec un bouton pour le copier.',
+        'Dans Meta, ouvrez votre app › WhatsApp › Configuration, puis cliquez sur « Modifier » dans la partie Webhook.',
+        'Collez l’URL de rappel de ClientlyX dans le champ « URL de rappel », et le Jeton de vérification de ClientlyX dans le champ « Vérifier le token » (ou « Jeton de vérification »).',
+        'Cliquez sur « Vérifier et enregistrer ».',
+        'Dans la liste des champs du webhook, abonnez-vous au champ « messages » (bouton « S’abonner »).',
+      ] },
+      { see: 'le webhook enregistré sans message d’erreur, et le champ « messages » marqué comme abonné.' },
+
+      { h: 'Étape 9 : enregistrer le numéro et faire votre premier test' },
+      { ol: [
+        'Dans ClientlyX, partie « Enregistrer le numéro », choisissez un code PIN de 6 chiffres et cliquez sur « Enregistrer le numéro ». C’est obligatoire une fois avant le premier envoi ; notez ce PIN, il protège votre numéro.',
+        'Partie « Envoyer un message de test » : saisissez votre numéro WhatsApp personnel et cliquez sur « Envoyer ». Vous recevez le modèle hello_world de Meta, en anglais.',
+        'Depuis un autre téléphone, écrivez « Bonjour » au numéro de l’entreprise.',
+        'Ouvrez l’écran Discussions de ClientlyX et répondez au message.',
+      ] },
+      { see: 'le badge « Numéro enregistré » dans Paramètres › WhatsApp, le message « Bonjour » dans Discussions, et votre réponse reçue sur l’autre téléphone.' },
+      { p: 'La règle des 24 heures : vous pouvez répondre librement à un client pendant 24 heures après son dernier message. Au-delà, WhatsApp n’accepte plus que des modèles de messages approuvés par Meta (rappel de rendez-vous, relance, campagne). ClientlyX vous propose ces modèles au moment de l’envoi.' },
+
+      { h: 'Étape 10 (recommandé ensuite) : vérifier l’entreprise et ajouter un moyen de paiement' },
       { ul: [
-        'Un nom d’entreprise différent entre les documents, le site et le compte Meta.',
-        'Un nom affiché trop générique (« Salon de beauté ») : Meta le refuse.',
-        'Des modèles marketing classés en utilitaire : Meta les reclasse ou les rejette.',
-        'Un numéro encore actif sur un téléphone, ce qui empêche l’enregistrement.',
+        'Vérification de l’entreprise : dans Paramètres de l’entreprise › Centre de sécurité, lancez la vérification et envoyez vos documents officiels (RCCM, NIF ou équivalent, facture au nom de l’entreprise). Meta répond en général en quelques jours. Elle augmente vos limites d’envoi et rassure vos clients.',
+        'Moyen de paiement : dans le Gestionnaire WhatsApp, ajoutez votre carte bancaire. Meta facture les conversations au-delà de ce qui est gratuit, en particulier les messages marketing.',
       ] },
-      { tip: 'ClientlyX CRM détaille ces sept étapes avec des captures sur la page WhatsApp du site, et le support répond sur WhatsApp si vous bloquez. Vous pouvez tout faire seul, sans technicien.' },
+
+      { h: 'Problèmes fréquents' },
+      { p: 'Le code SMS de Meta n’arrive pas (fréquent sur les numéros gabonais). Choisissez la vérification par appel vocal, attendez quelques heures entre deux essais, ou demandez à votre opérateur si votre ligne reçoit les SMS internationaux.' },
+      { p: 'Meta indique que le numéro est déjà utilisé sur WhatsApp. Le compte WhatsApp du numéro existe encore : suivez le cas B (sauvegarde puis Supprimer mon compte, pas seulement désinstaller), ou le cas C avec l’équipe ClientlyX.' },
+      { p: '« Limite atteinte pour le nombre d’entreprises ». Un profil Facebook ne peut créer qu’un nombre limité de portefeuilles. Ne supprimez pas un portefeuille existant pour en recréer un : la limite reste la même. Réutilisez ou renommez celui qui existe, ou demandez à un associé réel de créer le portefeuille et de vous y ajouter comme administrateur.' },
+      { p: 'Le webhook est refusé à l’étape 8. Recopiez l’URL de rappel et le Jeton de vérification avec les boutons de copie de ClientlyX (sans espace avant ou après), et vérifiez que l’App Secret est bien enregistré dans ClientlyX : sans lui, le webhook refuse tous les appels. L’adresse de ClientlyX doit être en ligne et commencer par https.' },
+      { p: '« Tester » échoue dans ClientlyX. Vérifiez le Phone Number ID (celui du vrai numéro, pas du numéro de test), que le jeton a bien les deux autorisations et que le compte WhatsApp est attribué à l’utilisateur système. Si le jeton ne marche plus le lendemain, c’était le jeton temporaire de l’étape 3 : refaites l’étape 5 avec l’expiration « Jamais ».' },
+      { p: 'Le client ne reçoit pas votre message après 24 heures. La fenêtre de 24 heures est fermée : envoyez un modèle de message approuvé par Meta.' },
+      { p: 'Le nom d’affichage est refusé. Utilisez le nom de votre page Facebook ou de votre enseigne, sans mot générique seul, et identique à vos documents.' },
+      { tip: 'Besoin d’aide ? L’équipe ClientlyX configure avec vous, par écran partagé ou sur place à Libreville : cliquez sur « Me faire aider par ClientlyX » dans Paramètres › WhatsApp, ou écrivez-nous sur WhatsApp. Pas encore de compte ? Créez-le gratuitement, puis revenez à ce guide.' },
     ],
   },
   {
@@ -313,7 +444,7 @@ export const posts: Post[] = [
 export const postBySlug = (slug: string) => posts.find((p) => p.slug === slug);
 
 export function readingMinutes(post: Post) {
-  const text = post.body.map((b) => ('p' in b ? b.p : 'h' in b ? b.h : 'tip' in b ? b.tip : b.ul.join(' '))).join(' ');
+  const text = post.body.map((b) => ('p' in b ? b.p : 'h' in b ? b.h : 'tip' in b ? b.tip : 'see' in b ? b.see : 'ol' in b ? b.ol.join(' ') : 'table' in b ? b.table.rows.flat().join(' ') : b.ul.join(' '))).join(' ');
   return Math.max(2, Math.round(text.split(/\s+/).length / 200));
 }
 

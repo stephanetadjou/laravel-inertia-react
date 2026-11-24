@@ -6,14 +6,26 @@ export const MARKETPLACE_URL = '/marketplace';
 // Service IA de l’assistant du site (services/assistant). Vide : réponses de secours seules.
 export const ASSISTANT_URL = process.env.NEXT_PUBLIC_ASSISTANT_URL ?? 'https://ia.clientlyx.com/v1/assistant';
 
+// Numéro WhatsApp commercial de ClientlyX, servi par l’assistant IA (qualifie le prospect, crée sa fiche).
+export const WHATSAPP_NUMBER = '24104035763';
+export const WHATSAPP_DISPLAY = '+241 04 03 57 63';
+
+// Page de réservation publique de Mercure Solutions (prestation « Démo ClientlyX », 30 min).
+export const DEMO_BOOKING_URL = process.env.NEXT_PUBLIC_DEMO_BOOKING_URL ?? `${APP_URL}/rdv/mercure-solutions`;
+
+// Source de chaque bouton d’appel à l’action, pour mesurer ce qui rapporte.
+const tag = (url: string, source: string) => `${url}${url.includes('?') ? '&' : '?'}utm_source=${source}&utm_medium=site`;
+
 export const links = {
   login: `${APP_URL}/login`,
-  signup: `${APP_URL}/register`,
-  signupPlan: (plan: string) => `${APP_URL}/register?offre=${plan}`,
+  // Chaque inscription garde sa source (organizations.signup_source) : site_essai, site_solo, site_devis…
+  signup: tag(`${APP_URL}/register`, 'site_essai'),
+  signupPlan: (plan: string) => tag(`${APP_URL}/register?offre=${plan}`, `site_${plan}`),
+  // « je viens du site » : l’app classe ce premier message en source « Site web » (Acquisition::mentionsSite).
+  whatsapp: `https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent('Bonjour, je viens du site ClientlyX')}`,
+  cardSignup: tag(`${APP_URL}/register?offre=carte`, 'site_carte'),
+  demo: tag(DEMO_BOOKING_URL, 'site_demo'),
 };
-
-// Numéro WhatsApp commercial : à remplacer par le vrai numéro.
-export const WHATSAPP_DISPLAY = '+241 XX XX XX XX';
 
 export const brand = {
   name: 'ClientlyX',
@@ -147,7 +159,6 @@ export const featureGroups: FeatureGroup[] = [
       { title: 'Campagnes WhatsApp', text: 'Avec votre compte WhatsApp Business API : modèles validés par Meta, envoi par lots, statuts remis et lu, coût estimé avant l’envoi, réponse « Stop » respectée.', status: 'dispo' },
       { title: 'Confirmation du RDV par bouton', text: 'La veille, le client reçoit un rappel avec « Je confirme » ou « Je décale ». Le rendez-vous se met à jour tout seul.', status: 'dispo' },
       { title: 'Suivi des prospects en glisser-déposer', text: 'Les étapes de votre secteur en colonnes, un délai de relance par étape et la tâche créée dans À faire.', status: 'dispo' },
-      { title: 'Crédits de messages', text: 'Le coût de chaque campagne affiché avant l’envoi, un solde rechargeable, aucun envoi sans crédit.', status: 'dispo' },
       { title: 'Boîte de réception partagée', text: 'Toute l’équipe lit et répond aux messages WhatsApp depuis le même numéro, avec la fiche du client à côté de la conversation : segment, points de fidélité, prochain rendez-vous.', status: 'dispo' },
       { title: 'Répartition des conversations', text: 'Chaque client a son responsable dans l’équipe. Un nouveau message va directement chez lui, sinon chez la personne que vous choisissez.', status: 'dispo' },
       { title: 'Connexion WhatsApp guidée', text: 'Pendant l’essai, ClientlyX vous guide pas à pas pour connecter votre numéro, puis envoie un message de test dès le premier jour.', status: 'bientot' },
@@ -241,6 +252,7 @@ export const featureMenu: { title: string; items: MenuItem[] }[] = [
     items: [
       { icon: 'calendar', label: 'Agenda et réservation', href: '/fonctionnalites#agenda', desc: 'Jour, semaine, mois, par intervenant' },
       { icon: 'wallet', label: 'Ventes et encaissement', href: '/fonctionnalites#ventes', desc: 'Encaissez depuis le rendez-vous' },
+      { icon: 'book', label: 'Devis express', href: '/devis', desc: 'Devis signés en ligne, envoyés sur WhatsApp' },
       { icon: 'gift', label: 'Programme de fidélité', href: '/fonctionnalites#fidelite', desc: 'Points, paliers et récompenses' },
       { icon: 'layers', label: 'Plusieurs établissements', href: '/fonctionnalites#pilotage', desc: 'Toutes vos boutiques et marques réunies' },
     ],
@@ -342,7 +354,7 @@ export const offers: [icon: string, title: string, text: string][] = [
 ];
 
 export const pricingNote =
-  'Prix mensuels par entreprise, pas par utilisateur : besoin de plus d’utilisateurs, passez à l’offre supérieure. Prix au Gabon. Cameroun : environ 25 % de moins. Les messages WhatsApp marketing sont facturés par Meta ; ClientlyX propose des packs de crédits payables par Mobile Money. Les rappels de rendez-vous sont inclus.';
+  'Prix mensuels par entreprise, pas par utilisateur : besoin de plus d’utilisateurs, passez à l’offre supérieure. Prix au Gabon. Cameroun : environ 25 % de moins. Les messages WhatsApp marketing sont facturés directement par Meta, sur la carte bancaire de votre entreprise. Les rappels de rendez-vous sont inclus.';
 
 export const objections = [
   { q: 'J’ai déjà mon cahier et WhatsApp.', a: 'ClientlyX garde WhatsApp et remplace le cahier : chaque matin, il vous dit qui confirmer, qui relancer et qui ne revient plus.' },

@@ -46,6 +46,8 @@ class Customer extends Model
         'instagram_ad' => 'Pub Instagram',
         'direct' => 'Direct',
         'carte' => 'Carte digitale',
+        'reservation' => 'Réservation en ligne',
+        'lien' => 'Lien en ligne',
         'site' => 'Site web',
         'recommandation' => 'Recommandation',
         'salon' => 'Salon / événement',
@@ -106,6 +108,9 @@ class Customer extends Model
         'acquisition_card_id',
         'acquisition_data',
         'acquired_at',
+        'need',
+        'need_kind',
+        'need_at',
     ];
 
     /** Lien avec le responsable d'une personne suivie (module « beneficiaires »). */
@@ -129,6 +134,7 @@ class Customer extends Model
     protected function casts(): array
     {
         return [
+            'need_at' => 'datetime',
             'previous_phones' => 'array',
             'identity_confirmed_at' => 'datetime',
             'birthdate' => 'date',

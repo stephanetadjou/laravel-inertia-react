@@ -174,8 +174,8 @@ export const answers: Answer[] = [
   {
     id: 'api-cout',
     q: 'Combien coûte l’API WhatsApp ?',
-    keys: ['api', 'whatsapp', 'meta', 'cout', 'coute', 'facture', 'credit', 'credits', 'pack'],
-    a: `${whatsappFaq[2].a} ClientlyX propose des packs de crédits payables par Mobile Money.`,
+    keys: ['api', 'whatsapp', 'meta', 'cout', 'coute', 'facture', 'credit', 'credits'],
+    a: `${whatsappFaq[2].a} Meta facture directement votre entreprise, sur sa carte bancaire.`,
     links: [['Lire le guide WhatsApp', '/whatsapp']],
   },
   {

@@ -144,7 +144,7 @@ export function CtaBand() {
             />
             <div className="flex w-full flex-col gap-3 sm:w-auto sm:flex-row lg:flex-col">
               <Button href={links.signup} variant="brand" size="lg">Commencer l’essai gratuit</Button>
-              <Button href="/contact" variant="light" size="lg">Demander une démo</Button>
+              <Button href={links.demo} variant="light" size="lg">Réserver une démo</Button>
             </div>
           </div>
         </div>

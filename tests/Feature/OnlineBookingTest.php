@@ -185,3 +185,24 @@ it('does not let slot searches use up the booking quota', function () {
 
     $this->post("/rdv/{$this->organization->slug}", bookingPayload())->assertSessionHasNoErrors();
 });
+
+it('records the source of the client file: site link or online booking', function () {
+    // Venue du site vitrine (?utm_source=site_demo) : source « site », lien gardé.
+    $this->get("/rdv/{$this->organization->slug}?utm_source=site_demo")->assertOk();
+    $this->post("/rdv/{$this->organization->slug}", bookingPayload());
+    $customer = Contact::where('phone_e164', '24177123456')->sole()->customer;
+    expect($customer->acquisition_source)->toBe('site')
+        ->and($customer->acquisition_data)->toBe(['utm_source' => 'site_demo'])
+        ->and($customer->sourceLabel())->toBe('Site web');
+});
+
+it('marks a direct online booking as « Réservation en ligne » and never overwrites a known source', function () {
+    $this->post("/rdv/{$this->organization->slug}", bookingPayload());
+    $customer = Contact::where('phone_e164', '24177123456')->sole()->customer;
+    expect($customer->acquisition_source)->toBe('reservation')
+        ->and($customer->sourceLabel())->toBe('Réservation en ligne');
+
+    $customer->forceFill(['acquisition_source' => 'carte'])->save();
+    $this->post("/rdv/{$this->organization->slug}", bookingPayload(['time' => '14:00']));
+    expect($customer->fresh()->acquisition_source)->toBe('carte');
+});

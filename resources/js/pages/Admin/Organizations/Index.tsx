@@ -62,7 +62,10 @@ function OrganizationsIndex() {
                                                 <b>{o.name}</b>
                                             </Link>
                                         </td>
-                                        <td>{o.sector_label}</td>
+                                        <td>
+                                            {o.sector_label}
+                                            {o.signup_source && <small className="block text-[12px] opacity-70">via {o.signup_source}</small>}
+                                        </td>
                                         <td>
                                             {o.offer} · {o.plan_label}
                                         </td>

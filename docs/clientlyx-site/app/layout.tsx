@@ -3,6 +3,7 @@ import localFont from 'next/font/local';
 import { Header } from '@/components/Header';
 import { Footer } from '@/components/Footer';
 import { BrandMark } from '@/components/BrandMark';
+import { WhatsAppFloat } from '@/components/WhatsAppFloat';
 import { ASSISTANT_URL, brand } from '@/lib/site';
 import './globals.css';
 
@@ -57,6 +58,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <main id="contenu">{children}</main>
         <Footer />
         <BrandMark />
+        <WhatsAppFloat />
         {/* Assistant du site : bulle en bas à droite (public/assistant/assistant.js). */}
         <script src="/assistant/assistant.js" charSet="utf-8" data-clientlyx-assistant="" data-api={ASSISTANT_URL} data-kb="/assistant/kb.json" defer />
       </body>

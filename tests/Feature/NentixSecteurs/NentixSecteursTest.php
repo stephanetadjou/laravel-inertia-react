@@ -340,3 +340,15 @@ it('creates the sector demo companies and can replay', function () {
         ->and(Customer::whereIn('organization_id', $orgs->pluck('id'))->whereNotNull('acquisition_source')->count())->toBe(91)
         ->and(Task::whereIn('organization_id', $orgs->pluck('id'))->whereNull('done_at')->count())->toBe(28);
 });
+
+it('marks a first message sent from a website WhatsApp button as « Site web »', function () {
+    $store = sectorStore(sectorOrg('pro'));
+
+    incoming($store, ['id' => 'wamid.SITE1', 'from' => '24177005566', 'type' => 'text', 'text' => ['body' => 'Bonjour, je viens du site ClientlyX']]);
+
+    $customer = Customer::where('phone_e164', '24177005566')->firstOrFail();
+    expect($customer->acquisition_source)->toBe('site')
+        ->and($customer->sourceLabel())->toBe('Site web')
+        ->and(Acquisition::mentionsSite('Bonjour, je viens de votre site'))->toBeTrue()
+        ->and(Acquisition::mentionsSite('Bonjour'))->toBeFalse();
+});

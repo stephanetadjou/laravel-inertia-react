@@ -6,8 +6,10 @@ use App\Models\Contact;
 use App\Models\Customer;
 use App\Models\CustomerFollowUp;
 use App\Models\Group;
+use App\Models\MessageTemplate;
 use App\Models\Store;
 use App\Models\Task;
+use App\Models\User;
 use App\Services\ActionLists;
 use App\Services\Audit;
 use Illuminate\Http\RedirectResponse;
@@ -74,6 +76,11 @@ class ActionController extends Controller
             'defaultMessages' => ActionLists::DEFAULT_MESSAGES,
             'canEditMessages' => $user->canManageOrganization(),
             'apiEnabled' => $user->organization->usesWhatsAppApi(),
+            // Campagne sur les clients cochés (même fenêtre que la page Clients), avec l'API seulement.
+            'templates' => $user->organization->usesWhatsAppApi()
+                ? MessageTemplate::where('organization_id', $user->organization_id)->sendable()->orderBy('name')
+                    ->get(['id', 'name', 'language', 'category', 'body_text', 'body_variables', 'header_format'])
+                : [],
         ]);
     }
 
@@ -146,7 +153,18 @@ class ActionController extends Controller
         $brandId = $brandIds->contains($request->integer('brand')) ? $request->integer('brand') : null;
         $groupId = Group::where('organization_id', $user->organization_id)->whereKey($request->integer('group'))->value('id');
 
-        return [$key, (new ActionLists($user, $request->integer('store') ?: null, $brandId, $groupId))->rows($key)];
+        $rows = (new ActionLists($user, $request->integer('store') ?: null, $brandId, $groupId))->rows($key);
+
+        // Cases cochées (?keys=a,b ou keys[]) : seulement les lignes sélectionnées.
+        $selected = $request->input('keys');
+        if (is_string($selected)) {
+            $selected = explode(',', $selected);
+        }
+        if (is_array($selected) && $selected !== []) {
+            $rows = array_values(array_filter($rows, fn (array $row) => in_array($row['key'], $selected, true)));
+        }
+
+        return [$key, $rows];
     }
 
     /**
@@ -166,6 +184,45 @@ class ActionController extends Controller
             'message' => ['nullable', 'string', 'max:2000'],
         ]);
 
+        $customer = $this->recordFollowUp($user, $data);
+
+        return back()->with('success', "Relance de {$customer->name} enregistrée.");
+    }
+
+    /**
+     * Plusieurs relances d'un coup (cases cochées de « À faire ») : chaque ligne
+     * est tracée comme un « Fait » ; WhatsApp ouvert garde le message prérempli.
+     */
+    public function doneMany(Request $request): RedirectResponse
+    {
+        $data = $request->validate([
+            'list' => ['required', Rule::in(array_keys(ActionLists::LISTS))],
+            'keys' => ['required', 'array', 'min:1', 'max:'.ActionLists::LIMIT],
+            'keys.*' => ['string', 'max:100'],
+            'channel' => ['nullable', Rule::in(['whatsapp_manual', 'call', 'other'])],
+        ]);
+
+        [$key, $rows] = $this->listRows($request);
+        $channel = $data['channel'] ?? 'other';
+
+        foreach ($rows as $row) {
+            $this->recordFollowUp($request->user(), [
+                'action' => $key,
+                'customer_id' => $row['customer_id'],
+                'appointment_id' => $row['appointment_id'] ?? null,
+                'reference' => $row['reference'] ?? null,
+                'store_id' => $row['store_id'] ?? null,
+                'channel' => $channel,
+                'message' => $channel === 'whatsapp_manual' ? ($row['message'] ?? null) : null,
+            ]);
+        }
+
+        return back()->with('success', count($rows) > 1 ? count($rows).' relances enregistrées.' : count($rows).' relance enregistrée.');
+    }
+
+    /** @param  array<string, mixed>  $data */
+    private function recordFollowUp(User $user, array $data): Customer
+    {
         $storeIds = (new ActionLists($user))->storeIds();
         $customer = Customer::where('organization_id', $user->organization_id)
             ->whereHas('contacts', fn ($q) => $q->whereIn('store_id', $storeIds))
@@ -193,7 +250,7 @@ class ActionController extends Controller
             Task::where('organization_id', $user->organization_id)->whereKey((int) $m[1])->update(['done_at' => now()]);
         }
 
-        return back()->with('success', "Relance de {$customer->name} enregistrée.");
+        return $customer;
     }
 
     public function updateMessages(Request $request): RedirectResponse

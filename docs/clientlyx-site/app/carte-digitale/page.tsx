@@ -13,7 +13,7 @@ export const metadata: Metadata = {
   alternates: { canonical: '/carte-digitale' },
 };
 
-const signupCard = links.signupPlan('carte');
+const signupCard = links.cardSignup;
 
 const steps = [
   { icon: 'sparkles', t: 'Créez votre carte', d: 'Nom, poste, numéro WhatsApp, photo et couleur : votre carte est en ligne en 5 minutes, depuis votre téléphone.' },

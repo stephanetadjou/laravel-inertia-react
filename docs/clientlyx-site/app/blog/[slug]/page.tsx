@@ -89,6 +89,33 @@ export default async function Article({ params }: Props) {
 function BlockView({ b }: { b: Block }) {
   if ('h' in b) return <h2 className="mt-6 font-display text-[1.45rem] font-bold leading-snug text-navy">{b.h}</h2>;
   if ('p' in b) return <p>{b.p}</p>;
+  if ('see' in b)
+    return (
+      <aside className="flex gap-4 rounded-2xl border border-line bg-soft p-5 text-[16px]">
+        <Icon name="eye" className="mt-1 h-5 w-5 shrink-0 text-navy" />
+        <p><strong className="text-navy">Ce que vous devez voir à l’écran : </strong>{b.see}</p>
+      </aside>
+    );
+  if ('ol' in b)
+    return (
+      <ol className="flex flex-col gap-2.5">
+        {b.ol.map((li, i) => (
+          <li key={li} className="flex gap-3">
+            <span className="mt-[3px] grid h-6 w-6 shrink-0 place-items-center rounded-full bg-navy text-[13px] font-bold text-white">{i + 1}</span>
+            <span>{li}</span>
+          </li>
+        ))}
+      </ol>
+    );
+  if ('table' in b)
+    return (
+      <div className="overflow-x-auto rounded-2xl border border-line">
+        <table className="w-full min-w-[560px] border-collapse text-[15px] leading-snug">
+          <thead><tr className="bg-soft">{b.table.head.map((h) => <th key={h} className="px-4 py-3 text-left font-display font-bold text-navy">{h}</th>)}</tr></thead>
+          <tbody>{b.table.rows.map((r) => <tr key={r[0]} className="border-t border-line">{r.map((c, i) => <td key={i} className={`px-4 py-3 align-top ${i === 0 ? 'font-semibold text-navy' : ''}`}>{c}</td>)}</tr>)}</tbody>
+        </table>
+      </div>
+    );
   if ('tip' in b)
     return (
       <aside className="flex gap-4 rounded-2xl border-l-4 border-green bg-green-soft p-5 text-[16px]">

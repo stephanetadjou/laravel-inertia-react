@@ -13,6 +13,15 @@ use App\Models\Customer;
  */
 class Acquisition
 {
+    /**
+     * Premier message venu d'un bouton « WhatsApp » d'un site (texte prérempli
+     * « … je viens du site … ») : source « Site web » au lieu de « Direct ».
+     */
+    public static function mentionsSite(?string $body): bool
+    {
+        return $body !== null && preg_match('/je\s+viens\s+(du|de\s+votre)\s+site/iu', $body) === 1;
+    }
+
     /** @param  array<string, mixed>|null  $referral */
     public static function sourceOf(?array $referral): string
     {

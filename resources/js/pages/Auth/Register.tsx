@@ -214,6 +214,9 @@ export default function Register() {
             {prefill?.offer === 'carte' && (
                 <p className="mx-auto mt-4 max-w-md rounded-lg bg-[#FFF4E6] px-4 py-2 text-sm font-medium text-[#B8460A]">Votre carte digitale gratuite sera créée avec les informations saisies, juste après l’inscription.</p>
             )}
+            {prefill?.offer === 'devis' && (
+                <p className="mx-auto mt-4 max-w-md rounded-lg bg-[#FFF4E6] px-4 py-2 text-sm font-medium text-[#B8460A]">Devis express : 3 devis gratuits par mois.</p>
+            )}
         </div>
     );
 

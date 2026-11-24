@@ -9,7 +9,7 @@ import { Logo } from './ui';
 export function Header() {
   return (
     <header className="sticky top-0 z-40 border-b border-line bg-white/95 backdrop-blur-md">
-      <div className="mx-auto flex h-[72px] w-full max-w-[1320px] items-center gap-6 px-5 sm:px-8">
+      <div className="mx-auto flex h-[72px] w-full max-w-[1320px] items-center gap-4 px-5 sm:px-8 xl:gap-6">
         <a href="/" aria-label="ClientlyX, accueil" className="shrink-0">
           <Logo id="lg-header" />
         </a>
@@ -39,13 +39,13 @@ export function Header() {
 
           <a href="/carte-digitale" className="inline-flex items-center gap-2 whitespace-nowrap rounded-full px-3 py-2 text-[15px] font-medium text-navy/80 hover:text-navy">Carte digitale <span className="rounded-full bg-sun px-2 py-0.5 text-[11px] font-bold text-navy">Gratuit</span></a>
           <a href="/tarifs" className="rounded-full px-3 py-2 text-[15px] font-medium text-navy/80 hover:text-navy">Tarifs</a>
-          <a href="/whatsapp" className="rounded-full px-3 py-2 text-[15px] font-medium text-navy/80 hover:text-navy">WhatsApp</a>
-          <a href="/blog" className="rounded-full px-3 py-2 text-[15px] font-medium text-navy/80 hover:text-navy">Blog</a>
+          <a href="/whatsapp" className="hidden rounded-full xl:inline-flex px-3 py-2 text-[15px] font-medium text-navy/80 hover:text-navy">WhatsApp</a>
+          <a href="/blog" className="hidden rounded-full xl:inline-flex px-3 py-2 text-[15px] font-medium text-navy/80 hover:text-navy">Blog</a>
         </nav>
 
         <div className="ml-auto hidden items-center gap-3 lg:flex">
           <a href={links.login} className="whitespace-nowrap px-2 text-[15px] font-semibold text-navy/80 hover:text-navy">Se connecter</a>
-          <a href="/contact" className="hidden 2xl:inline-flex h-11 items-center whitespace-nowrap rounded-lg border border-line px-4 text-[15px] font-semibold text-navy hover:border-navy/40">Demander une démo</a>
+          <a href={links.demo} className="hidden 2xl:inline-flex h-11 items-center whitespace-nowrap rounded-lg border border-line px-4 text-[15px] font-semibold text-navy hover:border-navy/40">Réserver une démo</a>
           <a href={links.signup} className="inline-flex h-11 items-center whitespace-nowrap rounded-lg bg-green px-5 text-[15px] font-semibold text-white hover:brightness-110">Essai gratuit</a>
         </div>
 
@@ -75,7 +75,7 @@ export function Header() {
             <a href="/tarifs" className="block rounded-xl px-2 py-2.5 text-[16px] font-medium text-navy">Tarifs</a>
             <a href="/whatsapp" className="block rounded-xl px-2 py-2.5 text-[16px] font-medium text-navy">Guide WhatsApp</a>
             <a href="/blog" className="block rounded-xl px-2 py-2.5 text-[16px] font-medium text-navy">Blog</a>
-            <a href="/contact" className="block rounded-xl px-2 py-2.5 text-[16px] font-medium text-navy">Demander une démo</a>
+            <a href={links.demo} className="block rounded-xl px-2 py-2.5 text-[16px] font-medium text-navy">Réserver une démo</a>
             <div className="mt-4 grid grid-cols-2 gap-2">
               <a href={links.login} className="inline-flex h-12 items-center justify-center rounded-lg border border-line font-semibold text-navy">Se connecter</a>
               <a href={links.signup} className="inline-flex h-12 items-center justify-center rounded-lg bg-green font-semibold text-white">Essai gratuit</a>

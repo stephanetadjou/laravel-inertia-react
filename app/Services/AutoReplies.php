@@ -59,8 +59,14 @@ class AutoReplies
             return;
         }
 
+        // Assistant IA ClientlyX : RDV à boutons et questions libres (le reste au robot à règles).
+        $assistant = Assistant::active($this->contact);
+        if ($assistant && Assistant::intercept($this->contact, $message, $reply)) {
+            return;
+        }
+
         // Agent IA actif : il répond aux messages écrits (les boutons du menu restent au robot à règles).
-        if ($reply === null && ($message['type'] ?? null) === 'text' && ($agent = AiAgents::agentFor($this->contact)) !== null) {
+        if (! $assistant && $reply === null && ($message['type'] ?? null) === 'text' && ($agent = AiAgents::agentFor($this->contact)) !== null) {
             AiAgentReplyJob::dispatch($agent->id, $this->contact->id)->delay(now()->addSeconds(4));
 
             return;

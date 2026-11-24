@@ -256,6 +256,10 @@ class CustomerController extends Controller
                 'source' => $customer->sourceLabel(),
                 'source_headline' => $customer->acquisition_data['headline'] ?? null,
                 'acquired_at' => $customer->acquired_at?->toIso8601String(),
+                // Besoin exprimé à l'Assistant IA et suite demandée.
+                'need' => $customer->need,
+                'need_kind' => $customer->need_kind,
+                'need_at' => $customer->need_at?->toIso8601String(),
             ],
             'scoped' => $scoped,
             // Référentiel : particulier / entreprise, code client source, numéros, consentements.

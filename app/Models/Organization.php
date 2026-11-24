@@ -50,6 +50,7 @@ class Organization extends Model
         'history_import_closed_at',
         'customer_label',
         'auto_replies',
+        'assistant_settings',
         'message_credits',
         'marketing_message_cost',
         'sector_preset_applied_at',
@@ -282,6 +283,7 @@ class Organization extends Model
             'rfm_settings' => 'array',
             'modules' => 'array',
             'auto_replies' => 'array',
+            'assistant_settings' => 'array',
             'message_credits' => 'integer',
             'marketing_message_cost' => 'integer',
             'sector_preset_applied_at' => 'datetime',
@@ -502,6 +504,10 @@ class Organization extends Model
         'reponses_auto' => [
             'label' => 'Réponses automatiques WhatsApp',
             'description' => 'Message d’accueil, message hors horaires et menu à boutons (prix, horaires, rendez-vous, parler à quelqu’un).',
+        ],
+        'assistant' => [
+            'label' => 'Assistant IA ClientlyX',
+            'description' => 'Répond aux clients sur WhatsApp à partir de votre base de connaissances, prend les rendez-vous par boutons et apprend des réponses de votre équipe.',
         ],
         'agents_ia' => [
             'label' => 'Agents IA',
@@ -848,6 +854,18 @@ class Organization extends Model
      * Envoi par l'API WhatsApp Cloud activé (par défaut pour les organisations
      * existantes). Sans API : listes d'actions et liens wa.me uniquement.
      */
+    /** Réglages de l'Assistant IA ClientlyX. @return array{enabled: bool, use_ai: bool, unknown_reply: string, outcomes: list<string>} */
+    public function assistantSettings(): array
+    {
+        return [
+            'enabled' => true,
+            'use_ai' => false,
+            'unknown_reply' => 'Bonne question ! Je transmets à l’équipe, qui vous répond très vite.',
+            'outcomes' => ['rdv', 'devis', 'rappel'],
+            ...array_intersect_key($this->assistant_settings ?? [], array_flip(['enabled', 'use_ai', 'unknown_reply', 'outcomes'])),
+        ];
+    }
+
     public function usesWhatsAppApi(): bool
     {
         return $this->whatsapp_api_enabled ?? true;

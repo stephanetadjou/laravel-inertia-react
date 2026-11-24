@@ -7,6 +7,7 @@ export interface AdminOrganization {
     name: string;
     sector: string | null;
     sector_label: string;
+    signup_source: string | null;
     offer: string;
     plan: string;
     plan_label: string;

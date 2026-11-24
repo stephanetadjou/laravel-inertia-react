@@ -42,6 +42,10 @@ return [
     'menentia' => [
         'site_url' => env('CLIENTLYX_SITE_URL') ?: env('MENENTIA_SITE_URL', 'https://clientlyx.com'),
         'leads_email' => env('CLIENTLYX_LEADS_EMAIL') ?: env('MENENTIA_LEADS_EMAIL'),
+        // Entreprise « maison » (slug) : les demandes du site y deviennent des fiches prospects.
+        'house_org' => env('CLIENTLYX_HOUSE_ORG', 'mercure-solutions'),
+        // Entreprise « maison » (slug) : les demandes du site y deviennent des fiches prospects.
+        'house_org' => env('CLIENTLYX_HOUSE_ORG', 'mercure-solutions'),
         // Affiché aux entreprises suspendues.
         'support_email' => env('CLIENTLYX_SUPPORT_EMAIL') ?: env('MENENTIA_SUPPORT_EMAIL', 'contact@clientlyx.com'),
         // Lien « Besoin d'aide ? » (numéro WhatsApp du support, format international sans +) ; à défaut, l'email.

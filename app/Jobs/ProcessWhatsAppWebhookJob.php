@@ -157,7 +157,7 @@ class ProcessWhatsAppWebhookJob implements ShouldQueue
 
         $receivedAt = isset($message['timestamp']) ? Carbon::createFromTimestamp((int) $message['timestamp']) : now();
         $contact = Contact::where('store_id', $store->id)->where('phone_e164', $from)->first()
-            ?? $this->createContact($store, $from, $profiles, $message['referral'] ?? null);
+            ?? $this->createContact($store, $from, $profiles, $message['referral'] ?? null, self::bodyOf($message));
         $contactId = $contact->id;
 
         $body = self::bodyOf($message);
@@ -201,7 +201,7 @@ class ProcessWhatsAppWebhookJob implements ShouldQueue
      * @param  list<array<string, mixed>>  $profiles
      * @param  array<string, mixed>|null  $referral
      */
-    private function createContact(Store $store, string $phone, array $profiles, ?array $referral): Contact
+    private function createContact(Store $store, string $phone, array $profiles, ?array $referral, ?string $body = null): Contact
     {
         $profileName = collect($profiles)->firstWhere('wa_id', $phone)['profile']['name'] ?? null;
 
@@ -215,7 +215,11 @@ class ProcessWhatsAppWebhookJob implements ShouldQueue
         $customer = $contact->customer;
 
         if ($customer !== null) {
-            Acquisition::record($customer, $referral);
+            if ($referral === null && Acquisition::mentionsSite($body) && $customer->acquisition_source === null) {
+                $customer->forceFill(['acquisition_source' => 'site', 'acquired_at' => now()])->saveQuietly();
+            } else {
+                Acquisition::record($customer, $referral);
+            }
 
             $organization = $store->organization;
             $pipeline = ProspectPipeline::for($organization);

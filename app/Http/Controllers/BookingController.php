@@ -12,6 +12,7 @@ use App\Models\User;
 use App\Services\BookingAvailability;
 use App\Services\PhoneNormalizer;
 use App\Services\ProspectPipeline;
+use App\Support\OnlinePage;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -41,8 +42,13 @@ class BookingController extends Controller
 
     public function show(Request $request, Organization $organization): Response
     {
+        // Source du lien (?utm_source=site_demo…) : gardée pour la fiche créée à la réservation.
+        if ($request->filled('utm_source')) {
+            $request->session()->put("booking_utm.{$organization->id}", mb_substr((string) $request->query('utm_source'), 0, 40));
+        }
+
         // Lien public « Que souhaitez-vous ? » : page d'accueil du lien ; ?rdv=1 ouvre la prise de rendez-vous.
-        if (\App\Support\OnlinePage::isEnabled($organization) && ! $request->boolean('rdv')) {
+        if (OnlinePage::isEnabled($organization) && ! $request->boolean('rdv')) {
             return app(OnlinePageController::class)->show($request, $organization);
         }
 
@@ -167,7 +173,9 @@ class BookingController extends Controller
 
         $serviceIds = $items->pluck('id')->all();
 
-        $appointment = DB::transaction(function () use ($store, $settings, $start, $duration, $items, $serviceIds, $data, $phone) {
+        $utm = $request->session()->get("booking_utm.{$organization->id}");
+
+        $appointment = DB::transaction(function () use ($store, $settings, $start, $duration, $items, $serviceIds, $data, $phone, $utm) {
             // Verrou de l'établissement : deux réservations simultanées sont traitées l'une après l'autre.
             $locked = Store::whereKey($store->id)->lockForUpdate()->first();
             $locked->touch();
@@ -196,6 +204,16 @@ class BookingController extends Controller
                 if ($organization->hasModule('prospects') && $contact->customer->prospect_stage === null) {
                     ProspectPipeline::for($organization)->start($contact->customer, $referrer);
                 }
+            }
+
+            // Source de la fiche, une seule fois : « site » si le lien vient du site vitrine, sinon « réservation en ligne ».
+            $customer = $contact->fresh()->customer;
+            if ($customer !== null && $customer->acquisition_source === null) {
+                $customer->forceFill([
+                    'acquisition_source' => is_string($utm) && str_starts_with($utm, 'site') ? 'site' : 'reservation',
+                    'acquisition_data' => is_string($utm) ? ['utm_source' => $utm] : null,
+                    'acquired_at' => now(),
+                ])->saveQuietly();
             }
 
             // Le client coche la case : son accord est daté et sourcé ; jamais retiré ici.

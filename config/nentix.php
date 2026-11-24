@@ -27,6 +27,8 @@ return [
             'cards' => 3,
             'card_branding' => true,
             // Tunnels de vente actifs (0 = non inclus, null = illimité).
+            // Devis créés par mois calendaire (null = illimité).
+            'quotes_per_month' => 3,
             'funnels' => 0,
             'card_stats_days' => 7,
             'card_print' => false,
@@ -45,6 +47,8 @@ return [
             'cards' => 10,
             'card_branding' => true,
             // Tunnels de vente actifs (0 = non inclus, null = illimité).
+            // Devis créés par mois calendaire (null = illimité).
+            'quotes_per_month' => null,
             'funnels' => 1,
             'card_stats_days' => 30,
             'card_print' => false,
@@ -63,6 +67,8 @@ return [
             'cards' => 30,
             'card_branding' => false,
             // Tunnels de vente actifs (0 = non inclus, null = illimité).
+            // Devis créés par mois calendaire (null = illimité).
+            'quotes_per_month' => null,
             'funnels' => 3,
             'card_stats_days' => 90,
             'card_print' => true,
@@ -81,6 +87,8 @@ return [
             'cards' => null,
             'card_branding' => false,
             // Tunnels de vente actifs (0 = non inclus, null = illimité).
+            // Devis créés par mois calendaire (null = illimité).
+            'quotes_per_month' => null,
             'funnels' => null,
             'card_stats_days' => 365,
             'card_print' => true,
@@ -99,6 +107,8 @@ return [
             'cards' => null,
             'card_branding' => false,
             // Tunnels de vente actifs (0 = non inclus, null = illimité).
+            // Devis créés par mois calendaire (null = illimité).
+            'quotes_per_month' => null,
             'funnels' => null,
             'card_stats_days' => 365,
             'card_print' => true,

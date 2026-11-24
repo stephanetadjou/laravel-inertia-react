@@ -10,6 +10,7 @@ use App\Models\User;
 use App\Models\WhatsAppInboundMessage;
 use App\Models\WhatsAppOutboundMessage;
 use App\Services\ActionLists;
+use App\Services\Assistant;
 use App\Services\CustomerLifecycle;
 use App\Services\WhatsAppConversation;
 use Illuminate\Http\RedirectResponse;
@@ -105,6 +106,11 @@ class ConversationController extends Controller
                 return back()->with('error', 'Le client n’a pas écrit depuis plus de 24 h : WhatsApp impose un modèle de message approuvé.');
             }
             $message = WhatsAppConversation::text($contact, trim((string) $data['body']), 'manual', $request->user());
+
+            // Question restée sans réponse de l'assistant : la réponse de l'équipe attend la validation du gérant.
+            if ($message->status === 'sent') {
+                Assistant::recordHumanAnswer($contact, trim((string) $data['body']), $request->user()->id);
+            }
         }
 
         // Une réponse humaine relance le robot plus tard ; la discussion reste « à traiter » jusqu'au bouton « Traité ».
@@ -157,6 +163,7 @@ class ConversationController extends Controller
             'source' => $contact->customer?->sourceLabel(),
             'source_headline' => $contact->customer?->acquisition_data['headline'] ?? null,
             'prospect_stage' => $contact->customer?->prospect_stage,
+            'need' => $contact->customer?->need,
             'needs_attention' => $contact->needs_attention,
             'assigned_user_id' => $contact->assigned_user_id,
             'bot_paused' => $contact->bot_paused_until?->isFuture() ?? false,

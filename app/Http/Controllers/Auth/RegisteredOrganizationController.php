@@ -10,6 +10,7 @@ use App\Models\Role;
 use App\Models\Store;
 use App\Models\User;
 use App\Modules\CarteDigitale\Services\DigitalCards;
+use App\Modules\Facturation\Services\Invoicing;
 use App\Support\SectorPresets;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -32,8 +33,17 @@ use Inertia\Response;
  */
 class RegisteredOrganizationController extends Controller
 {
+    /** Les 5 secteurs du lancement du 15/12/2026 : Assistant IA ClientlyX actif dès l'inscription. */
+    public const ASSISTANT_SECTORS = ['beaute', 'sport', 'pro', 'commerce', 'location'];
+
     public function create(Request $request): Response
     {
+        // Source d'inscription (?utm_source=site_carte…), sinon l'offre du lien (?offre=carte) : mesure du site vitrine.
+        $source = $request->query('utm_source') ?: $request->query('offre');
+        if (is_string($source) && preg_match('/^[a-z0-9_-]{1,40}$/i', $source)) {
+            $request->session()->put('signup_source', strtolower($source));
+        }
+
         // Venue du créateur de carte du site vitrine (?offre=carte&nom=…) : la carte
         // sera créée et préremplie juste après l'inscription.
         $cardDraft = null;
@@ -43,12 +53,25 @@ class RegisteredOrganizationController extends Controller
             $request->session()->put('card_draft', $cardDraft);
         }
 
+        // Venue de la page Devis express du site (?offre=devis) : offre Gratuit,
+        // module Devis et factures actif, premier devis ouvert après l'inscription.
+        $offer = $cardDraft !== null ? 'carte' : null;
+        // Le devis composé sur le site (?offre=devis&client=…&lignes=[…]) est gardé
+        // en session puis enregistré dans le compte juste après l'inscription.
+        $quoteDraft = null;
+        if ($request->query('offre') === 'devis') {
+            $request->session()->put('signup_offer', 'devis');
+            $quoteDraft = Invoicing::draftFromQuery($request->query());
+            $request->session()->put('quote_draft', $quoteDraft);
+            $offer = 'devis';
+        }
+
         return Inertia::render('Auth/Register', [
-            'prefill' => $cardDraft === null ? null : [
+            'prefill' => $offer === null ? null : [
                 'name' => $cardDraft['nom'] ?? '',
-                'organization_name' => $cardDraft['entreprise'] ?? '',
+                'organization_name' => $cardDraft['entreprise'] ?? $quoteDraft['entreprise'] ?? '',
                 'email' => filter_var($cardDraft['email'] ?? null, FILTER_VALIDATE_EMAIL) ?: '',
-                'offer' => 'carte',
+                'offer' => $offer,
             ],
             // Inscription publique : secteurs de prestations de services (le commerce n'est plus proposé).
             'sectors' => collect(Organization::PUBLIC_SECTORS)->map(fn ($key) => [
@@ -104,8 +127,9 @@ class RegisteredOrganizationController extends Controller
         $slug = Organization::uniqueSlug($validated['organization_name']);
 
         $usePreset = ! $request->has('answers') && SectorPresets::has($validated['sector']);
+        $quoteOffer = $request->session()->get('signup_offer') === 'devis';
 
-        $user = DB::transaction(function () use ($validated, $slug, $modules, $answers, $usePreset) {
+        $user = DB::transaction(function () use ($validated, $slug, $modules, $answers, $usePreset, $quoteOffer) {
             $organization = Organization::create([
                 'name' => $validated['organization_name'],
                 'slug' => $slug,
@@ -130,6 +154,18 @@ class RegisteredOrganizationController extends Controller
             // Case « Agents IA » cochée à l'inscription.
             if (! empty($validated['ai_agents'])) {
                 $organization->setModules([...$organization->enabledModules(), 'agents_ia']);
+                $organization->save();
+            }
+            // Secteurs du lancement : l'Assistant IA ClientlyX est coché d'office (sauf si l'entreprise a choisi ses propres Agents IA).
+            elseif (in_array($validated['sector'], self::ASSISTANT_SECTORS, true)) {
+                $organization->setModules([...$organization->enabledModules(), 'assistant']);
+                $organization->save();
+            }
+
+            // Devis express : offre Gratuit d'emblée (3 devis par mois), module Devis et factures.
+            if ($quoteOffer) {
+                $organization->forceFill(['plan' => 'gratuit', 'status' => Organization::STATUS_ACTIVE, 'trial_ends_at' => null]);
+                $organization->setModules([...$organization->enabledModules(), 'factures']);
                 $organization->save();
             }
 
@@ -158,6 +194,10 @@ class RegisteredOrganizationController extends Controller
             ]);
         });
 
+        if (is_string($source = $request->session()->pull('signup_source'))) {
+            Organization::whereKey($user->organization_id)->update(['signup_source' => $source]);
+        }
+
         Auth::login($user);
         $request->session()->regenerate();
 
@@ -167,6 +207,19 @@ class RegisteredOrganizationController extends Controller
 
             return redirect()->route('cards.edit', $card)
                 ->with('success', 'Bienvenue ! Votre carte digitale est prête : ajoutez votre photo puis partagez-la.');
+        }
+
+        if ($request->session()->pull('signup_offer') === 'devis') {
+            $draft = $request->session()->pull('quote_draft');
+            if (is_array($draft) && $draft['lines'] !== []) {
+                $quote = app(Invoicing::class)->createFromDraft($user, $draft);
+
+                return redirect()->route('invoices.show', $quote)
+                    ->with('success', "Bienvenue ! Votre devis {$quote->number} est enregistré : envoyez-le à votre client sur WhatsApp.");
+            }
+
+            return redirect()->route('invoices.create', ['type' => 'quote'])
+                ->with('success', 'Bienvenue ! Créez votre premier devis : 3 devis gratuits par mois.');
         }
 
         return redirect()->route('dashboard.index')

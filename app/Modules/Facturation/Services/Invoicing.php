@@ -5,14 +5,17 @@ namespace App\Modules\Facturation\Services;
 use App\Models\CatalogItem;
 use App\Models\Contact;
 use App\Models\Customer;
+use App\Models\Organization;
 use App\Models\Purchase;
 use App\Models\PurchaseItem;
+use App\Models\Store;
 use App\Models\User;
 use App\Modules\Facturation\Models\Invoice;
 use App\Modules\Facturation\Models\InvoicePayment;
 use App\Services\ActionLists;
 use App\Services\Audit;
 use App\Services\CustomerScoring;
+use App\Services\PhoneNormalizer;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
@@ -25,6 +28,89 @@ use Illuminate\Validation\ValidationException;
  */
 class Invoicing
 {
+    /** Message affiché quand le quota mensuel de devis de l'offre Gratuit est atteint. */
+    public const QUOTA_MESSAGE = 'Vous avez utilisé vos 3 devis gratuits ce mois-ci. Passez à l’offre Solo (9 900 FCFA/mois) pour des devis illimités.';
+
+    /**
+     * Quota de devis du mois calendaire (config nentix.packs.*.quotes_per_month ;
+     * null = illimité). Les devis annulés comptent : le quota porte sur les créations.
+     *
+     * @return array{limit: ?int, used: int, blocked: bool}
+     */
+    public static function quoteQuota(Organization $organization): array
+    {
+        $limit = config('nentix.packs.'.$organization->pack().'.quotes_per_month');
+        if ($limit === null) {
+            return ['limit' => null, 'used' => 0, 'blocked' => false];
+        }
+        $used = Invoice::where('organization_id', $organization->id)->where('type', Invoice::TYPE_QUOTE)
+            ->where('created_at', '>=', now()->startOfMonth())->count();
+
+        return ['limit' => (int) $limit, 'used' => $used, 'blocked' => $used >= (int) $limit];
+    }
+
+    /**
+     * Devis composé sur la page Devis express du site (paramètres de
+     * /register?offre=devis), nettoyé : textes bornés, 12 lignes au plus.
+     *
+     * @param  array<string, mixed>  $query
+     * @return array{entreprise: ?string, client: ?string, client_tel: ?string, remise: int, acompte: ?int, validite: int, note: ?string, lines: list<array{label: string, quantity: float, unit_price: int}>}
+     */
+    public static function draftFromQuery(array $query): array
+    {
+        $text = fn (string $k, int $max = 120) => is_string($query[$k] ?? null) && trim($query[$k]) !== '' ? mb_substr(trim($query[$k]), 0, $max) : null;
+        $decoded = is_string($query['lignes'] ?? null) ? json_decode($query['lignes'], true) : null;
+        $lines = collect(is_array($decoded) ? $decoded : [])->take(12)
+            ->map(fn ($l) => is_array($l) ? [
+                'label' => mb_substr(trim((string) ($l[0] ?? '')), 0, 120),
+                'quantity' => min(9999, max(0, round((float) ($l[1] ?? 1), 2))),
+                'unit_price' => min(999_999_999, max(0, (int) ($l[2] ?? 0))),
+            ] : null)
+            ->filter(fn ($l) => $l !== null && ($l['label'] !== '' || $l['unit_price'] > 0))
+            ->map(fn ($l) => [...$l, 'label' => $l['label'] !== '' ? $l['label'] : 'Prestation'])
+            ->values()->all();
+        $deposit = (int) ($query['acompte'] ?? 0);
+
+        return [
+            'entreprise' => $text('entreprise'),
+            'client' => $text('client', 60),
+            'client_tel' => $text('client_tel', 20),
+            'remise' => max(0, (int) ($query['remise'] ?? 0)),
+            'acompte' => in_array($deposit, [30, 50], true) ? $deposit : null,
+            'validite' => min(365, max(1, (int) ($query['validite'] ?? 15))),
+            'note' => $text('note', 240),
+            'lines' => $lines,
+        ];
+    }
+
+    /**
+     * Enregistre le devis du site dans le compte qui vient d'être créé : fiche
+     * client (avec ou sans numéro) dans le premier établissement, puis le devis.
+     *
+     * @param  array{client: ?string, client_tel: ?string, remise: int, acompte: ?int, validite: int, note: ?string, lines: list<array{label: string, quantity: float, unit_price: int}>}  $draft
+     */
+    public function createFromDraft(User $user, array $draft): Invoice
+    {
+        $store = Store::where('organization_id', $user->organization_id)->orderBy('id')->firstOrFail();
+        $contact = Contact::create([
+            'store_id' => $store->id,
+            'phone_e164' => $draft['client_tel'] ? PhoneNormalizer::normalize($draft['client_tel']) : null,
+            'name' => $draft['client'] ?? 'Client',
+            'consent_status' => 'unknown',
+        ]);
+
+        return $this->create($user, [
+            'type' => Invoice::TYPE_QUOTE,
+            'customer_id' => (int) $contact->refresh()->customer_id,
+            'store_id' => $store->id,
+            'valid_until' => today()->addDays($draft['validite'])->toDateString(),
+            'discount_amount' => $draft['remise'],
+            'deposit_percent' => $draft['acompte'],
+            'notes' => $draft['note'],
+            'lines' => $draft['lines'],
+        ]);
+    }
+
     /**
      * @param  array{customer_id: int, store_id: int, type: string, title?: ?string, issued_on?: ?string, due_on?: ?string, valid_until?: ?string, discount_amount?: ?int, notes?: ?string, lines: list<array{label: string, quantity: float|int|string, unit_price: int|string, catalog_item_id?: ?int}>}  $data
      */

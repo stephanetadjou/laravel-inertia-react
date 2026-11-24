@@ -88,6 +88,7 @@ class InvoiceController extends Controller
             ...$this->formOptions($user),
             'document' => null,
             'type' => $type,
+            'quota' => $type === Invoice::TYPE_QUOTE ? [...Invoicing::quoteQuota($user->organization), 'message' => Invoicing::QUOTA_MESSAGE] : null,
             'customer' => $customer ? ['id' => $customer->id, 'name' => $customer->name, 'phone_e164' => $customer->phone_e164] : null,
         ]);
     }
@@ -96,6 +97,10 @@ class InvoiceController extends Controller
     {
         $user = $request->user();
         $data = $this->validated($request, $user, creating: true);
+        // Offre Gratuit : 3 devis par mois calendaire (config nentix).
+        if ($data['type'] === Invoice::TYPE_QUOTE && Invoicing::quoteQuota($user->organization)['blocked']) {
+            return back()->with('error', Invoicing::QUOTA_MESSAGE);
+        }
         $invoice = $invoicing->create($user, $data);
 
         return redirect()->route('invoices.show', $invoice)->with('success', "{$invoice->typeLabel()} {$invoice->number} créé(e). Envoyez-le au client par WhatsApp.");

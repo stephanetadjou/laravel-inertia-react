@@ -41,6 +41,7 @@ interface Thread {
     store: string | null;
     source: string | null;
     source_headline: string | null;
+    need?: string | null;
     needs_attention: boolean;
     assigned_user_id: number | null;
     bot_paused: boolean;
@@ -60,7 +61,7 @@ interface PageProps {
     [key: string]: unknown;
 }
 
-const ORIGIN: Record<string, string> = { auto: 'Réponse automatique', ai: 'Agent IA', reminder: 'Rappel', campaign: 'Campagne' };
+const ORIGIN: Record<string, string> = { auto: 'Réponse automatique', ai: 'Agent IA', assistant: 'Assistant IA', reminder: 'Rappel', campaign: 'Campagne' };
 
 function Bubble({ m }: { m: Message }) {
     const out = m.direction === 'out';
@@ -93,7 +94,7 @@ function ThreadPanel({ thread, users, templates, apiEnabled }: { thread: Thread;
     return (
         <Panel
             title={thread.name}
-            sub={[thread.phone, thread.store, thread.source && `Source : ${thread.source}${thread.source_headline ? ` (« ${thread.source_headline} »)` : ''}`].filter(Boolean).join(' · ')}
+            sub={[thread.phone, thread.store, thread.source && `Source : ${thread.source}${thread.source_headline ? ` (« ${thread.source_headline} »)` : ''}`, thread.need && `Besoin : ${thread.need}`].filter(Boolean).join(' · ')}
             actions={
                 <>
                     <select

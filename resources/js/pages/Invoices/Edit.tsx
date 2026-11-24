@@ -17,6 +17,8 @@ interface Line {
 
 interface PageProps {
     type: 'quote' | 'invoice';
+    /** Quota mensuel de devis (offre Gratuit) ; null = illimité ou facture. */
+    quota?: { limit: number | null; used: number; blocked: boolean; message: string } | null;
     customer: { id: number; name: string; phone_e164: string | null } | null;
     document: null | {
         id: number;
@@ -39,7 +41,7 @@ const field = 'w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-g
 const emptyLine = (): Line => ({ label: '', quantity: 1, unit_price: '', catalog_item_id: null });
 
 function InvoiceEdit() {
-    const { type, customer: initial, document: doc, stores, catalog } = usePage<PageProps>().props;
+    const { type, customer: initial, document: doc, stores, catalog, quota } = usePage<PageProps>().props;
     const quote = type === 'quote';
     const [customer, setCustomer] = useState<PickedCustomer | null>(initial ? { id: initial.id, name: initial.name, phone: initial.phone_e164 } : null);
     const { data, setData, post, put, processing, errors } = useForm({
@@ -79,6 +81,14 @@ function InvoiceEdit() {
                 </Link>
             }
         >
+            {!doc && quota?.limit != null && (
+                <div className={`mb-4 flex flex-wrap items-center justify-between gap-3 rounded-2xl border px-4 py-3 text-sm ${quota.blocked ? 'border-red-200 bg-red-50 text-red-900' : 'border-amber-200 bg-amber-50 text-amber-900'}`}>
+                    <span>{quota.blocked ? quota.message : `Offre Gratuit : ${quota.used} devis sur ${quota.limit} utilisés ce mois-ci.`}</span>
+                    <Link href="/settings/modules" className="font-semibold underline">
+                        Voir les offres
+                    </Link>
+                </div>
+            )}
             <form onSubmit={submit} className="grid grid-cols-1 gap-4 lg:grid-cols-3">
                 <div className="space-y-4 lg:col-span-2">
                     <Panel title="Lignes">

@@ -114,7 +114,7 @@ export function CardCreator() {
     (Object.keys(f) as (keyof Fields)[]).forEach((k) => { if (f[k].trim()) p.set(k, f[k].trim()); });
     p.set('couleur', color);
     filledSocials.forEach((s) => p.set(s.key, socials[s.key].trim().slice(0, 120)));
-    return `${links.signupPlan('carte')}&${p.toString()}`;
+    return `${links.cardSignup}&${p.toString()}`;
   }, [f, color, socials]);
 
   const input = 'h-12 w-full rounded-xl border border-line bg-white px-4 text-[16px] text-ink placeholder:text-muted/60 focus:border-green focus:outline-none focus:ring-2 focus:ring-green/20';

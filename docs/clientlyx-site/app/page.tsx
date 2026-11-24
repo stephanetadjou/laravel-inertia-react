@@ -1,9 +1,12 @@
 import { Icon } from '@/components/Icon';
 import { AgendaMock, AgendaPhoneMock, ClientsRelanceMock, RelanceWhatsAppMock, ClientMock, DashboardMock, FideliteMock, RapportMock, RelancesMock, SegmentsMock, WhatsAppMock, WithPhone, ChatbotMock } from '@/components/mockups';
-import { CtaBand, FamilyStrip, Faq, FeatureIndex, PricingCards, ProblemGrid, TrustRow } from '@/components/sections';
+import { CtaBand, Faq, FeatureIndex, PricingCards, ProblemGrid, TrustRow } from '@/components/sections';
 import { AppCarousel } from '@/components/AppCarousel';
+import { SectorTabs } from '@/components/SectorTabs';
+import { DataMarketing } from '@/components/DataMarketing';
+import { CrmSpotlight, WhatsAppSpotlight } from '@/components/Spotlights';
 import { Button, Container, Eyebrow, GradientText, SectionTitle } from '@/components/ui';
-import { brand, links, pillars } from '@/lib/site';
+import { brand, families, links, pillars } from '@/lib/site';
 
 export default function Home() {
   return (
@@ -32,12 +35,18 @@ export default function Home() {
         </Container>
       </section>
 
+      <WhatsAppSpotlight />
+
+      <CrmSpotlight />
+
+      <DataMarketing />
+
       <GrowthPlatform />
 
       <section className="py-16">
         <Container className="flex flex-col gap-8">
           <SectionTitle eyebrow="Votre secteur" title="Beauté, bien-être, santé et sport d’abord. Et tous les établissements de services." lead="Choisissez votre activité puis votre métier : ClientlyX arrive réglé, avec le vocabulaire, les réservations, les relances et les tableaux de bord qui vous concernent." />
-          <FamilyStrip />
+          <SectorTabs families={families} pitch={{}} trialHref={links.signup} />
         </Container>
       </section>
 
@@ -64,15 +73,15 @@ export default function Home() {
 const cycle = [
   { n: '1', k: 'Attirer', t: 'Campagnes WhatsApp, offres et suivi des pubs', ring: 'border-green' },
   { n: '2', k: 'Réserver', t: 'Rendez-vous en ligne et rappels automatiques', ring: 'border-sun' },
-  { n: '3', k: 'Connaître', t: 'Fiche client complète, historique et score IA', ring: 'border-blue' },
+  { n: '3', k: 'Connaître', t: 'Fiche client complète, segments RFM et score client', ring: 'border-blue' },
   { n: '4', k: 'Fidéliser', t: 'Relances, fidélité et clients à risque repérés', ring: 'border-navy' },
 ];
 
 const piliers = [
-  { tag: 'AI-Powered CRM', icon: 'users', t: 'Connaître chaque client', d: 'Fiche unique, historique des visites et achats, segments RFM et alertes IA sur les clients qui risquent de partir.', href: '/piliers/ai-powered-crm', c: 'text-blue-text' },
-  { tag: 'Dynamic Booking', icon: 'calendar', t: 'Remplir votre agenda', d: 'Réservation en ligne, agenda par collaborateur, rappels WhatsApp pour réduire les rendez-vous manqués.', href: '/piliers/dynamic-booking', c: 'text-[#7A5C00]' },
   { tag: 'Growth Marketing', icon: 'message', t: 'Faire revenir vos clients', d: 'Campagnes et relances WhatsApp ciblées, programme de fidélité et réactivation des clients endormis.', href: '/piliers/growth-marketing', c: 'text-green-text' },
+  { tag: 'AI-Powered CRM', icon: 'users', t: 'Connaître chaque client', d: 'Fiche unique, historique des visites et achats, segments RFM, score client et alertes sur les clients qui risquent de partir.', href: '/piliers/ai-powered-crm', c: 'text-blue-text' },
   { tag: 'Advanced Analytics', icon: 'chart', t: 'Décider avec vos chiffres', d: 'Tableau de bord clair, chiffre d’affaires par prestation et par collaborateur, rapport automatique chaque soir.', href: '/piliers/advanced-analytics', c: 'text-navy' },
+  { tag: 'Dynamic Booking', icon: 'calendar', t: 'Remplir votre agenda', d: 'Réservation en ligne, agenda par collaborateur, rappels WhatsApp pour réduire les rendez-vous manqués.', href: '/piliers/dynamic-booking', c: 'text-[#7A5C00]' },
 ];
 
 function GrowthPlatform() {
@@ -118,8 +127,9 @@ function Hero() {
           {brand.name} réunit vos clients, vos rendez-vous, vos relances WhatsApp et vos chiffres dans une seule plateforme, pensée pour les PME de services en Afrique.
         </p>
         <div className="flex w-full flex-col justify-center gap-3 sm:w-auto sm:flex-row">
-          <a href={links.signup} className="inline-flex h-[52px] items-center justify-center gap-2 rounded-lg bg-green px-7 text-base font-semibold text-white hover:bg-green-text">Commencer gratuitement <Icon name="arrow" className="h-4 w-4" /></a>
-          <a href="/contact" className="inline-flex h-[52px] items-center justify-center rounded-lg border border-line bg-white px-7 text-base font-semibold text-navy hover:border-navy/40">Demander une démo</a>
+          <a href={links.whatsapp} target="_blank" rel="noopener" data-source="site_whatsapp" className="inline-flex h-[52px] items-center justify-center gap-2 rounded-lg bg-green px-7 text-base font-semibold text-white hover:bg-green-text"><Icon name="message" className="h-5 w-5" /> Tester sur WhatsApp</a>
+          <a href={links.cardSignup} className="inline-flex h-[52px] items-center justify-center gap-2 rounded-lg bg-navy px-7 text-base font-semibold text-white hover:brightness-110">Créer ma Carte digitale gratuite <Icon name="arrow" className="h-4 w-4" /></a>
+          <a href={links.demo} className="inline-flex h-[52px] items-center justify-center gap-2 rounded-lg border border-line bg-white px-7 text-base font-semibold text-navy hover:border-navy/40"><Icon name="calendar" className="h-4 w-4" /> Réserver une démo</a>
         </div>
         <ul className="flex flex-wrap justify-center gap-x-6 gap-y-2 text-[14px] text-muted">
           {['Offre gratuite permanente', 'Sans carte bancaire', 'Paiement Mobile Money', 'Accompagnement sur WhatsApp'].map((g) => (

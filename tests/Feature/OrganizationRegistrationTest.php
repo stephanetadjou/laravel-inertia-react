@@ -96,3 +96,27 @@ it('waits for a busy SQLite database instead of failing at once', function () {
     // le même fichier : sans délai d'attente, « database is locked » immédiat.
     expect(config('database.connections.sqlite.busy_timeout'))->toBe(5000);
 });
+
+it('records the signup source from the showcase site link', function () {
+    $this->get('/register?offre=carte&utm_source=site_carte')->assertOk();
+    $this->post('/register', registrationPayload());
+
+    expect(Organization::where('name', 'Boutique Akanda')->sole()->signup_source)->toBe('site_carte');
+});
+
+it('falls back to the offer of the link, and records nothing for a direct signup', function () {
+    $this->get('/register?offre=devis')->assertOk();
+    $this->post('/register', registrationPayload());
+    expect(Organization::where('name', 'Boutique Akanda')->sole()->signup_source)->toBe('devis');
+
+    auth()->logout();
+    $this->flushSession();
+    $this->post('/register', registrationPayload(['organization_name' => 'Salon Direct', 'email' => 'direct@example.com']));
+    expect(Organization::where('name', 'Salon Direct')->sole()->signup_source)->toBeNull();
+});
+
+it('switches the ClientlyX assistant on for the 5 launch sectors', function (string $sector) {
+    $this->post('/register', registrationPayload(['sector' => $sector, 'organization_name' => "Test {$sector}"]));
+
+    expect(Organization::where('name', "Test {$sector}")->sole()->hasModule('assistant'))->toBeTrue();
+})->with(['beaute', 'sport', 'pro', 'commerce', 'location']);

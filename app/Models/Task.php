@@ -14,6 +14,7 @@ class Task extends Model
 {
     public const KINDS = [
         'talk_to_human' => 'Parler à quelqu’un',
+        'learn_question' => 'Question à apprendre',
         'callback' => 'Être rappelé',
         'reschedule' => 'Rendez-vous à recaser',
         'card_contact' => 'Contact reçu par la carte digitale',

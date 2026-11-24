@@ -30,6 +30,7 @@ use App\Http\Controllers\GroupController;
 use App\Http\Controllers\ImportController;
 use App\Http\Controllers\ImportTemplateController;
 use App\Http\Controllers\InstallmentController;
+use App\Http\Controllers\KnowledgeController;
 use App\Http\Controllers\LearnerController;
 use App\Http\Controllers\LoyaltyController;
 use App\Http\Controllers\LoyaltyProgramController;
@@ -39,6 +40,7 @@ use App\Http\Controllers\MessageTemplateController;
 use App\Http\Controllers\ModuleController;
 use App\Http\Controllers\MultibrandController;
 use App\Http\Controllers\OccupationController;
+use App\Http\Controllers\OnlinePageController;
 use App\Http\Controllers\OrganizationController;
 use App\Http\Controllers\PdfReportController;
 use App\Http\Controllers\PlanController;
@@ -78,8 +80,8 @@ Route::get('/rdv/{organization:slug}', [BookingController::class, 'show'])->name
 Route::get('/rdv/{organization:slug}/creneaux', [BookingController::class, 'slots'])->middleware('throttle:booking-slots')->name('booking.slots');
 Route::post('/rdv/{organization:slug}', [BookingController::class, 'store'])->middleware('throttle:booking-submit')->name('booking.store');
 // Lien public « Que souhaitez-vous ? » : véhicules libres et envoi d'une demande (cf. App\Support\OnlinePage).
-Route::get('/rdv/{organization:slug}/disponibles', [\App\Http\Controllers\OnlinePageController::class, 'available'])->middleware('throttle:booking-slots')->name('online-page.available');
-Route::post('/rdv/{organization:slug}/demande', [\App\Http\Controllers\OnlinePageController::class, 'submit'])->middleware('throttle:5,1')->name('online-page.submit');
+Route::get('/rdv/{organization:slug}/disponibles', [OnlinePageController::class, 'available'])->middleware('throttle:booking-slots')->name('online-page.available');
+Route::post('/rdv/{organization:slug}/demande', [OnlinePageController::class, 'submit'])->middleware('throttle:5,1')->name('online-page.submit');
 Route::get('/rdv/{organization:slug}/c/{token}', [BookingController::class, 'confirmation'])->name('booking.confirmation');
 Route::post('/rdv/{organization:slug}/c/{token}/annuler', [BookingController::class, 'cancel'])->middleware('throttle:booking-submit')->name('booking.cancel');
 
@@ -106,6 +108,7 @@ Route::middleware('auth')->group(function () {
     // Relances manuelles (lien wa.me) : fonctionnent sans l'API WhatsApp.
     Route::get('/actions', [ActionController::class, 'index'])->name('actions.index');
     Route::post('/actions/done', [ActionController::class, 'done'])->name('actions.done');
+    Route::post('/actions/done-many', [ActionController::class, 'doneMany'])->name('actions.done-many');
 
     // Agenda : rendez-vous (module « rdv ») et cours de groupe (module « seances_groupe »).
     Route::get('/appointments', [AppointmentController::class, 'index'])->middleware('module:rdv,seances_groupe')->name('appointments.index');
@@ -281,6 +284,21 @@ Route::middleware('auth')->group(function () {
         Route::put('/settings/prospects', [ProspectController::class, 'updateSettings'])->middleware('module:prospects')->name('settings.prospects.update');
         Route::put('/settings/modules', [ModuleController::class, 'update'])->name('settings.modules.update');
 
+        // Assistant IA ClientlyX : base de connaissances, questions à apprendre, réglages.
+        Route::middleware('module:assistant')->group(function () {
+            Route::get('/assistant', [KnowledgeController::class, 'index'])->name('assistant.index');
+            Route::get('/assistant/modele', [KnowledgeController::class, 'template'])->name('assistant.template');
+            Route::post('/assistant/entries', [KnowledgeController::class, 'store'])->name('assistant.entries.store');
+            Route::put('/assistant/entries/{entry}', [KnowledgeController::class, 'update'])->name('assistant.entries.update');
+            Route::delete('/assistant/entries/{entry}', [KnowledgeController::class, 'destroy'])->name('assistant.entries.destroy');
+            Route::post('/assistant/import', [KnowledgeController::class, 'import'])->name('assistant.import');
+            Route::post('/assistant/questions/{question}/learn', [KnowledgeController::class, 'learn'])->name('assistant.questions.learn');
+            Route::post('/assistant/questions/{question}/dismiss', [KnowledgeController::class, 'dismiss'])->name('assistant.questions.dismiss');
+            Route::put('/assistant/settings', [KnowledgeController::class, 'settings'])->name('assistant.settings');
+            Route::put('/assistant/questionnaire/{key}', [KnowledgeController::class, 'answer'])->name('assistant.questionnaire');
+            Route::post('/assistant/test', [KnowledgeController::class, 'test'])->middleware('throttle:20,1')->name('assistant.test');
+        });
+
         Route::middleware('module:agents_ia')->group(function () {
             Route::get('/ai-agents', [AiAgentController::class, 'index'])->name('ai-agents.index');
             Route::get('/ai-agents/create', [AiAgentController::class, 'create'])->name('ai-agents.create');
@@ -311,8 +329,8 @@ Route::middleware('auth')->group(function () {
 
         // Moteur d'occupation : seuils de creux, saturation et immobilisation.
         // Ma page en ligne : le lien public de l'entreprise (tous secteurs).
-        Route::get('/settings/online-page', [\App\Http\Controllers\OnlinePageController::class, 'settings'])->name('settings.online-page');
-        Route::put('/settings/online-page', [\App\Http\Controllers\OnlinePageController::class, 'saveSettings'])->name('settings.online-page.update');
+        Route::get('/settings/online-page', [OnlinePageController::class, 'settings'])->name('settings.online-page');
+        Route::put('/settings/online-page', [OnlinePageController::class, 'saveSettings'])->name('settings.online-page.update');
         Route::middleware('module:rdv,seances_groupe,ressources,vehicules')->group(function () {
             Route::get('/settings/occupation', [OccupationController::class, 'settings'])->name('settings.occupation');
             Route::put('/settings/occupation', [OccupationController::class, 'update'])->name('settings.occupation.update');

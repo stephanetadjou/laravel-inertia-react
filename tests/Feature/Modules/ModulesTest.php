@@ -35,7 +35,7 @@ it('pre-checks the modules of the sector and adjusts them with the answers at re
 
     $organization = Organization::where('name', 'Club Sport Libreville')->firstOrFail();
 
-    expect($organization->enabledModules())->toEqualCanonicalizing(['seances_groupe', 'abonnements', 'tranches', 'beneficiaires', 'lieux', 'catalogue', 'fidelite', 'carte_digitale'])
+    expect($organization->enabledModules())->toEqualCanonicalizing(['seances_groupe', 'abonnements', 'tranches', 'beneficiaires', 'lieux', 'catalogue', 'fidelite', 'carte_digitale', 'assistant'])
         ->and($organization->hasAgenda())->toBeFalse()
         ->and($organization->moduleSettings('seances_groupe')['capacity'])->toBe(25)
         ->and($organization->moduleSettings('tranches')['due_day'])->toBe(5)
@@ -52,7 +52,7 @@ it('applies the sector preset when only the sector is chosen', function () {
         'email' => 'salon@example.com', 'password' => 'Secret-123456', 'password_confirmation' => 'Secret-123456',
     ])->assertRedirect('/dashboard');
 
-    expect(Organization::where('name', 'Salon Beauté')->firstOrFail()->enabledModules())->toBe(['rdv', 'prospects', 'reponses_auto', 'rappels_rdv', 'relance_cycle', 'catalogue', 'carte_digitale']);
+    expect(Organization::where('name', 'Salon Beauté')->firstOrFail()->enabledModules())->toBe(['rdv', 'prospects', 'reponses_auto', 'assistant', 'rappels_rdv', 'relance_cycle', 'catalogue', 'carte_digitale']);
 });
 
 it('gives historical organizations every module that existed before', function () {

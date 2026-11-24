@@ -178,7 +178,7 @@ function OrganizationShow() {
             title={o.name}
             subtitle={
                 <>
-                    {o.offer} · {o.sector_label} · inscrite le {formatDay(o.created_at)} · <StatusPill organization={o} />
+                    {o.offer} · {o.sector_label} · inscrite le {formatDay(o.created_at)}{o.signup_source ? ` via ${o.signup_source}` : ''} · <StatusPill organization={o} />
                 </>
             }
             actions={
