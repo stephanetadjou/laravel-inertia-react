@@ -1,11 +1,14 @@
 <?php
 
 use App\Models\Customer;
+use App\Models\CustomerMatchReview;
+use App\Models\KnowledgeEntry;
 use App\Models\LoyaltyCard;
 use App\Models\LoyaltyMovement;
 use App\Models\LoyaltyProgram;
 use App\Models\Organization;
 use App\Models\User;
+use App\Modules\CarteDigitale\Models\DigitalCard;
 use Illuminate\Support\Carbon;
 
 it('loads the demo with every loyalty situation, once', function () {
@@ -28,6 +31,12 @@ it('loads the demo with every loyalty situation, once', function () {
 
     $journal = LoyaltyMovement::where('organization_id', $organization->id)->pluck('type')->unique();
     expect($journal->all())->toContain('activation', 'bonus', 'gain', 'tier', 'discount_used', 'return', 'expiration');
+
+    // Démonstration : une carte digitale par magasin, base de l'Assistant IA, un seul cas « À vérifier ».
+    expect(DigitalCard::where('organization_id', $organization->id)->count())->toBe($organization->stores()->count())
+        ->and(KnowledgeEntry::where('organization_id', $organization->id)->where('title', 'Retours et échanges')->exists())->toBeTrue()
+        ->and(CustomerMatchReview::where('organization_id', $organization->id)->where('status', 'pending')->count())->toBeLessThanOrEqual(1)
+        ->and($organization->hasModule('assistant'))->toBeTrue();
 
     $this->artisan('fidelite:recalculer', ['--organization' => $organization->id])->assertSuccessful();
 });

@@ -6,7 +6,9 @@ use App\Models\Brand;
 use App\Models\Campaign;
 use App\Models\Category;
 use App\Models\Customer;
+use App\Models\CustomerMatchReview;
 use App\Models\ImportBatch;
+use App\Models\KnowledgeEntry;
 use App\Models\LoyaltyCard;
 use App\Models\LoyaltyProgram;
 use App\Models\LoyaltyRedemption;
@@ -15,6 +17,7 @@ use App\Models\Purchase;
 use App\Models\Role;
 use App\Models\Store;
 use App\Models\User;
+use App\Modules\CarteDigitale\Models\DigitalCard;
 use App\Services\BrandMetrics;
 use App\Services\CustomerLifecycle;
 use App\Services\CustomerScoring;
@@ -71,6 +74,16 @@ class SeedRetailGroupModeDemo extends Command
             'category' => 'Homme',
             'families' => ['Costumes' => ['Costume deux pièces', 'Veste de costume'], 'Chemises' => ['Chemise slim', 'Chemise oxford'], 'Pantalons homme' => ['Chino', 'Pantalon de ville'], 'Chaussures de ville' => ['Derby cuir', 'Mocassin']],
         ],
+    ];
+
+    /** Adresse, horaires et WhatsApp (fictifs) de chaque magasin : cartes digitales et base de l'Assistant IA. */
+    private const STORE_INFOS = [
+        'AD-GLA' => ['address' => 'Centre commercial Glass, boulevard Triomphal, Libreville', 'hours' => 'lundi au samedi de 9 h à 20 h, dimanche de 10 h à 14 h', 'phone' => '24177100101'],
+        'AD-MBO' => ['address' => 'Centre commercial Mbolo, avenue Colonel Parant, Libreville', 'hours' => 'lundi au samedi de 9 h 30 à 20 h 30', 'phone' => '24177100102'],
+        'MA-CV' => ['address' => 'Rue Victor Schoelcher, centre-ville, Libreville', 'hours' => 'lundi au samedi de 9 h à 19 h', 'phone' => '24177100201'],
+        'MA-AKA' => ['address' => 'Centre commercial d’Akanda, route de la Sablière, Akanda', 'hours' => 'lundi au samedi de 9 h 30 à 20 h, dimanche de 10 h à 14 h', 'phone' => '24177100202'],
+        'CA-CV' => ['address' => 'Boulevard de l’Indépendance, centre-ville, Libreville', 'hours' => 'lundi au samedi de 9 h à 19 h', 'phone' => '24177100301'],
+        'CA-GLA' => ['address' => 'Centre commercial Glass, boulevard Triomphal, Libreville', 'hours' => 'lundi au samedi de 9 h à 20 h', 'phone' => '24177100302'],
     ];
 
     private const FIRST_NAMES = ['F' => ['Awa', 'Estelle', 'Grâce', 'Nadège', 'Prisca', 'Sandrine', 'Laetitia', 'Mireille', 'Carine', 'Inès', 'Audrey', 'Murielle'], 'H' => ['Jean', 'Paul', 'Ulrich', 'Fabrice', 'Hervé', 'Cédric', 'Yannick', 'Rodrigue', 'Serge', 'Davy', 'Arnaud', 'Loïc']];
@@ -138,6 +151,9 @@ class SeedRetailGroupModeDemo extends Command
         app(BrandMetrics::class)->refreshOrganization($organization);
         $engine->recalculate($organization);
         $this->manualDiscounts($organization, $user, $engine);
+        $this->digitalCards($organization, $user);
+        $this->knowledgeBase($organization);
+        $this->keepOneMatchReview($organization, $user, $import, $rows);
 
         if (! app()->runningUnitTests()) {
             $this->line('Fichier d’exemple : '.$this->sampleFile());
@@ -158,7 +174,9 @@ class SeedRetailGroupModeDemo extends Command
             'currency' => 'XAF',
             'timezone' => 'Africa/Libreville',
             'product_analysis_level' => 'family',
-            'modules' => ['enabled' => ['familles', 'lieux', 'fidelite']],
+            'modules' => ['enabled' => ['familles', 'lieux', 'fidelite', 'assistant', 'carte_digitale']],
+            // Assistant IA : réponses tirées de la base ; l'IA externe ne répond que si CLIENTLYX_AI_ENABLED=true.
+            'assistant_settings' => ['enabled' => true, 'use_ai' => true],
             'loyalty_settings' => ['enabled' => false],
             'privacy_email' => 'contact@retailgroup-demo.test',
         ]);
@@ -170,7 +188,7 @@ class SeedRetailGroupModeDemo extends Command
             $brand = Brand::create(['organization_id' => $organization->id, 'name' => $brandName]);
 
             foreach ($definition['stores'] as $code => $name) {
-                Store::create(['organization_id' => $organization->id, 'brand_id' => $brand->id, 'name' => $name, 'code' => $code, 'city' => 'Libreville']);
+                Store::create(['organization_id' => $organization->id, 'brand_id' => $brand->id, 'name' => $name, 'code' => $code, 'city' => 'Libreville', 'booking_phone' => self::STORE_INFOS[$code]['phone']]);
             }
         }
 
@@ -487,6 +505,84 @@ class SeedRetailGroupModeDemo extends Command
         (new Xlsx($sheet))->save($path);
 
         return $path;
+    }
+
+    /** Une carte digitale par magasin (contacts reçus rattachés à ce magasin). */
+    private function digitalCards(Organization $organization, User $user): void
+    {
+        foreach ($organization->stores()->with('brand')->orderBy('id')->get() as $index => $store) {
+            $info = self::STORE_INFOS[$store->code];
+            DigitalCard::create([
+                'organization_id' => $organization->id,
+                'store_id' => $store->id,
+                'user_id' => $user->id,
+                'slug' => DigitalCard::uniqueSlug($store->name),
+                'name' => $store->name,
+                'job_title' => 'Boutique '.$store->brand->name,
+                'company' => 'RETAILGROUP MODE',
+                'phone_e164' => $info['phone'],
+                'whatsapp_e164' => $info['phone'],
+                'address' => $info['address'],
+                'bio' => 'Ouvert du '.$info['hours'].'. Écrivez-nous sur WhatsApp : disponibilité, réservation d’un article, fidélité.',
+                'color' => DigitalCard::COLORS[$index % count(DigitalCard::COLORS)],
+                'booking_enabled' => false,
+                'is_active' => true,
+            ]);
+        }
+    }
+
+    /** Base de connaissances retail de l'Assistant IA : magasins, retours, fidélité, livraison, paiement. */
+    private function knowledgeBase(Organization $organization): void
+    {
+        $entry = fn (string $section, string $title, string $content, string $keywords) => KnowledgeEntry::create([
+            'organization_id' => $organization->id, 'section' => $section, 'title' => $title, 'content' => $content, 'keywords' => $keywords, 'active' => true,
+        ]);
+
+        $entry('presentation', 'Qui sommes-nous', 'RETAILGROUP MODE réunit trois enseignes à Libreville : Adidas (sport, sneakers), Mango (mode femme) et Carré (prêt-à-porter homme), dans 6 magasins.', 'groupe enseignes marques magasins boutiques adidas mango carre');
+
+        foreach ($organization->stores()->with('brand')->orderBy('id')->get() as $store) {
+            $info = self::STORE_INFOS[$store->code];
+            $entry('horaires', "Magasin {$store->name}", "{$store->name} : {$info['address']}. Ouvert du {$info['hours']}. WhatsApp : +{$info['phone']}.",
+                'adresse ou trouver horaires ouvert ferme heure '.mb_strtolower($store->name.' '.$store->brand->name));
+        }
+
+        $entry('regles', 'Retours et échanges', 'Échange ou avoir sous 15 jours sur présentation du ticket, article non porté avec étiquette. Pas de remboursement en espèces. Les articles soldés et les sous-vêtements ne sont ni repris ni échangés. L’échange se fait dans un magasin de la même enseigne.', 'retour echange rembourser avoir ticket reprendre');
+        $entry('regles', 'Programme de fidélité', 'Fidélité 2026, une carte par enseigne : 1 point par tranche de 10 000 FCFA chez Adidas et Mango, par tranche de 15 000 FCFA chez Carré, à partir d’un premier seuil d’achats sur 12 mois. Les paliers donnent 10 % puis 15 % de remise sur le ticket suivant. Le numéro de téléphone donné en caisse suffit, pas de carte physique.', 'fidelite points carte remise palier avantage reduction');
+        $entry('regles', 'Livraison', 'Livraison à Libreville, Akanda et Owendo sous 48 h : 2 000 FCFA, offerte dès 100 000 FCFA d’achat. Commande par WhatsApp auprès du magasin, paiement à la livraison possible. Retrait en magasin gratuit.', 'livraison livrer domicile commande envoyer frais');
+        $entry('regles', 'Moyens de paiement', 'Espèces, carte bancaire, Airtel Money et Moov Money dans tous les magasins. Pas de paiement en plusieurs fois.', 'paiement payer carte bancaire airtel money moov money especes');
+        $entry('faq', 'Réserver un article', 'Un article peut être mis de côté 48 h en magasin : envoyez sa photo ou sa référence et votre taille au WhatsApp du magasin.', 'reserver mettre de cote disponible taille stock');
+        $entry('interdit', 'Passer à l’équipe', 'Réclamations, articles défectueux et demandes de remboursement : passer la main à l’équipe du magasin.', 'reclamation plainte defectueux casse rembourse');
+    }
+
+    /**
+     * File « À vérifier » : un seul cas gardé pour la démonstration (même
+     * numéro, nom écrit autrement : à rattacher, ce qui fusionne les ventes).
+     * Les autres sont classés « autre personne » (ventes non rattachées).
+     */
+    private function keepOneMatchReview(Organization $organization, User $user, SalesImport $import, array $rows): void
+    {
+        // Le cas à montrer : un client connu revient avec son surnom en caisse (même numéro, nom différent).
+        $known = collect($rows)->first(fn ($r) => $r['date_vente'] >= '2026-01-01' && $r['telephone'] !== '' && $r['prenom'] !== '');
+        if ($known !== null && ! CustomerMatchReview::where('organization_id', $organization->id)->where('status', CustomerMatchReview::STATUS_PENDING)->exists()) {
+            $this->runImport($import, $user, 'caisse-complement.csv', [[
+                ...$known,
+                'numero_ticket' => $known['magasin'].'-DEMO-1',
+                'date_vente' => $this->end->subDays(2)->toDateString(),
+                'nom' => 'Dadou',
+                'prenom' => 'Tonton',
+                'code_client' => '',
+                'email' => '',
+                'type_ligne' => 'vente',
+                'remise_fidelite' => '',
+            ]]);
+        }
+
+        CustomerMatchReview::where('organization_id', $organization->id)->where('status', CustomerMatchReview::STATUS_PENDING)
+            ->orderByRaw("CASE WHEN reason = 'name_mismatch' THEN 0 ELSE 1 END")->orderBy('id')->get()
+            ->skip(1)
+            ->each(fn (CustomerMatchReview $review) => $review->update([
+                'status' => CustomerMatchReview::STATUS_SEPARATE, 'resolved_by' => $user->id, 'resolved_at' => now(),
+            ]));
     }
 
     private function summary(Organization $organization): void
