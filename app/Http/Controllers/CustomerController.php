@@ -289,7 +289,7 @@ class CustomerController extends Controller
                     'last' => $m->last_purchase_at,
                     'segment' => RfmCalculator::SEGMENTS[$m->rfm_segment]['label'] ?? null,
                 ]),
-            'rfm' => $rfm->forCustomer($customer, $storeIds),
+            'rfm' => $this->rfmProfile($rfm, $customer, $storeIds),
             // Habitudes d'achat : familles préférées, visites, panier moyen, attributs (genre…).
             'habits' => $this->habits($customer, $storeIds),
             // Score et alerte de churn enregistrés (toute l'organisation, cf. CustomerScoring).
@@ -587,7 +587,8 @@ class CustomerController extends Controller
         $settings = $organization->loyaltySettings();
 
         // Module Fidélité décoché : rien sur la fiche.
-        if (! $organization->hasModule('fidelite') || (! $settings['enabled'] && ! $customer->loyaltyTransactions()->exists())) {
+        // Programmes par enseigne en place : seule la carte du programme est montrée.
+        if (! $organization->hasModule('fidelite') || $organization->usesLoyaltyPrograms() || (! $settings['enabled'] && ! $customer->loyaltyTransactions()->exists())) {
             return null;
         }
 
@@ -808,5 +809,29 @@ class CustomerController extends Controller
         }
 
         return $storeIds;
+    }
+
+    /**
+     * Profil RFM de la fiche : un seul segment visible, celui du Groupe
+     * enregistré sur la fiche (customers.rfm_segment, recalculé chaque nuit et
+     * après un import). Récence, fréquence et montant restent ceux du périmètre ;
+     * le segment de chaque enseigne est montré à part (brandMetrics).
+     *
+     * @param  array<int, int>  $storeIds
+     * @return array<string, mixed>
+     */
+    private function rfmProfile(RfmCalculator $rfm, Customer $customer, array $storeIds): array
+    {
+        $profile = $rfm->forCustomer($customer, $storeIds);
+
+        if ($customer->rfm_segment !== null && isset(RfmCalculator::SEGMENTS[$customer->rfm_segment])) {
+            $profile['segment'] = RfmCalculator::segment($customer->rfm_segment);
+            $profile['scores'] = $customer->rfm_r !== null
+                ? ['r' => (int) $customer->rfm_r, 'f' => (int) $customer->rfm_f, 'm' => (int) $customer->rfm_m]
+                : $profile['scores'];
+            $profile['group'] = true;
+        }
+
+        return $profile;
     }
 }

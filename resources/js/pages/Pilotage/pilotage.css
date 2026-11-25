@@ -148,3 +148,12 @@ button.mbi-bar.on {
         grid-template-columns: minmax(80px, 40%) 1fr auto;
     }
 }
+
+/* Infobulle de définition d'un chiffre clé. */
+.mbi-def {
+    margin-left: 4px;
+    font-size: 0.85em;
+    text-decoration: none;
+    cursor: help;
+    opacity: 0.6;
+}

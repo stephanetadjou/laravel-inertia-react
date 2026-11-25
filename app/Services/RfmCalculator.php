@@ -169,7 +169,7 @@ class RfmCalculator
     }
 
     /** @return array{key: string, label: string, action: string} */
-    private static function segment(string $key): array
+    public static function segment(string $key): array
     {
         return ['key' => $key, ...self::SEGMENTS[$key]];
     }

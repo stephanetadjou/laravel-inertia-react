@@ -89,7 +89,7 @@ class Onboarding
                 'done' => Purchase::whereIn('store_id', $storeIds)->exists()];
         }
         if ($has('fidelite')) {
-            $steps[] = ['key' => 'loyalty', 'label' => 'Lancer la fidélité', 'help' => 'Des points à chaque achat, des paliers et des récompenses.', 'url' => '/settings/loyalty', 'done' => $org->loyaltySettings()['enabled']];
+            $steps[] = ['key' => 'loyalty', 'label' => 'Lancer la fidélité', 'help' => 'Des points à chaque achat, des paliers et des récompenses.', 'url' => '/settings/loyalty', 'done' => $org->loyaltySettings()['enabled'] || $org->usesLoyaltyPrograms()];
         }
 
         $steps[] = ['key' => 'report', 'label' => 'Recevoir le rapport du soir', 'help' => 'Chaque soir par email : la journée, les impayés, les clients à relancer.', 'url' => '/settings/reports', 'done' => $org->reportSettings()['enabled']];

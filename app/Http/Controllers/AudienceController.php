@@ -111,7 +111,7 @@ class AudienceController extends Controller
         $storeIds = $search->storeIds;
         $brandId = $search->brandFilter['selected'];
         $loyalty = Loyalty::for($search->user->organization);
-        $loyaltyOn = $search->user->organization->loyaltySettings()['enabled'];
+        $loyaltyOn = $search->user->organization->loyaltySettings()['enabled'] && ! $search->user->organization->usesLoyaltyPrograms();
         $stores = $search->roleStores->keyBy('id');
 
         foreach ($query->lazyById(500, 'customers.id') as $customer) {

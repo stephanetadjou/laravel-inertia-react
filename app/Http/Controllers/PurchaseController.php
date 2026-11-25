@@ -334,7 +334,8 @@ class PurchaseController extends Controller
             'purchases' => $purchases($start, $end)->where('purchases.type', '!=', Purchase::TYPE_RETURN)->count(),
             'returns' => (int) -$purchases($start, $end)->where('purchases.type', Purchase::TYPE_RETURN)->sum('amount'),
             'anonymous' => $purchases($start, $end)->whereNull('purchases.contact_id')->count(),
-            'buyers' => $purchases($start, $end)->distinct()->count('contact_id'),
+            // Clients = fiches clients (une personne peut avoir un contact par boutique).
+            'buyers' => $purchases($start, $end)->join('contacts as buyer_contacts', 'buyer_contacts.id', '=', 'purchases.contact_id')->distinct()->count('buyer_contacts.customer_id'),
             'quantity' => (int) $purchases($start, $end)->sum('quantity'),
         ];
         $current = $totals($period['from'], $period['to']);

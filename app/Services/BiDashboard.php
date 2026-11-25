@@ -101,7 +101,7 @@ class BiDashboard
         $families = $this->groupBy('category_id', Category::where('organization_id', $this->organization->id)->pluck('name', 'id')->all());
 
         return [
-            'kpis' => $this->kpis(['net', 'tickets', 'basket', 'buyers', 'new', 'lost', 'identification', 'repeat', 'frequency', 'value'], $now, $previous, $lastYear),
+            'kpis' => $this->kpis(['net', 'tickets', 'basket', 'active', 'buyers', 'new', 'lost', 'identification', 'repeat', 'frequency', 'value'], $now, $previous, $lastYear),
             'monthly' => $this->monthly(),
             'charts' => [
                 $this->chart('brands', 'CA net par enseigne', 'brand', $brands),
@@ -134,7 +134,7 @@ class BiDashboard
         $multi = $brandCounts->filter(fn ($n) => $n >= 2)->count();
 
         return [
-            'kpis' => $this->kpis(['buyers', 'new', 'lost', 'repeat', 'frequency', 'value'], $now, $previous, $lastYear),
+            'kpis' => $this->kpis(['active', 'buyers', 'new', 'lost', 'repeat', 'frequency', 'value'], $now, $previous, $lastYear),
             'charts' => [
                 [
                     'key' => 'segments', 'title' => 'Clients par segment RFM', 'filter' => 'segment', 'unit' => 'clients',
@@ -424,6 +424,11 @@ class BiDashboard
             'tickets' => (int) $totals->tickets,
             'basket' => $totals->tickets > 0 ? (int) round($totals->sales / $totals->tickets) : 0,
             'buyers' => $count,
+            // Client actif : au moins un achat sur les N derniers jours à la fin de la période
+            // (N = seuil « À risque » du parcours client, 90 jours par défaut).
+            'active' => (int) $this->lines($to->copy()->subDays($this->activeDays() - 1), $to)
+                ->whereNotNull('customer_id')->where('type', '!=', 'return')
+                ->selectRaw('COUNT(DISTINCT customer_id) as n')->value('n'),
             'new' => $new,
             'lost' => $earlier->keys()->diff($buyers->keys())->count(),
             'identification' => $totals->tickets > 0 ? (int) round($totals->identified / $totals->tickets * 100) : 0,
@@ -431,6 +436,12 @@ class BiDashboard
             'frequency' => $count > 0 ? round($buyers->sum('tickets') / $count, 1) : 0,
             'value' => $count > 0 ? (int) round($buyers->sum('net') / $count) : 0,
         ];
+    }
+
+    /** Fenêtre d'un client actif : le seuil « À risque » du parcours client (90 j par défaut). */
+    public function activeDays(): int
+    {
+        return max(1, (int) $this->organization->lifecycleSettings()['at_risk_days']);
     }
 
     private function buyers(Carbon $from, Carbon $to)
@@ -446,16 +457,26 @@ class BiDashboard
      */
     private function kpis(array $keys, array $now, array $previous, array $lastYear): array
     {
+        $active = $this->activeDays();
         $definitions = [
-            'net' => ['CA net', 'fcfa'], 'tickets' => ['Tickets', 'n'], 'basket' => ['Panier moyen', 'fcfa'], 'buyers' => ['Clients actifs', 'n'],
-            'new' => ['Nouveaux clients', 'n'], 'lost' => ['Clients perdus', 'n'], 'identification' => ['Taux d’identification', '%'],
-            'repeat' => ['Taux de réachat', '%'], 'frequency' => ['Fréquence d’achat', 'x'], 'value' => ['Valeur client', 'fcfa'],
+            'net' => ['CA net', 'fcfa', 'Ventes moins retours et remises de la période.'],
+            'tickets' => ['Tickets', 'n', 'Nombre de tickets de vente de la période (retours exclus).'],
+            'basket' => ['Panier moyen', 'fcfa', 'CA des ventes divisé par le nombre de tickets.'],
+            'active' => ["Clients actifs ({$active} j)", 'n', "Clients (fiches) ayant au moins un achat sur les {$active} derniers jours à la fin de la période."],
+            'buyers' => ['Clients acheteurs', 'n', 'Clients (fiches) ayant acheté pendant la période.'],
+            'new' => ['Nouveaux clients', 'n', 'Clients dont le tout premier achat tombe dans la période.'],
+            'lost' => ['Non revenus sur la période', 'n', 'Clients acheteurs de la période précédente (même durée) qui n’ont pas racheté pendant cette période. Ce ne sont pas des clients perdus : ils peuvent revenir plus tard.'],
+            'identification' => ['Taux d’identification', '%', 'Part des tickets rattachés à une fiche client.'],
+            'repeat' => ['Taux de réachat', '%', 'Part des clients acheteurs venus au moins 2 fois pendant la période.'],
+            'frequency' => ['Fréquence d’achat', 'x', 'Nombre moyen de tickets par client acheteur.'],
+            'value' => ['Valeur client', 'fcfa', 'CA net moyen par client acheteur.'],
         ];
 
         return array_map(fn (string $key) => [
             'label' => $definitions[$key][0],
             'value' => $now[$key],
             'unit' => $definitions[$key][1],
+            'definition' => $definitions[$key][2],
             'previous' => $previous[$key],
             'last_year' => $lastYear[$key],
             'inverted' => $key === 'lost',

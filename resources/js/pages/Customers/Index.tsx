@@ -528,11 +528,11 @@ function CustomersIndex() {
                     type="button"
                     className="mcust-step"
                     aria-pressed={filters.risk !== null}
-                    title="Clients en retard sur leur rythme d'achat habituel (alerte de churn)"
+                    title="Clients en retard sur leur rythme d'achat habituel (alerte de départ)"
                     onClick={() => visit({ risk: filters.risk ? null : 'any' })}
                 >
                     <i style={{ background: STAGE_COLOR.bad }} />
-                    <span>Alerte churn</span>
+                    <span>Alerte de départ</span>
                     <b className="num">{formatNumber(riskCount)}</b>
                 </button>
             </nav>

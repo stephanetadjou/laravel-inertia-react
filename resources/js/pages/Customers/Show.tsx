@@ -65,6 +65,8 @@ interface Rfm {
     scores: { r: number; f: number; m: number } | null;
     buyers: number;
     segment: { key: string; label: string; action: string };
+    /** Segment et scores du Groupe (enregistrés sur la fiche). */
+    group?: boolean;
 }
 
 interface PurchaseRow {
@@ -404,8 +406,14 @@ function CustomerShow() {
                                 <b className="mcust-rfm-code">
                                     R{scores.r} · F{scores.f} · M{scores.m}
                                 </b>{' '}
-                                · scores de 1 à 5 comparés aux {plural(rfm.buyers, 'client')} acheteur{rfm.buyers > 1 ? 's' : ''}{' '}
-                                {scoped ? 'de votre périmètre' : 'du Groupe'}
+                                {rfm.group ? (
+                                    <>· scores de 1 à 5 comparés aux clients acheteurs du Groupe (segment du Groupe ; le segment de chaque enseigne est détaillé plus bas)</>
+                                ) : (
+                                    <>
+                                        · scores de 1 à 5 comparés aux {plural(rfm.buyers, 'client')} acheteur{rfm.buyers > 1 ? 's' : ''}{' '}
+                                        {scoped ? 'de votre périmètre' : 'du Groupe'}
+                                    </>
+                                )}
                             </span>
                         )}
                     </div>
@@ -413,7 +421,7 @@ function CustomerShow() {
                         <p className="mcust-rfm-action">
                             {scoring.score !== null && <span className="mdash-pill idle">Score client {scoring.score}/100</span>}
                             {scoring.churn_risk && (
-                                <span className={`mdash-pill ${scoring.churn_risk === 'high' ? 'bad' : 'warn'}`}>Alerte churn : {scoring.churn_label?.toLowerCase()}</span>
+                                <span className={`mdash-pill ${scoring.churn_risk === 'high' ? 'bad' : 'warn'}`}>Alerte de départ : {scoring.churn_label?.toLowerCase()}</span>
                             )}
                             {scoring.avg_interval_days !== null &&
                                 `Achète en moyenne tous les ${formatNumber(scoring.avg_interval_days)} jours${scoring.next_expected_at ? `, prochain achat attendu vers le ${formatDate(scoring.next_expected_at)}` : ''}.`}

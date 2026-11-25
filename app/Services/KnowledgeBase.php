@@ -329,7 +329,7 @@ class KnowledgeBase
         }
 
         $loyalty = $org->loyaltySettings();
-        if ($loyalty['enabled']) {
+        if ($loyalty['enabled'] && ! $org->usesLoyaltyPrograms()) {
             $make('regles', 'Programme de fidélité', 'Programme de fidélité : 1 point pour '.number_format($loyalty['fcfa_per_point'], 0, ',', ' ').' '.$currency.' dépensés'
                 .($loyalty['tiers'] !== [] ? ', paliers '.collect($loyalty['tiers'])->pluck('name')->implode(', ') : '').'.', 'fidelite points carte avantage recompense', 'business:loyalty');
         }

@@ -39,6 +39,7 @@ interface Option {
 interface PageProps {
     card: CardData | null;
     stores: Option[];
+    defaultStoreId: number | null;
     users: Option[];
     staff: Option[];
     colors: string[];
@@ -52,7 +53,7 @@ interface PageProps {
 const field = 'w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-800 focus:border-brand-300 focus:outline-hidden dark:border-gray-700 dark:bg-white/[0.03] dark:text-white/90';
 
 function CardEdit() {
-    const { card, stores, users, staff, colors, socialNetworks, organizationName, bookingAvailable, canPrint } = usePage<PageProps>().props;
+    const { card, stores, defaultStoreId, users, staff, colors, socialNetworks, organizationName, bookingAvailable, canPrint } = usePage<PageProps>().props;
     const { data, setData, post, processing, errors } = useForm({
         name: card?.name ?? '',
         job_title: card?.job_title ?? '',
@@ -66,7 +67,7 @@ function CardEdit() {
         color: card?.color ?? colors[0],
         booking_enabled: card?.booking_enabled ?? true,
         is_active: card?.is_active ?? true,
-        store_id: card?.store_id ? String(card.store_id) : stores.length === 1 ? String(stores[0].id) : '',
+        store_id: card?.store_id ? String(card.store_id) : defaultStoreId ? String(defaultStoreId) : stores.length === 1 ? String(stores[0].id) : '',
         user_id: card?.user_id ? String(card.user_id) : '',
         staff_member_id: card?.staff_member_id ? String(card.staff_member_id) : '',
         socials: (card?.socials ?? {}) as Record<string, string>,
@@ -159,15 +160,19 @@ function CardEdit() {
                         )}
                         {stores.length > 1 && (
                             <label className="block">
-                                <span className="mb-1 block text-sm font-medium">Établissement des contacts reçus</span>
-                                <select className={field} value={data.store_id} onChange={(e) => setData('store_id', e.target.value)}>
-                                    <option value="">Le premier</option>
+                                <span className="mb-1 block text-sm font-medium">Boutique de la carte *</span>
+                                <select className={field} value={data.store_id} required onChange={(e) => setData('store_id', e.target.value)}>
+                                    <option value="" disabled>
+                                        Choisir la boutique
+                                    </option>
                                     {stores.map((s) => (
                                         <option key={s.id} value={s.id}>
                                             {s.name}
                                         </option>
                                     ))}
                                 </select>
+                                <span className="mt-1 block text-xs text-gray-500">Les contacts reçus par cette carte rejoignent cette boutique.</span>
+                                {errors.store_id && <span className="mt-1 block text-xs text-error-600">{errors.store_id}</span>}
                             </label>
                         )}
                         <fieldset className="sm:col-span-2">

@@ -111,6 +111,9 @@ class DashboardController extends Controller
         $monthStart = $today->copy()->startOfMonth()->toDateString();
         $dayBounds = [$today->copy()->startOfDay()->setTimezone(config('app.timezone')), $today->copy()->endOfDay()->setTimezone(config('app.timezone'))];
 
+        // Clients acheteurs du mois : des fiches clients (une personne peut avoir un contact par boutique).
+        $buyers = fn () => Purchase::whereIn('purchases.store_id', $storeIds)->where('purchased_at', '>=', $monthStart)
+            ->join('contacts', 'contacts.id', '=', 'purchases.contact_id')->distinct()->count('contacts.customer_id');
         $revenue = fn () => ['key' => 'revenue', 'label' => 'CA du mois', 'value' => (int) Purchase::whereIn('store_id', $storeIds)->where('purchased_at', '>=', $monthStart)->sum('amount'), 'money' => true,
             'foot' => Purchase::whereIn('store_id', $storeIds)->where('purchased_at', '>=', $monthStart)->count().' vente(s)', 'href' => '/purchases', 'tone' => 'blue'];
         $appointmentsToday = fn () => ['key' => 'appointments_today', 'label' => $organization->hasModule('abonnements') ? 'Séances du jour' : 'RDV du jour',
@@ -162,14 +165,14 @@ class DashboardController extends Controller
             ],
             'commerce' => [
                 $revenue(),
-                ['key' => 'buyers', 'label' => 'Clients acheteurs', 'value' => Purchase::whereIn('store_id', $storeIds)->where('purchased_at', '>=', $monthStart)->whereNotNull('contact_id')->distinct()->count('contact_id'),
+                ['key' => 'buyers', 'label' => 'Clients acheteurs', 'value' => $buyers(),
                     'foot' => 'ce mois-ci', 'href' => '/customers', 'tone' => 'cyan'],
                 ['key' => 'at_risk', 'label' => 'Clientes à risque', 'value' => (int) ($counts['at_risk'] ?? 0), 'href' => '/actions?list=at_risk', 'tone' => 'rose'],
                 $newContacts(),
             ],
             default => $organization->hasAgenda()
                 ? [$appointmentsToday(), $toConfirm(), $toRecall(), $revenue()]
-                : [$revenue(), $toRecall(), $newContacts(), ['key' => 'buyers', 'label' => 'Clients acheteurs', 'value' => Purchase::whereIn('store_id', $storeIds)->where('purchased_at', '>=', $monthStart)->whereNotNull('contact_id')->distinct()->count('contact_id'), 'foot' => 'ce mois-ci', 'href' => '/customers', 'tone' => 'amber']],
+                : [$revenue(), $toRecall(), $newContacts(), ['key' => 'buyers', 'label' => 'Clients acheteurs', 'value' => $buyers(), 'foot' => 'ce mois-ci', 'href' => '/customers', 'tone' => 'amber']],
         };
     }
 

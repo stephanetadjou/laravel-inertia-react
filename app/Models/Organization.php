@@ -1059,6 +1059,18 @@ class Organization extends Model
         return $this->hasMany(Customer::class);
     }
 
+    /**
+     * Fidélité par enseigne en place (au moins un programme) : l'ancien
+     * système de points (loyalty_settings) est alors masqué partout pour ne
+     * montrer qu'un solde, celui des cartes du programme. Rien n'est supprimé.
+     */
+    public function usesLoyaltyPrograms(): bool
+    {
+        return $this->usesLoyaltyProgramsCache ??= $this->loyaltyPrograms()->exists();
+    }
+
+    private ?bool $usesLoyaltyProgramsCache = null;
+
     public function loyaltyPrograms(): HasMany
     {
         return $this->hasMany(LoyaltyProgram::class);

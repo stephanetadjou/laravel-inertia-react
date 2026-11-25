@@ -48,7 +48,8 @@ class CustomerPulse
                 break;
 
             case 'cash':
-                $served = Purchase::whereIn('store_id', $storeIds)->where('status', Purchase::STATUS_VALID)->where('purchased_at', '>=', today())->distinct('contact_id')->count('contact_id');
+                $served = Purchase::whereIn('purchases.store_id', $storeIds)->where('purchases.status', Purchase::STATUS_VALID)->where('purchased_at', '>=', today())
+                    ->join('contacts', 'contacts.id', '=', 'purchases.contact_id')->distinct()->count('contacts.customer_id');
                 $push($served, 'good', $served.' client'.($served > 1 ? 's' : '').' servi'.($served > 1 ? 's' : '').' : un merci sur WhatsApp les fera revenir', '/cash');
                 if ($organization->hasModule('factures')) {
                     $balances = Invoice::where('organization_id', $orgId)->whereIn('store_id', $storeIds)->where('type', Invoice::TYPE_INVOICE)->where('status', 'partial')->get();

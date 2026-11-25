@@ -187,10 +187,15 @@ class DigitalCardController extends Controller
     /** @return array<string, mixed> */
     private function formOptions(User $user): array
     {
-        $stores = Store::where('organization_id', $user->organization_id)->orderBy('name')->get(['id', 'name']);
+        $visible = $user->visibleStoreIds();
+        $stores = Store::where('organization_id', $user->organization_id)
+            ->when($visible !== null, fn ($q) => $q->whereIn('id', $visible))
+            ->orderBy('name')->get(['id', 'name']);
 
         return [
             'stores' => $stores,
+            // En multi-boutiques, la boutique est obligatoire : par défaut celle de l'utilisateur.
+            'defaultStoreId' => $stores->contains('id', $user->store_id) ? $user->store_id : ($stores->count() === 1 ? $stores->first()->id : null),
             'users' => User::where('organization_id', $user->organization_id)->orderBy('name')->get(['id', 'name']),
             'staff' => StaffMember::whereIn('store_id', $stores->pluck('id'))->orderBy('name')->get(['id', 'name']),
             'colors' => DigitalCard::COLORS,
@@ -218,7 +223,9 @@ class DigitalCardController extends Controller
             'color' => ['required', Rule::in(DigitalCard::COLORS)],
             'booking_enabled' => ['boolean'],
             'is_active' => ['boolean'],
-            'store_id' => ['nullable', 'integer', Rule::exists('stores', 'id')->where('organization_id', $orgId)],
+            // Plusieurs boutiques : chaque carte appartient à une boutique (contacts reçus, statistiques).
+            'store_id' => [Rule::requiredIf(Store::where('organization_id', $orgId)->count() > 1), 'nullable', 'integer', Rule::exists('stores', 'id')->where('organization_id', $orgId),
+                Rule::in($request->user()->visibleStoreIds() ?? Store::where('organization_id', $orgId)->pluck('id')->all())],
             'user_id' => ['nullable', 'integer', Rule::exists('users', 'id')->where('organization_id', $orgId)],
             'staff_member_id' => ['nullable', 'integer', Rule::exists('staff_members', 'id')],
             'photo' => ['nullable', 'image', 'max:4096'],

@@ -64,7 +64,7 @@ it('shows the direction page with both comparisons', function () {
     expect(kpi($data, 'CA net')['value'])->toBe(3500000)
         ->and(kpi($data, 'Tickets')['value'])->toBe(5)
         ->and(kpi($data, 'Taux d’identification')['value'])->toBe(80)
-        ->and(kpi($data, 'Clients actifs')['value'])->toBe(3)
+        ->and(kpi($data, 'Clients acheteurs')['value'])->toBe(3)
         ->and(kpi($data, 'Taux de réachat')['value'])->toBe(33)
         ->and(kpi($data, 'CA net')['last_year'])->toBe(200000)
         ->and(kpi($data, 'CA net')['previous'])->toBe(0)
@@ -81,7 +81,7 @@ it('filters every figure by brand, store, segment and loyalty status', function 
 
     $segment = Customer::where('phone_e164', '24162000001')->value('rfm_segment');
     $expected = Customer::where('rfm_segment', $segment)->count();
-    expect(kpi(biData($this, "/pilotage/direction?{$base}&segment={$segment}")['data'], 'Clients actifs')['value'])->toBe($expected);
+    expect(kpi(biData($this, "/pilotage/direction?{$base}&segment={$segment}")['data'], 'Clients acheteurs')['value'])->toBe($expected);
 });
 
 it('stays inside the scope of the role', function () {

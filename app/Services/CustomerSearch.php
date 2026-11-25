@@ -489,7 +489,7 @@ class CustomerSearch
             $this->stage !== null ? Customer::STAGES[$this->stage] : null,
             $this->vip ? 'VIP' : null,
             $this->segment !== null ? RfmCalculator::SEGMENTS[$this->segment]['label'] : null,
-            $this->risk !== null ? 'Risque de churn' : null,
+            $this->risk !== null ? 'Alerte de départ' : null,
             $this->analysis !== [] ? $this->analysisLabel() : null,
             match ($this->brands) {
                 'multi' => 'Multimarques',

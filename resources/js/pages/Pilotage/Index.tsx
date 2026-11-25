@@ -16,6 +16,8 @@ interface KpiData {
     label: string;
     value: number;
     unit: 'fcfa' | '%' | 'n' | 'x';
+    /** Définition affichée en infobulle. */
+    definition?: string;
     previous: number | null;
     last_year: number | null;
     inverted: boolean;
@@ -197,8 +199,15 @@ function Pilotage() {
 
             <div className="mbi-kpis">
                 {data.kpis.map((k) => (
-                    <div key={k.label} className="mbi-kpi">
-                        <span>{k.label}</span>
+                    <div key={k.label} className="mbi-kpi" title={k.definition}>
+                        <span>
+                            {k.label}
+                            {k.definition && (
+                                <abbr className="mbi-def" title={k.definition} aria-label={`Définition : ${k.definition}`}>
+                                    ⓘ
+                                </abbr>
+                            )}
+                        </span>
                         <b className="num">{format(k.value, k.unit, currency)}</b>
                         <small>
                             <Change label="préc." value={k.value} base={k.previous} inverted={k.inverted} />

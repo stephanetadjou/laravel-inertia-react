@@ -40,7 +40,7 @@ class LoyaltyProgramController extends Controller
             ->get()->groupBy('loyalty_program_id');
 
         return Inertia::render('Settings/LoyaltyPrograms', [
-            'legacyEnabled' => $organization->loyaltySettings()['enabled'],
+            'legacyEnabled' => $organization->loyaltySettings()['enabled'] && ! $organization->usesLoyaltyPrograms(),
             'rewardTypes' => collect(LoyaltyProgramRule::REWARD_TYPES)->map(fn ($label, $key) => ['key' => $key, 'label' => $label])->values(),
             'brands' => Brand::where('organization_id', $organization->id)->orderBy('name')->get(['id', 'name']),
             'programs' => LoyaltyProgram::where('organization_id', $organization->id)->with('rules.brand:id,name')->orderByDesc('starts_on')->get()
