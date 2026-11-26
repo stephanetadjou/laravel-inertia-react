@@ -1,6 +1,7 @@
 import { Head, Link, router } from '@inertiajs/react';
 
 import { MenentiaSymbol } from '../../components/common/MenentiaLogo';
+import { intlLocale, locale, t } from '../../lib/i18n';
 import './booking.css';
 
 interface PageProps {
@@ -22,81 +23,81 @@ interface PageProps {
 
 /** Récapitulatif d'une réservation en ligne : lien WhatsApp vers l'établissement, annulation. */
 export default function BookingConfirmation({ organization, appointment: a, whatsappUrl, token }: PageProps) {
-    const day = new Date(a.starts_at).toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' });
+    const day = new Date(a.starts_at).toLocaleDateString(intlLocale(), { weekday: 'long', day: 'numeric', month: 'long' });
     const when = day.charAt(0).toUpperCase() + day.slice(1);
-    const time = a.starts_at.slice(11, 16).replace(':', 'h');
+    const time = locale() === 'en' ? a.starts_at.slice(11, 16) : a.starts_at.slice(11, 16).replace(':', 'h');
     const cancelled = a.status === 'cancelled';
 
     function cancel() {
-        if (confirm('Annuler ce rendez-vous ?')) {
+        if (confirm(t('Annuler ce rendez-vous ?'))) {
             router.post(`/rdv/${organization.slug}/c/${token}/annuler`);
         }
     }
 
     return (
         <div className="mbook">
-            <Head title={`Votre rendez-vous · ${organization.name}`} />
+            <Head title={`${t('Votre rendez-vous')} · ${organization.name}`} />
 
             <div className="mbook-done">
                 <span className={`mbook-badge ${cancelled ? 'off' : ''}`} aria-hidden="true">
                     {cancelled ? '×' : '✓'}
                 </span>
-                <h1>{cancelled ? 'Rendez-vous annulé' : a.status === 'requested' ? 'Demande envoyée' : 'Rendez-vous confirmé'}</h1>
+                <h1>{cancelled ? t('Rendez-vous annulé') : a.status === 'requested' ? t('Demande envoyée') : t('Rendez-vous confirmé')}</h1>
                 <p className="mbook-muted">
                     {cancelled
-                        ? 'Votre rendez-vous a bien été annulé.'
+                        ? t('Votre rendez-vous a bien été annulé.')
                         : a.status === 'requested'
-                          ? `${organization.name} va confirmer votre rendez-vous.`
-                          : `${organization.name} vous attend.`}
+                          ? t(':name va confirmer votre rendez-vous.', { name: organization.name })
+                          : t(':name vous attend.', { name: organization.name })}
                 </p>
 
                 <dl className="mbook-recap">
-                    <dt>Quand</dt>
+                    <dt>{t('Quand')}</dt>
                     <dd>
-                        {when} à {time}
+                        {when} {t('à')} {time}
                     </dd>
-                    <dt>Où</dt>
+                    <dt>{t('Où')}</dt>
                     <dd>{a.store_name}</dd>
                     {a.service && (
                         <>
-                            <dt>Prestation</dt>
+                            <dt>{t('Prestation')}</dt>
                             <dd>{a.service}</dd>
                         </>
                     )}
                     {a.price > 0 && (
                         <>
-                            <dt>Prix</dt>
-                            <dd>{a.price.toLocaleString('fr-FR')} F</dd>
+                            <dt>{t('Prix')}</dt>
+                            <dd>{a.price.toLocaleString(intlLocale())} F</dd>
                         </>
                     )}
                     {a.staff_name && (
                         <>
-                            <dt>Avec</dt>
+                            <dt>{t('Avec')}</dt>
                             <dd>{a.staff_name}</dd>
                         </>
                     )}
-                    <dt>Au nom de</dt>
+                    <dt>{t('Au nom de')}</dt>
                     <dd>{a.customer_name}</dd>
                 </dl>
 
                 {!cancelled && whatsappUrl && (
                     <a className="mbook-wa" href={whatsappUrl} target="_blank" rel="noopener noreferrer">
-                        Recevoir le récapitulatif sur WhatsApp
+                        {t('Recevoir le récapitulatif sur WhatsApp')}
                     </a>
                 )}
                 {a.cancellable && (
                     <button type="button" className="mbook-link" onClick={cancel}>
-                        Annuler le rendez-vous
+                        {t('Annuler le rendez-vous')}
                     </button>
                 )}
                 <Link className="mbook-link" href={`/rdv/${organization.slug}`}>
-                    Prendre un autre rendez-vous
+                    {t('Prendre un autre rendez-vous')}
                 </Link>
-                <p className="mbook-muted small">Gardez cette page : son adresse permet d’annuler le rendez-vous.</p>
+                <p className="mbook-muted small">{t('Gardez cette page : son adresse permet d’annuler le rendez-vous.')}</p>
             </div>
 
             <footer className="mbook-foot">
-                <MenentiaSymbol className="h-4 w-4" /> Réservation par ClientlyX
+                <MenentiaSymbol className="h-4 w-4" /> {t('Réservation par ClientlyX')}
             </footer>
         </div>
     );

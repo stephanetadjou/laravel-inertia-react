@@ -121,8 +121,10 @@ class Store extends Model
      */
     private function ownAccessToken(): ?string
     {
+        // Numéro géré par ClientlyX : token de l'utilisateur système ClientlyX, sinon celui
+        // obtenu par l'inscription intégrée (connexion en 5 minutes).
         return $this->whatsapp_managed
-            ? (config('services.meta_whatsapp.platform.token') ?: null)
+            ? (config('services.meta_whatsapp.platform.token') ?: $this->whatsapp_access_token ?: null)
             : $this->whatsapp_access_token;
     }
 

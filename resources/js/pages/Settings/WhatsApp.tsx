@@ -4,6 +4,7 @@ import { FormEventHandler, useState } from 'react';
 import AppLayout from '../../layout/AppLayout';
 import Button from '../../components/ui/button/Button';
 import '../Dashboard/dashboard.css';
+import EmbeddedSignup, { EmbeddedSettings } from './EmbeddedSignup';
 import WhatsAppGuide, { HelpButton, SupportHelp } from './WhatsAppGuide';
 
 interface StoreSettings {
@@ -57,6 +58,7 @@ function CopyField({ label, value }: { label: string; value: string }) {
 interface PageProps {
     stores: StoreSettings[];
     help: SupportHelp;
+    embedded: EmbeddedSettings | null;
     flash?: { success: string | null; error: string | null };
     [key: string]: unknown;
 }
@@ -77,6 +79,7 @@ function formatDate(iso: string | null): string {
 }
 
 function StoreCard({ store }: { store: StoreSettings }) {
+    const { embedded } = usePage<PageProps>().props;
     const { data, setData, put, processing, errors } = useForm({
         business_account_id: store.business_account_id ?? '',
         phone_number_id: store.phone_number_id ?? '',
@@ -150,6 +153,8 @@ function StoreCard({ store }: { store: StoreSettings }) {
                     {store.registered_at && <span className="mdash-pill ok">Numéro enregistré</span>}
                 </span>
             </div>
+
+            {embedded && !store.managed && <EmbeddedSignup storeId={store.id} settings={embedded} />}
 
             <div className="grid gap-6 p-5 lg:grid-cols-[1fr_320px]">
                 {store.managed ? (

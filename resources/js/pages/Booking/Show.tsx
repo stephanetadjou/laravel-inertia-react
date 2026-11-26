@@ -2,6 +2,7 @@ import { Head, useForm } from '@inertiajs/react';
 import { FormEventHandler, useEffect, useMemo, useState } from 'react';
 
 import { MenentiaSymbol } from '../../components/common/MenentiaLogo';
+import { intlLocale, locale, t } from '../../lib/i18n';
 import './booking.css';
 
 /*
@@ -27,10 +28,10 @@ interface PageProps {
     privacyUrl: string;
 }
 
-const price = (n: number) => (n > 0 ? `${n.toLocaleString('fr-FR')} F` : 'Gratuit');
+const price = (n: number) => (n > 0 ? `${n.toLocaleString(intlLocale())} F` : t('Gratuit'));
 const duration = (m: number) => (m >= 60 ? `${Math.floor(m / 60)} h${m % 60 ? ` ${String(m % 60).padStart(2, '0')}` : ''}` : `${m} min`);
 const dayLabel = (day: string) => {
-    const label = new Date(`${day}T12:00:00`).toLocaleDateString('fr-FR', { weekday: 'short', day: 'numeric', month: 'short' });
+    const label = new Date(`${day}T12:00:00`).toLocaleDateString(intlLocale(), { weekday: 'short', day: 'numeric', month: 'short' });
     return label.charAt(0).toUpperCase() + label.slice(1);
 };
 
@@ -106,28 +107,28 @@ export default function BookingShow({ organization, welcome, stores, services, p
 
     return (
         <div className="mbook">
-            <Head title={`Prendre rendez-vous · ${organization.name}`} />
+            <Head title={`${t('Prendre rendez-vous')} · ${organization.name}`} />
 
             <header className="mbook-head">
                 <span className="mbook-logo">{organization.name.slice(0, 1).toUpperCase()}</span>
                 <div>
                     <h1>{organization.name}</h1>
-                    <p>{welcome || 'Prenez rendez-vous en ligne, en moins d’une minute.'}</p>
+                    <p>{welcome || t('Prenez rendez-vous en ligne, en moins d’une minute.')}</p>
                 </div>
             </header>
             {rideRequestUrl && (
                 <a href={rideRequestUrl} className="mbook-step block text-center font-semibold">
-                    🚗 Demander une course ou un transfert
+                    🚗 {t('Demander une course ou un transfert')}
                 </a>
             )}
 
             <form onSubmit={submit} className="mbook-form">
                 <section className="mbook-step">
                     <h2>
-                        <span>1</span> Votre prestation
+                        <span>1</span> {t('Votre prestation')}
                     </h2>
                     {stores.length > 1 && (
-                        <div className="mbook-pills" role="group" aria-label="Établissement">
+                        <div className="mbook-pills" role="group" aria-label={t('Établissement')}>
                             {stores.map((s) => (
                                 <button key={s.id} type="button" aria-pressed={data.store === s.id} onClick={() => setData((d) => ({ ...d, store: s.id, items: [], date: '', time: '' }))}>
                                     {s.name}
@@ -136,7 +137,7 @@ export default function BookingShow({ organization, welcome, stores, services, p
                         </div>
                     )}
                     {offered.length === 0 ? (
-                        <p className="mbook-muted">Aucune prestation n’est réservable en ligne pour le moment.</p>
+                        <p className="mbook-muted">{t('Aucune prestation n’est réservable en ligne pour le moment.')}</p>
                     ) : (
                         <ul className="mbook-services">
                             {offered.map((s) => (
@@ -164,12 +165,12 @@ export default function BookingShow({ organization, welcome, stores, services, p
                 {data.items.length > 0 && (
                     <section className="mbook-step">
                         <h2>
-                            <span>2</span> Le jour et l’heure
+                            <span>2</span> {t('Le jour et l’heure')}
                         </h2>
                         {team.length > 1 && (
-                            <div className="mbook-pills" role="group" aria-label="Avec qui">
+                            <div className="mbook-pills" role="group" aria-label={t('Avec qui')}>
                                 <button type="button" aria-pressed={data.staff === 0} onClick={() => setData((d) => ({ ...d, staff: 0, time: '' }))}>
-                                    Peu importe
+                                    {t('Peu importe')}
                                 </button>
                                 {team.map((m) => (
                                     <button key={m.id} type="button" aria-pressed={data.staff === m.id} onClick={() => setData((d) => ({ ...d, staff: m.id, time: '' }))}>
@@ -179,23 +180,23 @@ export default function BookingShow({ organization, welcome, stores, services, p
                             </div>
                         )}
                         {days.length === 0 && !loading ? (
-                            <p className="mbook-muted">Aucun créneau libre dans les prochains jours. Contactez directement l’établissement.</p>
+                            <p className="mbook-muted">{t('Aucun créneau libre dans les prochains jours. Contactez directement l’établissement.')}</p>
                         ) : (
                             <>
-                                <div className="mbook-days" role="group" aria-label="Jour">
+                                <div className="mbook-days" role="group" aria-label={t('Jour')}>
                                     {days.map((d) => (
                                         <button key={d} type="button" aria-pressed={data.date === d} onClick={() => setData((v) => ({ ...v, date: d, time: '' }))}>
                                             {dayLabel(d)}
                                         </button>
                                     ))}
                                 </div>
-                                <div className="mbook-slots" role="group" aria-label="Heure" aria-busy={loading}>
+                                <div className="mbook-slots" role="group" aria-label={t('Heure')} aria-busy={loading}>
                                     {slots.map((t) => (
                                         <button key={t} type="button" aria-pressed={data.time === t} onClick={() => setData('time', t)}>
-                                            {t.replace(':', 'h')}
+                                            {locale() === 'en' ? t : t.replace(':', 'h')}
                                         </button>
                                     ))}
-                                    {!loading && slots.length === 0 && <p className="mbook-muted">Plus de créneau libre ce jour-là.</p>}
+                                    {!loading && slots.length === 0 && <p className="mbook-muted">{t('Plus de créneau libre ce jour-là.')}</p>}
                                 </div>
                             </>
                         )}
@@ -206,25 +207,25 @@ export default function BookingShow({ organization, welcome, stores, services, p
                 {data.time && (
                     <section className="mbook-step">
                         <h2>
-                            <span>3</span> Vos coordonnées
+                            <span>3</span> {t('Vos coordonnées')}
                         </h2>
                         <label className="mbook-field">
-                            <span>Nom et prénom</span>
+                            <span>{t('Nom et prénom')}</span>
                             <input value={data.name} onChange={(e) => setData('name', e.target.value)} autoComplete="name" />
                             {errors.name && <em className="mbook-err">{errors.name}</em>}
                         </label>
                         <label className="mbook-field">
-                            <span>Numéro WhatsApp</span>
+                            <span>{t('Numéro WhatsApp')}</span>
                             <input type="tel" value={data.phone} onChange={(e) => setData('phone', e.target.value)} autoComplete="tel" placeholder="077 12 34 56" />
                             {errors.phone && <em className="mbook-err">{errors.phone}</em>}
                         </label>
                         <label className="mbook-field">
-                            <span>Un message pour l’établissement (facultatif)</span>
+                            <span>{t('Un message pour l’établissement (facultatif)')}</span>
                             <textarea rows={2} value={data.notes} onChange={(e) => setData('notes', e.target.value)} />
                         </label>
                         <label className="mbook-check">
                             <input type="checkbox" checked={data.consent} onChange={(e) => setData('consent', e.target.checked)} />
-                            <span>J’accepte de recevoir les informations et offres de {organization.name} sur WhatsApp.</span>
+                            <span>{t('J’accepte de recevoir les informations et offres de :name sur WhatsApp.', { name: organization.name })}</span>
                         </label>
                         <input className="mbook-trap" tabIndex={-1} autoComplete="off" aria-hidden="true" value={data.website} onChange={(e) => setData('website', e.target.value)} name="website" />
                     </section>
@@ -233,23 +234,23 @@ export default function BookingShow({ organization, welcome, stores, services, p
                 <div className="mbook-submit">
                     {data.time && (
                         <p>
-                            {dayLabel(data.date)} à <b>{data.time.replace(':', 'h')}</b> · {chosen.map((s) => s.name).join(' + ')}
+                            {dayLabel(data.date)} {t('à')} <b>{locale() === 'en' ? data.time : data.time.replace(':', 'h')}</b> · {chosen.map((s) => s.name).join(' + ')}
                         </p>
                     )}
                     <button type="submit" disabled={!ready || processing}>
-                        {processing ? 'Envoi…' : 'Confirmer le rendez-vous'}
+                        {processing ? t('Envoi…') : t('Confirmer le rendez-vous')}
                     </button>
                     <small>
-                        Vos coordonnées servent uniquement à gérer ce rendez-vous.{' '}
+                        {t('Vos coordonnées servent uniquement à gérer ce rendez-vous.')}{' '}
                         <a href={privacyUrl} target="_blank" rel="noreferrer">
-                            Confidentialité
+                            {t('Confidentialité')}
                         </a>
                     </small>
                 </div>
             </form>
 
             <footer className="mbook-foot">
-                <MenentiaSymbol className="h-4 w-4" /> Réservation par ClientlyX
+                <MenentiaSymbol className="h-4 w-4" /> {t('Réservation par ClientlyX')} · <a href="?lang=fr">FR</a> | <a href="?lang=en">EN</a>
             </footer>
         </div>
     );

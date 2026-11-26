@@ -112,3 +112,10 @@ it('keeps the demo request even without a house company', function () {
 
     expect(Lead::count())->toBe(1)->and(Contact::count())->toBe(0);
 });
+
+it('sends an English visitor back to the English contact page', function () {
+    config(['services.menentia.site_url' => 'https://clientlyx.com']);
+
+    $this->post('/api/public/v1/leads', leadForm(['lang' => 'en']))
+        ->assertRedirect('https://clientlyx.com/en/contact#merci');
+});

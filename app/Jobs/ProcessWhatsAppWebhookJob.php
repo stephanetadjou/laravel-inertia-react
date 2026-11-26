@@ -8,7 +8,10 @@ use App\Models\Contact;
 use App\Models\Store;
 use App\Models\WhatsAppInboundMessage;
 use App\Services\Acquisition;
+use App\Services\Assistant;
 use App\Services\AutoReplies;
+use App\Services\LeadCapture;
+use App\Services\ProspectInstinct;
 use App\Services\ProspectPipeline;
 use App\Services\VoiceNotes;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -201,7 +204,20 @@ class ProcessWhatsAppWebhookJob implements ShouldQueue
                 return;
             }
 
-            AutoReplies::handle($contact->fresh(['store.organization', 'customer']), $message);
+            $fresh = $contact->fresh(['store.organization', 'customer']);
+            $agent = Assistant::active($fresh);
+
+            // Agent IA : informations données par le client (email, ville, budget…) rangées sur la fiche.
+            if ($agent && $body !== null && $fresh->customer !== null) {
+                LeadCapture::apply($fresh->customer, $body);
+            }
+
+            AutoReplies::handle($fresh, $message);
+
+            // Instinct prospect : chaud / à suivre / froid après chaque échange.
+            if ($agent) {
+                ProspectInstinct::refresh($fresh->fresh(['store.organization', 'customer']));
+            }
         }
     }
 

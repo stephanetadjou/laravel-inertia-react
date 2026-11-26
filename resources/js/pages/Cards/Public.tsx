@@ -4,6 +4,7 @@ import { FormEventHandler, useState } from 'react';
 import { MenentiaSymbol } from '../../components/common/MenentiaLogo';
 import CardQr from './CardQr';
 import { SocialLink, SocialRow } from './SocialIcon';
+import { t } from '../../lib/i18n';
 
 /*
  * Page publique d'une carte digitale (/c/{slug}), pensée pour le téléphone :
@@ -98,19 +99,19 @@ export default function CardPublic() {
                             )}
                             {card.phone && (
                                 <a href={`tel:${card.phone}`} onClick={() => track(card.slug, 'call')} className={`${btn} text-white`} style={{ background: card.color }}>
-                                    Appeler
+                                    {t('Appeler')}
                                 </a>
                             )}
                             <a href={`/c/${card.slug}/vcard`} className={`${btn} border border-gray-300 text-[#2B1A3D]`}>
-                                Enregistrer le contact
+                                {t('Enregistrer le contact')}
                             </a>
                             {card.booking_url ? (
                                 <a href={card.booking_url} onClick={() => track(card.slug, 'booking')} className={`${btn} border border-gray-300 text-[#2B1A3D]`}>
-                                    Prendre RDV
+                                    {t('Prendre RDV')}
                                 </a>
                             ) : (
                                 <button type="button" onClick={() => setShowContact(true)} className={`${btn} border border-gray-300 text-[#2B1A3D]`}>
-                                    Être rappelé
+                                    {t('Être rappelé')}
                                 </button>
                             )}
                         </div>
@@ -144,24 +145,24 @@ export default function CardPublic() {
 
                         {showContact || errors.name || errors.phone ? (
                             <form onSubmit={submit} className="mt-5 w-full space-y-3 text-left">
-                                <p className="text-lg font-bold text-[#2B1A3D]">Laissez vos coordonnées</p>
-                                <input className={input} placeholder="Votre nom" value={data.name} onChange={(e) => setData('name', e.target.value)} autoComplete="name" required />
+                                <p className="text-lg font-bold text-[#2B1A3D]">{t('Laissez vos coordonnées')}</p>
+                                <input className={input} placeholder={t('Votre nom')} value={data.name} onChange={(e) => setData('name', e.target.value)} autoComplete="name" required />
                                 {errors.name && <p className="text-sm text-red-600">{errors.name}</p>}
-                                <input className={input} placeholder="Votre numéro WhatsApp" type="tel" inputMode="tel" value={data.phone} onChange={(e) => setData('phone', e.target.value)} autoComplete="tel" required />
+                                <input className={input} placeholder={t('Votre numéro WhatsApp')} type="tel" inputMode="tel" value={data.phone} onChange={(e) => setData('phone', e.target.value)} autoComplete="tel" required />
                                 {errors.phone && <p className="text-sm text-red-600">{errors.phone}</p>}
-                                <textarea className={`${input} h-24 py-3`} placeholder="Votre message (facultatif)" value={data.message} onChange={(e) => setData('message', e.target.value)} />
+                                <textarea className={`${input} h-24 py-3`} placeholder={t('Votre message (facultatif)')} value={data.message} onChange={(e) => setData('message', e.target.value)} />
                                 <input type="text" name="site_web" value={data.site_web} onChange={(e) => setData('site_web', e.target.value)} className="hidden" tabIndex={-1} autoComplete="off" aria-hidden="true" />
                                 <label className="flex items-start gap-2 text-sm text-gray-600">
                                     <input type="checkbox" className="mt-1" checked={data.consent} onChange={(e) => setData('consent', e.target.checked)} />
-                                    J’accepte de recevoir des messages WhatsApp de {card.company}.
+                                    {t('J’accepte de recevoir des messages WhatsApp de :name.', { name: card.company ?? card.name })}
                                 </label>
                                 <button type="submit" disabled={processing} className={`${btn} w-full text-white`} style={{ background: card.color }}>
-                                    {processing ? 'Envoi…' : 'Envoyer'}
+                                    {processing ? t('Envoi…') : t('Envoyer')}
                                 </button>
                             </form>
                         ) : (
                             <button type="button" onClick={() => setShowContact(true)} className="mt-5 text-[15px] font-semibold underline-offset-4 hover:underline" style={{ color: card.color }}>
-                                Laisser mes coordonnées
+                                {t('Laisser mes coordonnées')}
                             </button>
                         )}
 
@@ -169,11 +170,11 @@ export default function CardPublic() {
                             {showQr ? (
                                 <div className="flex flex-col items-center gap-2">
                                     <CardQr value={`${card.url}?src=qr`} className="h-44 w-44" />
-                                    <p className="text-sm text-gray-500">Faites scanner ce code pour partager la carte.</p>
+                                    <p className="text-sm text-gray-500">{t('Faites scanner ce code pour partager la carte.')}</p>
                                 </div>
                             ) : (
                                 <button type="button" onClick={() => setShowQr(true)} className="text-sm font-semibold text-gray-600 underline-offset-4 hover:underline">
-                                    Afficher le QR code pour partager
+                                    {t('Afficher le QR code pour partager')}
                                 </button>
                             )}
                         </div>
@@ -182,11 +183,11 @@ export default function CardPublic() {
                 {branding && (
                     <p className="mt-5 flex items-center justify-center gap-1.5 text-center text-[13px] text-gray-500">
                         <MenentiaSymbol className="h-4 w-4" />
-                        Créé avec{' '}
+                        {t('Créé avec')}{' '}
                         <a href={signupUrl} className="font-extrabold text-[#2B1A3D]">
                             Cliently<span className="text-[#E8590C]">X</span>
                         </a>{' '}
-                        · Créez votre carte gratuite
+                        · {t('Créez votre carte gratuite')}
                     </p>
                 )}
             </div>

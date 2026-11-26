@@ -25,7 +25,7 @@ class AuthenticatedSessionController extends Controller
 
         if (! Auth::attempt($credentials, $request->boolean('remember'))) {
             return back()->withErrors([
-                'email' => 'Identifiants incorrects.',
+                'email' => __('Identifiants incorrects.'),
             ])->onlyInput('email');
         }
 

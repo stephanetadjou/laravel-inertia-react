@@ -19,7 +19,7 @@ class Acquisition
      */
     public static function mentionsSite(?string $body): bool
     {
-        return $body !== null && preg_match('/je\s+viens\s+(du|de\s+votre)\s+site/iu', $body) === 1;
+        return $body !== null && preg_match('/je\s+viens\s+(du|de\s+votre)\s+site|coming\s+from\s+(the|your)\s+(\w+\s+)?website/iu', $body) === 1;
     }
 
     /** @param  array<string, mixed>|null  $referral */

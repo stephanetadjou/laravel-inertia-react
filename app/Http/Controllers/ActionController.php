@@ -59,8 +59,8 @@ class ActionController extends Controller
         return Inertia::render('Actions/Index', [
             'lists' => $available->map(fn ($list, $key) => [
                 'key' => $key,
-                'label' => $list['label'],
-                'description' => $list['description'],
+                'label' => __($list['label']),
+                'description' => __($list['description']),
                 'count' => $counts[$key],
             ])->values(),
             'active' => $active,

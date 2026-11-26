@@ -20,6 +20,7 @@ class Organization extends Model
     protected $fillable = [
         'name',
         'slug',
+        'locale',
         'lifecycle_settings',
         'uses_shared_whatsapp_account',
         'legal_name',

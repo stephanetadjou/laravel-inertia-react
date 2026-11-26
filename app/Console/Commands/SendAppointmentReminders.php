@@ -7,6 +7,7 @@ use App\Models\Contact;
 use App\Models\Organization;
 use App\Services\AutoReplies;
 use App\Services\WhatsAppConversation;
+use App\Support\Locale;
 use Illuminate\Console\Command;
 
 /**
@@ -37,6 +38,9 @@ class SendAppointmentReminders extends Command
             $settings = $organization->autoReplySettings();
             $tomorrow = now($organization->timezone ?: config('app.timezone'))->addDay();
 
+            // Rappel dans la langue de l'entreprise (boutons, date).
+            Locale::apply($organization->locale ?? Locale::DEFAULT);
+
             $appointments = Appointment::whereIn('store_id', $organization->stores()->pluck('id'))
                 ->whereIn('status', ['requested', 'planned'])
                 ->whereNull('reminder_sent_at')
@@ -54,7 +58,7 @@ class SendAppointmentReminders extends Command
 
                 $bot = new AutoReplies($contact);
                 $body = $bot->fill($settings['reminder'], $appointment);
-                $buttons = [AutoReplies::CONFIRM.$appointment->id => 'Je confirme', AutoReplies::RESCHEDULE.$appointment->id => 'Je décale'];
+                $buttons = [AutoReplies::CONFIRM.$appointment->id => __('Je confirme'), AutoReplies::RESCHEDULE.$appointment->id => __('Je décale')];
 
                 if (WhatsAppConversation::windowOpen($contact)) {
                     $message = WhatsAppConversation::interactive($contact, WhatsAppConversation::menu($body, $buttons), 'reminder');

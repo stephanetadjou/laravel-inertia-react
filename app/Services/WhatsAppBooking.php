@@ -55,13 +55,13 @@ class WhatsAppBooking
         $services = $this->services()->take(10);
 
         if ($services->isEmpty()) {
-            WhatsAppConversation::text($this->contact, 'La prise de rendez-vous n’est pas disponible sur WhatsApp pour le moment. L’équipe vous recontacte très vite.', 'assistant');
+            WhatsAppConversation::text($this->contact, __('La prise de rendez-vous n’est pas disponible sur WhatsApp pour le moment. L’équipe vous recontacte très vite.'), 'assistant');
 
             return;
         }
 
         $currency = $this->contact->store->organization->currencySymbol();
-        $this->send('Quelle prestation souhaitez-vous réserver ?', 'Choisir', $services->mapWithKeys(fn (CatalogItem $s) => [
+        $this->send(__('Quelle prestation souhaitez-vous réserver ?'), __('Choisir'), $services->mapWithKeys(fn (CatalogItem $s) => [
             self::PREFIX.'s:'.$s->id => [
                 'title' => $s->name,
                 'description' => trim(($s->price > 0 ? number_format($s->price, 0, ',', ' ').' '.$currency.' · ' : '').($s->duration_minutes ? $s->duration_minutes.' min' : ''), ' ·'),
@@ -104,6 +104,81 @@ class WhatsAppBooking
         $this->goTo($service, $request);
     }
 
+    /**
+     * L'assistant pousse au RDV : 2 créneaux libres en boutons (le plus tôt
+     * et un créneau d'un jour creux de la semaine) + « Autre créneau ».
+     * false = rien à proposer (pas de prestation ou plus de place).
+     */
+    public function proposeSlots(?CatalogItem $service, string $intro): bool
+    {
+        $services = $this->services();
+        $service ??= $services->count() === 1 ? $services->first() : null;
+        if ($service === null) {
+            return false;
+        }
+
+        $picks = $this->suggestedSlots($service);
+        if ($picks === []) {
+            return false;
+        }
+
+        $buttons = collect($picks)->map(fn (Carbon $start) => ['type' => 'reply', 'reply' => [
+            'id' => self::PREFIX.'t:'.$service->id.':'.$start->format('YmdHi'),
+            'title' => mb_substr(ucfirst($this->dayLabel($start)).' '.$this->hour($start), 0, 20),
+        ]])->push(['type' => 'reply', 'reply' => ['id' => self::PREFIX.'s:'.$service->id, 'title' => __('Autre créneau')]]);
+
+        WhatsAppConversation::interactive($this->contact, [
+            'type' => 'button',
+            'body' => ['text' => $intro],
+            'action' => ['buttons' => $buttons->all()],
+        ], 'assistant');
+
+        return true;
+    }
+
+    /**
+     * Les 2 créneaux proposés : le premier libre, puis le premier créneau du
+     * jour le plus creux des 7 prochains jours (heures creuses remplies en
+     * priorité), ou à défaut le suivant.
+     *
+     * @return list<Carbon>
+     */
+    public function suggestedSlots(CatalogItem $service): array
+    {
+        $duration = $this->duration($service);
+        $availability = $this->availability();
+        $days = [];
+        foreach (array_slice($availability->openDays($duration, [$service->id]), 0, 7) as $date) {
+            $slots = array_values(array_filter(
+                $availability->slots(Carbon::parse($date), $duration, [$service->id]),
+                fn ($time) => Carbon::parse($date.' '.$time)->gt(now()->addMinutes(30)),
+            ));
+            if ($slots !== []) {
+                $days[$date] = $slots;
+            }
+        }
+
+        if ($days === []) {
+            return [];
+        }
+
+        $first = array_key_first($days);
+        $picks = [Carbon::parse($first.' '.$days[$first][0])];
+
+        // Jour le plus creux = le plus de créneaux encore libres (autre que le premier si possible).
+        $others = array_diff_key($days, [$first => true]);
+        if ($others !== []) {
+            uasort($others, fn ($a, $b) => count($b) <=> count($a));
+            $quiet = array_key_first($others);
+            $slots = $others[$quiet];
+            $picks[] = Carbon::parse($quiet.' '.($slots[(int) floor(count($slots) / 3)] ?? $slots[0]));
+        } elseif (isset($days[$first][1])) {
+            $picks[] = Carbon::parse($first.' '.$days[$first][count($days[$first]) > 4 ? 4 : 1]);
+        }
+
+        return $picks;
+    }
+
     /** Prochain rendez-vous à venir du client (pour l'annuler ou le décaler). */
     public function nextAppointment(): ?Appointment
     {
@@ -123,18 +198,18 @@ class WhatsAppBooking
     {
         $appointment = $this->nextAppointment();
         if ($appointment === null) {
-            WhatsAppConversation::text($this->contact, 'Je ne trouve aucun rendez-vous à venir à votre nom. Écrivez « RDV » pour en prendre un.', 'assistant');
+            WhatsAppConversation::text($this->contact, __('Je ne trouve aucun rendez-vous à venir à votre nom. Écrivez « RDV » pour en prendre un.'), 'assistant');
 
             return;
         }
 
         WhatsAppConversation::interactive($this->contact, [
             'type' => 'button',
-            'body' => ['text' => 'Vous souhaitez annuler votre rendez-vous '.$this->describe($appointment).' ?'],
+            'body' => ['text' => __('Vous souhaitez annuler votre rendez-vous :rdv ?', ['rdv' => $this->describe($appointment)])],
             'action' => ['buttons' => [
-                ['type' => 'reply', 'reply' => ['id' => self::PREFIX.'cx:'.$appointment->id, 'title' => 'Oui, annuler']],
-                ['type' => 'reply', 'reply' => ['id' => self::PREFIX.'mv:'.$appointment->id, 'title' => 'Plutôt décaler']],
-                ['type' => 'reply', 'reply' => ['id' => self::PREFIX.'keep', 'title' => 'Non, je garde']],
+                ['type' => 'reply', 'reply' => ['id' => self::PREFIX.'cx:'.$appointment->id, 'title' => __('Oui, annuler')]],
+                ['type' => 'reply', 'reply' => ['id' => self::PREFIX.'mv:'.$appointment->id, 'title' => __('Plutôt décaler')]],
+                ['type' => 'reply', 'reply' => ['id' => self::PREFIX.'keep', 'title' => __('Non, je garde')]],
             ]],
         ], 'assistant');
     }
@@ -144,7 +219,7 @@ class WhatsAppBooking
     {
         $appointment ??= $this->nextAppointment();
         if ($appointment === null) {
-            WhatsAppConversation::text($this->contact, 'Je ne trouve aucun rendez-vous à venir à votre nom. Écrivez « RDV » pour en prendre un.', 'assistant');
+            WhatsAppConversation::text($this->contact, __('Je ne trouve aucun rendez-vous à venir à votre nom. Écrivez « RDV » pour en prendre un.'), 'assistant');
 
             return;
         }
@@ -164,7 +239,7 @@ class WhatsAppBooking
                 'customer_id' => $this->contact->customer_id,
                 'appointment_id' => $appointment->id,
             ]);
-            WhatsAppConversation::text($this->contact, 'C’est noté : l’équipe vous propose un nouveau créneau très vite.', 'assistant');
+            WhatsAppConversation::text($this->contact, __('C’est noté : l’équipe vous propose un nouveau créneau très vite.'), 'assistant');
 
             return;
         }
@@ -180,13 +255,13 @@ class WhatsAppBooking
         $step = $parts[0] ?? '';
 
         if ($step === 'no') {
-            WhatsAppConversation::text($this->contact, 'C’est noté, aucune réservation. Écrivez-moi quand vous voulez.', 'assistant');
+            WhatsAppConversation::text($this->contact, __('C’est noté, aucune réservation. Écrivez-moi quand vous voulez.'), 'assistant');
 
             return;
         }
 
         if ($step === 'keep') {
-            WhatsAppConversation::text($this->contact, 'Parfait, votre rendez-vous est maintenu. À bientôt !', 'assistant');
+            WhatsAppConversation::text($this->contact, __('Parfait, votre rendez-vous est maintenu. À bientôt !'), 'assistant');
 
             return;
         }
@@ -194,7 +269,7 @@ class WhatsAppBooking
         if (in_array($step, ['cx', 'mv'], true)) {
             $appointment = $this->ownAppointment((int) ($parts[1] ?? 0));
             if ($appointment === null) {
-                WhatsAppConversation::text($this->contact, 'Ce rendez-vous n’est plus modifiable. L’équipe reste disponible si besoin.', 'assistant');
+                WhatsAppConversation::text($this->contact, __('Ce rendez-vous n’est plus modifiable. L’équipe reste disponible si besoin.'), 'assistant');
 
                 return;
             }
@@ -250,7 +325,7 @@ class WhatsAppBooking
 
                 return;
             }
-            WhatsAppConversation::text($this->contact, ucfirst($this->dayLabel($start)).' à '.$start->format('H\hi').', ce n’est pas libre. Voici ce que je peux vous proposer :', 'assistant');
+            WhatsAppConversation::text($this->contact, __(':when, ce n’est pas libre. Voici ce que je peux vous proposer :', ['when' => ucfirst($this->dayLabel($start)).' '.__('à').' '.$this->hour($start)]), 'assistant');
         }
 
         if ($request?->day !== null && $request->day->gte(now()->startOfDay())) {
@@ -265,7 +340,7 @@ class WhatsAppBooking
     private function cancel(Appointment $appointment): void
     {
         $appointment->update(['status' => 'cancelled', 'client_response' => 'cancelled', 'client_response_at' => now()]);
-        WhatsAppConversation::text($this->contact, 'Votre rendez-vous '.$this->describe($appointment).' est annulé. Écrivez « RDV » quand vous voulez en reprendre un.', 'assistant');
+        WhatsAppConversation::text($this->contact, __('Votre rendez-vous :rdv est annulé. Écrivez « RDV » quand vous voulez en reprendre un.', ['rdv' => $this->describe($appointment)]), 'assistant');
     }
 
     /** Rendez-vous à venir et encore ouvert de ce client. */
@@ -293,7 +368,7 @@ class WhatsAppBooking
 
     private function describe(Appointment $appointment): string
     {
-        return ($appointment->service ? '« '.$appointment->service.' » ' : '').'du '.$this->dayLabel($appointment->starts_at).' à '.$appointment->starts_at->format('H\hi');
+        return ($appointment->service ? '« '.$appointment->service.' » ' : '').__('du :day à :time', ['day' => $this->dayLabel($appointment->starts_at), 'time' => $this->hour($appointment->starts_at)]);
     }
 
     /** Suffixe des boutons quand le parcours décale un rendez-vous. */
@@ -307,12 +382,12 @@ class WhatsAppBooking
         $days = collect($this->availability()->openDays($this->duration($service), [$service->id]))->take(10);
 
         if ($days->isEmpty()) {
-            WhatsAppConversation::text($this->contact, "Plus aucun créneau libre pour « {$service->name} » ces prochains jours. L’équipe va vous proposer une date.", 'assistant');
+            WhatsAppConversation::text($this->contact, __('Plus aucun créneau libre pour « :service » ces prochains jours. L’équipe va vous proposer une date.', ['service' => $service->name]), 'assistant');
 
             return;
         }
 
-        $this->send("« {$service->name} » : quel jour vous arrange ?", 'Choisir un jour', $days->mapWithKeys(fn ($date) => [
+        $this->send(__('« :service » : quel jour vous arrange ?', ['service' => $service->name]), __('Choisir un jour'), $days->mapWithKeys(fn ($date) => [
             self::PREFIX.'d:'.$service->id.':'.str_replace('-', '', $date).$this->suffix() => ['title' => $this->dayLabel(Carbon::parse($date))],
         ])->all());
     }
@@ -322,7 +397,7 @@ class WhatsAppBooking
         $slots = $day ? collect($this->availability()->slots($day, $this->duration($service), [$service->id])) : collect();
 
         if ($slots->isEmpty()) {
-            WhatsAppConversation::text($this->contact, 'Ce jour vient d’être complet. Choisissez un autre jour :', 'assistant');
+            WhatsAppConversation::text($this->contact, __('Ce jour vient d’être complet. Choisissez un autre jour :'), 'assistant');
             $this->days($service);
 
             return;
@@ -331,7 +406,7 @@ class WhatsAppBooking
         // 10 lignes au plus : créneaux répartis sur la journée.
         $picked = $slots->count() <= 10 ? $slots : collect(range(0, 9))->map(fn ($i) => $slots[(int) floor($i * ($slots->count() - 1) / 9)])->unique()->values();
 
-        $this->send('À quelle heure, '.$this->dayLabel($day).' ?', 'Choisir l’heure', $picked->mapWithKeys(fn ($time) => [
+        $this->send(__('À quelle heure, :day ?', ['day' => $this->dayLabel($day)]), __('Choisir l’heure'), $picked->mapWithKeys(fn ($time) => [
             self::PREFIX.'t:'.$service->id.':'.$day->format('Ymd').str_replace(':', '', $time).$this->suffix() => ['title' => str_replace(':', 'h', $time)],
         ])->all());
     }
@@ -345,16 +420,16 @@ class WhatsAppBooking
         }
 
         $currency = $this->contact->store->organization->currencySymbol();
-        $body = ($this->moving ? 'Nouveau créneau (l’ancien sera annulé) :' : 'Je récapitule :')."\n• {$service->name}".($service->price > 0 ? ' ('.number_format($service->price, 0, ',', ' ').' '.$currency.')' : '')
-            ."\n• ".$this->dayLabel($start).' à '.$start->format('H\hi')."\n• {$this->contact->store->name}\n\nJe confirme ?";
+        $body = ($this->moving ? __('Nouveau créneau (l’ancien sera annulé) :') : __('Je récapitule :'))."\n• {$service->name}".($service->price > 0 ? ' ('.number_format($service->price, 0, ',', ' ').' '.$currency.')' : '')
+            ."\n• ".$this->dayLabel($start).' '.__('à').' '.$this->hour($start)."\n• {$this->contact->store->name}\n\n".__('Je confirme ?');
 
         WhatsAppConversation::interactive($this->contact, [
             'type' => 'button',
             'body' => ['text' => $body],
             'action' => ['buttons' => [
-                ['type' => 'reply', 'reply' => ['id' => self::PREFIX.'ok:'.$service->id.':'.$start->format('YmdHi').$this->suffix(), 'title' => 'Je confirme']],
-                ['type' => 'reply', 'reply' => ['id' => self::PREFIX.'d:'.$service->id.':'.$start->format('Ymd').$this->suffix(), 'title' => 'Autre heure']],
-                ['type' => 'reply', 'reply' => ['id' => self::PREFIX.'no', 'title' => 'Annuler']],
+                ['type' => 'reply', 'reply' => ['id' => self::PREFIX.'ok:'.$service->id.':'.$start->format('YmdHi').$this->suffix(), 'title' => __('Je confirme')]],
+                ['type' => 'reply', 'reply' => ['id' => self::PREFIX.'d:'.$service->id.':'.$start->format('Ymd').$this->suffix(), 'title' => __('Autre heure')]],
+                ['type' => 'reply', 'reply' => ['id' => self::PREFIX.'no', 'title' => __('Annuler')]],
             ]],
         ], 'assistant');
     }
@@ -373,7 +448,7 @@ class WhatsAppBooking
             ->count();
 
         if ($this->contact->customer_id === null || ($pending >= self::MAX_PENDING && $this->moving === null)) {
-            WhatsAppConversation::text($this->contact, 'Vous avez déjà plusieurs rendez-vous à venir : l’équipe vous recontacte pour en ajouter un.', 'assistant');
+            WhatsAppConversation::text($this->contact, __('Vous avez déjà plusieurs rendez-vous à venir : l’équipe vous recontacte pour en ajouter un.'), 'assistant');
 
             return;
         }
@@ -419,7 +494,7 @@ class WhatsAppBooking
         });
 
         if ($appointment === null) {
-            WhatsAppConversation::text($this->contact, 'Ce créneau vient d’être pris. Voici les horaires encore libres :', 'assistant');
+            WhatsAppConversation::text($this->contact, __('Ce créneau vient d’être pris. Voici les horaires encore libres :'), 'assistant');
             $this->slots($service, $start->copy()->startOfDay());
 
             return;
@@ -428,18 +503,18 @@ class WhatsAppBooking
         // Fiche client : le besoin et la suite donnée.
         $this->contact->customer?->forceFill(['need' => 'RDV : '.$service->name.' le '.$start->format('d/m/Y H:i'), 'need_kind' => 'rdv', 'need_at' => now()])->save();
 
-        $when = $this->dayLabel($start).' à '.$start->format('H\hi');
+        $when = $this->dayLabel($start).' '.__('à').' '.$this->hour($start);
         if ($this->moving !== null) {
             WhatsAppConversation::text($this->contact, $appointment->status === 'confirmed'
-                ? "C’est décalé ✅ « {$service->name} » le {$when} chez {$this->contact->store->name}. À bientôt !"
-                : "Demande de changement enregistrée ✅ « {$service->name} » le {$when}. L’équipe vous confirme très vite.", 'assistant');
+                ? __('C’est décalé ✅ « :service » le :when chez :store. À bientôt !', ['service' => $service->name, 'when' => $when, 'store' => $this->contact->store->name])
+                : __('Demande de changement enregistrée ✅ « :service » le :when. L’équipe vous confirme très vite.', ['service' => $service->name, 'when' => $when]), 'assistant');
 
             return;
         }
 
         WhatsAppConversation::text($this->contact, $appointment->status === 'confirmed'
-            ? "C’est réservé ✅ « {$service->name} » le {$when} chez {$this->contact->store->name}. À bientôt !"
-            : "Demande enregistrée ✅ « {$service->name} » le {$when}. L’équipe vous confirme très vite.", 'assistant');
+            ? __('C’est réservé ✅ « :service » le :when chez :store. À bientôt !', ['service' => $service->name, 'when' => $when, 'store' => $this->contact->store->name])
+            : __('Demande enregistrée ✅ « :service » le :when. L’équipe vous confirme très vite.', ['service' => $service->name, 'when' => $when]), 'assistant');
     }
 
     private function availability(): BookingAvailability
@@ -459,7 +534,13 @@ class WhatsAppBooking
 
     private function dayLabel(Carbon $day): string
     {
-        return $day->copy()->locale('fr')->translatedFormat('D j M');
+        return $day->copy()->locale(app()->getLocale())->translatedFormat('D j M');
+    }
+
+    /** Heure dans la langue : 14h30 en français, 14:30 en anglais. */
+    private function hour(Carbon $at): string
+    {
+        return app()->getLocale() === 'en' ? $at->format('H:i') : $at->format('H\hi');
     }
 
     /** Liste WhatsApp (10 lignes au plus). @param  array<string, array{title: string, description?: string}>  $rows */

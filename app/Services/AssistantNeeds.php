@@ -68,8 +68,8 @@ class AssistantNeeds
         }
 
         WhatsAppConversation::interactive($this->contact, WhatsAppConversation::menu(
-            'Je peux aussi m’occuper de la suite :',
-            collect($outcomes)->mapWithKeys(fn ($label, $key) => [self::PREFIX.$key => $label])->all(),
+            __('Je peux aussi m’occuper de la suite :'),
+            collect($outcomes)->mapWithKeys(fn ($label, $key) => [self::PREFIX.$key => __($label)])->all(),
         ), 'assistant');
         $this->save([...$state, 'offered_at' => now()->toIso8601String()]);
     }
@@ -98,7 +98,7 @@ class AssistantNeeds
         }
 
         $this->save([...($this->contact->assistant_state ?? []), 'step' => 'need', 'kind' => $kind, 'at' => now()->toIso8601String()]);
-        WhatsAppConversation::text($this->contact, self::ASK[$kind], 'assistant');
+        WhatsAppConversation::text($this->contact, __(self::ASK[$kind]), 'assistant');
     }
 
     /** Mot-clé d'une suite dans un message court (« un devis », « une démo », « essai »). */
@@ -130,7 +130,7 @@ class AssistantNeeds
 
             if ($customer === null || CustomerLifecycle::isPlaceholderName($customer->name)) {
                 $this->save([...$state, 'step' => 'name', 'at' => now()->toIso8601String()]);
-                WhatsAppConversation::text($this->contact, 'Merci ! À quel nom dois-je enregistrer votre demande ?', 'assistant');
+                WhatsAppConversation::text($this->contact, __('Merci ! À quel nom dois-je enregistrer votre demande ?'), 'assistant');
 
                 return true;
             }
@@ -180,12 +180,12 @@ class AssistantNeeds
         $this->save($state);
 
         $first = $customer ? ActionLists::firstNameOf((string) $customer->name) : '';
-        WhatsAppConversation::text($this->contact, 'C’est noté'.($first !== '' ? ' '.$first : '').' ✅ '.match ($kind) {
+        WhatsAppConversation::text($this->contact, __('C’est noté').($first !== '' ? ' '.$first : '').' ✅ '.__(match ($kind) {
             'devis' => 'L’équipe vous prépare votre devis et revient vers vous très vite.',
             'demo' => 'L’équipe vous recontacte pour fixer la démo.',
             'essai' => 'L’équipe vous recontacte pour organiser votre essai.',
             default => 'L’équipe vous rappelle très vite.',
-        }, 'assistant');
+        }), 'assistant');
     }
 
     private function save(array $state): void

@@ -6,6 +6,7 @@ use App\Http\Middleware\EnsureOrganizationActive;
 use App\Http\Middleware\EnsurePlatformAdmin;
 use App\Http\Middleware\EnsureWhatsAppApiEnabled;
 use App\Http\Middleware\HandleInertiaRequests;
+use App\Http\Middleware\SetLocale;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
@@ -20,6 +21,8 @@ return Application::configure(basePath: dirname(__DIR__))
     )
     ->withMiddleware(function (Middleware $middleware): void {
         $middleware->web(append: [
+            // Langue de l’interface (fr | en), avant le partage des props Inertia.
+            SetLocale::class,
             HandleInertiaRequests::class,
             // Entreprise suspendue depuis le back-office plateforme.
             EnsureOrganizationActive::class,

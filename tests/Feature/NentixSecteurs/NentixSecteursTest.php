@@ -352,3 +352,9 @@ it('marks a first message sent from a website WhatsApp button as « Site web »'
         ->and(Acquisition::mentionsSite('Bonjour, je viens de votre site'))->toBeTrue()
         ->and(Acquisition::mentionsSite('Bonjour'))->toBeFalse();
 });
+
+it('recognises the English website button message as « Site web »', function () {
+    expect(Acquisition::mentionsSite('Hello, I’m coming from the ClientlyX website'))->toBeTrue()
+        ->and(Acquisition::mentionsSite('Hello, coming from your website'))->toBeTrue()
+        ->and(Acquisition::mentionsSite('Hello there'))->toBeFalse();
+});

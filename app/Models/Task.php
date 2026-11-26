@@ -20,6 +20,7 @@ class Task extends Model
         'card_contact' => 'Contact reçu par la carte digitale',
         'ride_request' => 'Demande de course en ligne',
         'online_request' => 'Demande reçue par le lien en ligne',
+        'hot_prospect' => 'Prospect chaud à rappeler',
         'other' => 'Autre',
     ];
 

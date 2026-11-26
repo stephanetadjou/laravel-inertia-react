@@ -73,6 +73,14 @@ return [
         // token permanent de l'utilisateur système ClientlyX, App Secret qui
         // signe le webhook unique /webhooks/whatsapp et son jeton de
         // vérification (à recopier dans l'app Meta).
+        // Connexion en 5 minutes (inscription intégrée Meta, coexistence avec
+        // l'application WhatsApp Business) : ID de l'app Meta ClientlyX et ID de
+        // la configuration « Embedded Signup » (Facebook Login for Business).
+        'embedded' => [
+            'app_id' => env('CLIENTLYX_META_APP_ID'),
+            'config_id' => env('CLIENTLYX_META_ES_CONFIG_ID'),
+            'coexistence' => (bool) env('CLIENTLYX_META_ES_COEXISTENCE', true),
+        ],
         'platform' => [
             'token' => env('CLIENTLYX_WHATSAPP_TOKEN') ?: env('MENENTIA_WHATSAPP_TOKEN'),
             'app_secret' => env('CLIENTLYX_WHATSAPP_APP_SECRET') ?: env('MENENTIA_WHATSAPP_APP_SECRET'),

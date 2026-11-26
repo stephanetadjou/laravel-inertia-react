@@ -3,6 +3,7 @@ import { FormEventHandler, useState } from 'react';
 
 import Button from '../../components/ui/button/Button';
 import MenentiaLogo from '../../components/common/MenentiaLogo';
+import { locale, t } from '../../lib/i18n';
 
 type Field = 'organization_name' | 'sector' | 'store_name' | 'name' | 'email' | 'password' | 'password_confirmation';
 
@@ -18,7 +19,7 @@ interface Family {
     key: string;
     label: string;
     sector: string;
-    metiers: { label: string; sector: string }[];
+    metiers: { label: string; name?: string; sector: string }[];
 }
 
 interface RegisterProps {
@@ -173,10 +174,10 @@ export default function Register() {
         e.preventDefault();
         const missing: Partial<Record<Field, string>> = {};
         STEP2_FIELDS.forEach((f) => {
-            if (!data[f].trim()) missing[f] = 'Ce champ est obligatoire.';
+            if (!data[f].trim()) missing[f] = t('Ce champ est obligatoire.');
         });
         if (data.password && data.password !== data.password_confirmation) {
-            missing.password_confirmation = 'Les deux mots de passe ne correspondent pas.';
+            missing.password_confirmation = t('Les deux mots de passe ne correspondent pas.');
         }
         setLocalErrors(missing);
         if (Object.keys(missing).length > 0) return;
@@ -208,31 +209,31 @@ export default function Register() {
             <div className="mb-5 flex justify-center">
                 <MenentiaLogo symbolClassName="h-10 w-10" wordmarkClassName="text-[28px]" />
             </div>
-            <p className="mb-2 text-xs font-semibold text-brand-text">Étape {step} sur 2</p>
+            <p className="mb-2 text-xs font-semibold text-brand-text">{t('Étape :n sur 2', { n: step })}</p>
             <h1 className="text-xl font-bold text-ink-strong dark:text-white">{title}</h1>
             <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">{lead}</p>
             {prefill?.offer === 'carte' && (
-                <p className="mx-auto mt-4 max-w-md rounded-lg bg-[#FFF4E6] px-4 py-2 text-sm font-medium text-[#B8460A]">Votre carte digitale gratuite sera créée avec les informations saisies, juste après l’inscription.</p>
+                <p className="mx-auto mt-4 max-w-md rounded-lg bg-[#FFF4E6] px-4 py-2 text-sm font-medium text-[#B8460A]">{t('Votre carte digitale gratuite sera créée avec les informations saisies, juste après l’inscription.')}</p>
             )}
             {prefill?.offer === 'devis' && (
-                <p className="mx-auto mt-4 max-w-md rounded-lg bg-[#FFF4E6] px-4 py-2 text-sm font-medium text-[#B8460A]">Devis express : 3 devis gratuits par mois.</p>
+                <p className="mx-auto mt-4 max-w-md rounded-lg bg-[#FFF4E6] px-4 py-2 text-sm font-medium text-[#B8460A]">{t('Devis express : 3 devis gratuits par mois.')}</p>
             )}
         </div>
     );
 
     return (
         <>
-            <Head title="Créer un compte entreprise" />
+            <Head title={t('Créer un compte entreprise')} />
 
             <div className="flex min-h-screen items-center justify-center bg-gray-50 px-4 py-10 dark:bg-gray-900">
                 {step === 1 ? (
                     <div className="w-full max-w-6xl rounded-2xl border border-gray-200 bg-white p-8 shadow-theme-md dark:border-gray-800 dark:bg-gray-900">
-                        {header('Créer un compte entreprise', 'Choisissez votre activité puis votre métier : ClientlyX se règle tout seul.')}
+                        {header(t('Créer un compte entreprise'), t('Choisissez votre activité puis votre métier : ClientlyX se règle tout seul.'))}
 
                         <form onSubmit={next} className="space-y-6">
                             {[
-                                { title: 'Beauté, bien-être, santé et sport', keys: ['beaute', 'sante', 'sport'], big: true },
-                                { title: 'Autres établissements de services', keys: families.map((f) => f.key).filter((k) => !['beaute', 'sante', 'sport'].includes(k)), big: false },
+                                { title: t('Beauté, bien-être, santé et sport'), keys: ['beaute', 'sante', 'sport'], big: true },
+                                { title: t('Autres établissements de services'), keys: families.map((f) => f.key).filter((k) => !['beaute', 'sante', 'sport'].includes(k)), big: false },
                             ].map((group) => (
                                 <div key={group.title}>
                                     <p className="mb-2 text-xs font-semibold tracking-wide text-gray-500 uppercase">{group.title}</p>
@@ -262,8 +263,8 @@ export default function Register() {
 
                             {family && family.metiers.length > 0 && (
                                 <div>
-                                    <p className="mb-2 text-sm font-semibold text-gray-700 dark:text-gray-300">Votre métier</p>
-                                    <div role="radiogroup" aria-label="Métier" className="flex flex-wrap gap-2">
+                                    <p className="mb-2 text-sm font-semibold text-gray-700 dark:text-gray-300">{t('Votre métier')}</p>
+                                    <div role="radiogroup" aria-label={t('Métier')} className="flex flex-wrap gap-2">
                                         {family.metiers.map((m) => {
                                             const on = data.activity === m.label;
                                             return (
@@ -275,7 +276,7 @@ export default function Register() {
                                                     onClick={() => setData((d) => ({ ...d, sector: m.sector, activity: m.label }))}
                                                     className={`rounded-full border px-3.5 py-1.5 text-sm ${on ? 'border-brand-500 bg-brand-500 text-white' : 'border-gray-200 text-gray-700 hover:border-brand-300 dark:border-gray-700 dark:text-gray-300'}`}
                                                 >
-                                                    {m.label}
+                                                    {m.name ?? m.label}
                                                 </button>
                                             );
                                         })}
@@ -285,25 +286,25 @@ export default function Register() {
 
                             {shown && BENEFITS[shown.key] && (
                                 <div className="rounded-xl border border-brand-200 bg-brand-50/60 p-5 dark:border-white/10 dark:bg-white/5">
-                                    <p className="text-xs font-semibold text-brand-text">{shown.label} : ce que ClientlyX vous apporte</p>
-                                    <p className="mt-1 text-base font-bold text-ink-strong dark:text-white">{BENEFITS[shown.key].resource}</p>
+                                    <p className="text-xs font-semibold text-brand-text">{t(':sector : ce que ClientlyX vous apporte', { sector: shown.label })}</p>
+                                    <p className="mt-1 text-base font-bold text-ink-strong dark:text-white">{t(BENEFITS[shown.key].resource)}</p>
                                     <ul className="mt-3 grid gap-2 text-sm text-gray-700 sm:grid-cols-3 dark:text-gray-300">
                                         {BENEFITS[shown.key].points.map((p) => (
                                             <li key={p} className="flex gap-2">
                                                 <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-brand-500" />
-                                                {p}
+                                                {t(p)}
                                             </li>
                                         ))}
                                     </ul>
                                     {shown.module_labels.length > 0 && (
                                         <p className="mt-3 text-xs text-gray-500 dark:text-gray-400">
-                                            Prêt à l’emploi : {shown.module_labels.join(', ')}. Tout reste modifiable dans Paramètres › Modules.
+                                            {t('Prêt à l’emploi : :modules. Tout reste modifiable dans Paramètres › Modules.', { modules: shown.module_labels.join(', ') })}
                                         </p>
                                     )}
                                 </div>
                             )}
 
-                            {errors.sector && <p className="text-sm text-error-500">Choisissez votre activité et votre métier.</p>}
+                            {errors.sector && <p className="text-sm text-error-500">{t('Choisissez votre activité et votre métier.')}</p>}
 
                             <div className="flex flex-col gap-4 border-t border-gray-100 pt-5 md:flex-row md:items-center md:justify-between dark:border-gray-800">
                                 <label className="flex cursor-pointer items-start gap-3 text-sm">
@@ -314,49 +315,53 @@ export default function Register() {
                                         className="mt-0.5 h-4 w-4 rounded border-gray-300 text-brand-500"
                                     />
                                     <span>
-                                        <span className="block font-semibold text-gray-800 dark:text-white/90">Activer les Agents IA</span>
+                                        <span className="block font-semibold text-gray-800 dark:text-white/90">{t('Activer les Agents IA')}</span>
                                         <span className="block text-xs leading-snug text-gray-500 dark:text-gray-400">
-                                            Un assistant répond à vos clients sur WhatsApp, 24 h/24, et passe la main à votre équipe si besoin.
+                                            {t('Un assistant répond à vos clients sur WhatsApp, 24 h/24, et passe la main à votre équipe si besoin.')}
                                         </span>
                                     </span>
                                 </label>
                                 <div className="flex shrink-0 items-center gap-4">
                                     <span className="text-sm text-gray-500 dark:text-gray-400">
-                                        Déjà un compte ?{' '}
+                                        {t('Déjà un compte ?')}{' '}
                                         <Link href="/login" className="font-medium text-brand-text hover:underline">
-                                            Se connecter
+                                            {t('Se connecter')}
                                         </Link>
                                     </span>
-                                    <Button disabled={!sector}>Continuer</Button>
+                                    <Button disabled={!sector}>{t('Continuer')}</Button>
+                                    <span className="text-xs text-gray-400">
+                                        <a href="?lang=fr" className={locale() === 'fr' ? 'font-bold text-gray-700' : 'hover:underline'}>FR</a> |{' '}
+                                        <a href="?lang=en" className={locale() === 'en' ? 'font-bold text-gray-700' : 'hover:underline'}>EN</a>
+                                    </span>
                                 </div>
                             </div>
                         </form>
                     </div>
                 ) : (
                     <div className="w-full max-w-lg rounded-2xl border border-gray-200 bg-white p-8 shadow-theme-md dark:border-gray-800 dark:bg-gray-900">
-                        {header('Votre entreprise et votre accès', `Activité : ${data.activity || sector?.label || ''}. Il reste à créer votre compte.`)}
+                        {header(t('Votre entreprise et votre accès'), t('Activité : :activity. Il reste à créer votre compte.', { activity: data.activity || sector?.label || '' }))}
 
                         <form onSubmit={submit} className="space-y-5" noValidate>
                             <fieldset className="space-y-4">
-                                <legend className="mb-2 text-xs font-semibold tracking-wide text-gray-500 uppercase">Entreprise</legend>
-                                {field('organization_name', "Nom de l'entreprise")}
-                                {field('store_name', 'Premier établissement', 'text', 'Vous pourrez en ajouter d’autres plus tard.')}
+                                <legend className="mb-2 text-xs font-semibold tracking-wide text-gray-500 uppercase">{t('Entreprise')}</legend>
+                                {field('organization_name', t("Nom de l'entreprise"))}
+                                {field('store_name', t('Premier établissement'), 'text', t('Vous pourrez en ajouter d’autres plus tard.'))}
                             </fieldset>
 
                             <fieldset className="space-y-4">
-                                <legend className="mb-2 text-xs font-semibold tracking-wide text-gray-500 uppercase">Votre compte</legend>
-                                {field('name', 'Nom complet')}
+                                <legend className="mb-2 text-xs font-semibold tracking-wide text-gray-500 uppercase">{t('Votre compte')}</legend>
+                                {field('name', t('Nom complet'))}
                                 {field('email', 'Email', 'email')}
-                                {field('password', 'Mot de passe', 'password')}
-                                {field('password_confirmation', 'Confirmer le mot de passe', 'password')}
+                                {field('password', t('Mot de passe'), 'password')}
+                                {field('password_confirmation', t('Confirmer le mot de passe'), 'password')}
                             </fieldset>
 
                             <div className="flex gap-3">
                                 <button type="button" onClick={() => setStep(1)} className="rounded-lg border border-gray-300 px-4 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50 dark:border-gray-700 dark:text-gray-300">
-                                    Retour
+                                    {t('Retour')}
                                 </button>
                                 <Button className="flex-1 justify-center" disabled={processing}>
-                                    {processing ? 'Création...' : 'Créer mon compte'}
+                                    {processing ? t('Création...') : t('Créer mon compte')}
                                 </Button>
                             </div>
                         </form>

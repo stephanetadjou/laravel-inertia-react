@@ -8,6 +8,7 @@ import StoreFormModal, { StoreFormValues } from './StoreFormModal';
 import LifecycleSettingsCard, { LifecycleSettings } from './LifecycleSettingsCard';
 import PrivacyPolicyCard, { PrivacySettings } from './PrivacyPolicyCard';
 import WhatsAppApiCard from './WhatsAppApiCard';
+import { t } from '../../lib/i18n';
 
 interface StoreRow {
     id: number;
@@ -30,7 +31,7 @@ interface BrandRow {
 }
 
 interface PageProps {
-    organization: { id: number; name: string; sector: string | null; currency: string; timezone: string; product_analysis_level: string };
+    organization: { id: number; name: string; sector: string | null; currency: string; timezone: string; locale?: string; product_analysis_level: string };
     currencies: Option[];
     timezones: string[];
     analysisLevels: Option[];
@@ -54,6 +55,7 @@ function OrganisationIndex() {
         sector: organization.sector ?? '',
         currency: organization.currency,
         timezone: organization.timezone,
+        locale: organization.locale ?? 'fr',
         product_analysis_level: organization.product_analysis_level,
     });
     const sector = sectors.find((s) => s.key === data.sector);
@@ -143,6 +145,15 @@ function OrganisationIndex() {
                                     ))}
                                 </select>
                                 {errors.timezone && <span className="err">{errors.timezone}</span>}
+                            </div>
+                            <div className="mpage-field">
+                                <label htmlFor="org_locale">{t('Langue de l’entreprise')}</label>
+                                <select id="org_locale" value={data.locale} onChange={(e) => setData('locale', e.target.value)}>
+                                    <option value="fr">Français</option>
+                                    <option value="en">English</option>
+                                </select>
+                                <small>{t('Pages publiques (réservation, carte, devis) et langue par défaut de l’équipe. Chacun peut choisir la sienne dans son menu.')}</small>
+                                {errors.locale && <span className="err">{errors.locale}</span>}
                             </div>
                         </div>
                         <div className="mpage-field">
