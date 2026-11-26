@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Store;
 use App\Services\PhoneNormalizer;
 use App\Services\WhatsAppApiException;
+use App\Services\WhatsAppEmbeddedSignup;
 use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -53,6 +54,8 @@ class WhatsAppSettingsController extends Controller
                 'webhook_url' => $store->webhookUrl(),
                 'webhook_verify_token' => $store->webhook_verify_token,
             ]),
+            // Connexion en 5 minutes (inscription intégrée Meta) ; null tant que non configurée.
+            'embedded' => WhatsAppEmbeddedSignup::settings(),
             // Guide pas à pas : bouton « Me faire aider par ClientlyX » (WhatsApp prérempli, sinon email).
             'help' => [
                 'whatsapp' => preg_replace('/\D+/', '', (string) config('services.menentia.support_whatsapp')) ?: null,

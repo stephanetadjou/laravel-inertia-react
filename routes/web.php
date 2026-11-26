@@ -61,6 +61,7 @@ use App\Http\Controllers\StoreController;
 use App\Http\Controllers\TrainingController;
 use App\Http\Controllers\UserController;
 use App\Http\Controllers\VehicleController;
+use App\Http\Controllers\WhatsAppEmbeddedSignupController;
 use App\Http\Controllers\WhatsAppSettingsController;
 use App\Http\Controllers\WhatsAppWebhookController;
 use Illuminate\Support\Facades\Route;
@@ -382,6 +383,7 @@ Route::middleware('auth')->group(function () {
         Route::put('/settings/whatsapp/{store}', [WhatsAppSettingsController::class, 'update'])->middleware('whatsapp-api')->name('settings.whatsapp.update');
         Route::post('/settings/whatsapp/{store}/test', [WhatsAppSettingsController::class, 'test'])->middleware('whatsapp-api')->name('settings.whatsapp.test');
         Route::post('/settings/whatsapp/{store}/register', [WhatsAppSettingsController::class, 'register'])->middleware('whatsapp-api')->name('settings.whatsapp.register');
+        Route::post('/settings/whatsapp/{store}/embedded', [WhatsAppEmbeddedSignupController::class, 'store'])->name('settings.whatsapp.embedded');
         Route::post('/settings/whatsapp/{store}/send-test', [WhatsAppSettingsController::class, 'sendTest'])->middleware('whatsapp-api')->name('settings.whatsapp.send-test');
 
         Route::get('/users', [UserController::class, 'index'])->name('users.index');
