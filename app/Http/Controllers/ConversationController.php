@@ -11,6 +11,7 @@ use App\Models\WhatsAppInboundMessage;
 use App\Models\WhatsAppOutboundMessage;
 use App\Services\ActionLists;
 use App\Services\Assistant;
+use App\Services\ConversationSummary;
 use App\Services\CustomerLifecycle;
 use App\Services\WhatsAppConversation;
 use Illuminate\Http\RedirectResponse;
@@ -142,6 +143,25 @@ class ConversationController extends Controller
         return back()->with('success', 'Discussion traitée.');
     }
 
+    /** Reprise en main en 1 clic : l'IA se tait sur cette discussion jusqu'à ce qu'on la lui rende. */
+    public function takeover(Request $request, Contact $contact): RedirectResponse
+    {
+        $this->authorizeVisible($request, $contact);
+        $on = $request->validate(['on' => ['required', 'boolean']])['on'];
+        $contact->forceFill(['bot_paused_until' => $on ? now()->addDays(30) : null])->saveQuietly();
+
+        return back()->with('success', $on ? 'Vous avez la main : l’IA ne répond plus à ce client.' : 'L’IA reprend la discussion.');
+    }
+
+    /** Résumé de la conversation en 3 lignes (IA ClientlyX, sinon à partir des données). */
+    public function summary(Request $request, Contact $contact): RedirectResponse
+    {
+        $this->authorizeVisible($request, $contact);
+        ConversationSummary::generate($contact->loadMissing('store.organization', 'customer'));
+
+        return back()->with('success', 'Résumé mis à jour.');
+    }
+
     /** Fil d'un contact : reçus, envoyés (manuels, robot, rappels) et campagnes. */
     private function thread(Contact $contact): array
     {
@@ -164,6 +184,18 @@ class ConversationController extends Controller
             'source_headline' => $contact->customer?->acquisition_data['headline'] ?? null,
             'prospect_stage' => $contact->customer?->prospect_stage,
             'need' => $contact->customer?->need,
+            'summary' => $contact->customer?->ai_summary,
+            'summary_at' => $contact->customer?->ai_summary_at?->toIso8601String(),
+            'temperature' => $contact->customer?->temperature,
+            'temperature_reason' => $contact->customer?->temperature_reason,
+            'captured' => array_filter([
+                'Email' => $contact->customer?->email,
+                'Ville' => $contact->customer?->city,
+                'Quartier' => $contact->customer?->district,
+                'Adresse' => $contact->customer?->address,
+                'Budget' => $contact->customer?->budget,
+            ]),
+            'ai_taken_over' => $contact->bot_paused_until !== null && $contact->bot_paused_until->gt(now()->addDays(2)),
             'needs_attention' => $contact->needs_attention,
             'assigned_user_id' => $contact->assigned_user_id,
             'bot_paused' => $contact->bot_paused_until?->isFuture() ?? false,

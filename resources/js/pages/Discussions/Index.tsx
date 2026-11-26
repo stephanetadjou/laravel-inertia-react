@@ -45,6 +45,12 @@ interface Thread {
     needs_attention: boolean;
     assigned_user_id: number | null;
     bot_paused: boolean;
+    ai_taken_over?: boolean;
+    summary?: string | null;
+    summary_at?: string | null;
+    temperature?: 'hot' | 'warm' | 'cold' | null;
+    temperature_reason?: string | null;
+    captured?: Record<string, string>;
     window_open: boolean;
     window_ends_at: string | null;
     messages: Message[];
@@ -61,13 +67,71 @@ interface PageProps {
     [key: string]: unknown;
 }
 
+const TEMPERATURE: Record<string, { label: string; cls: string }> = {
+    hot: { label: 'Chaud', cls: 'bg-error-50 text-error-700 dark:bg-error-500/15 dark:text-error-400' },
+    warm: { label: 'À suivre', cls: 'bg-warning-50 text-warning-700 dark:bg-warning-500/15 dark:text-warning-400' },
+    cold: { label: 'Froid', cls: 'bg-gray-100 text-gray-600 dark:bg-white/10 dark:text-gray-300' },
+};
+
+/** Bandeau de l'Agent IA : instinct, reprise en main, résumé et informations captées. */
+function AgentBar({ thread }: { thread: Thread }) {
+    const temp = thread.temperature ? TEMPERATURE[thread.temperature] : null;
+    const captured = Object.entries(thread.captured ?? {});
+    return (
+        <div className="mx-5 mt-3 space-y-2 rounded-lg border border-gray-100 p-3 text-xs dark:border-gray-800">
+            <div className="flex flex-wrap items-center gap-2">
+                {temp && (
+                    <span className={`rounded-full px-2 py-0.5 font-medium ${temp.cls}`} title={thread.temperature_reason ?? ''}>
+                        {temp.label}
+                    </span>
+                )}
+                {thread.temperature_reason && <span className="text-gray-500">{thread.temperature_reason}</span>}
+                <span className="ml-auto flex items-center gap-2">
+                    <span className="text-gray-500">{thread.ai_taken_over ? 'Vous avez la main' : 'IA active'}</span>
+                    <button
+                        type="button"
+                        role="switch"
+                        aria-checked={!thread.ai_taken_over}
+                        aria-label={thread.ai_taken_over ? 'Rendre la discussion à l’IA' : 'Prendre la main'}
+                        className={`relative h-5 w-9 rounded-full transition ${thread.ai_taken_over ? 'bg-gray-300 dark:bg-gray-600' : 'bg-brand-500'}`}
+                        onClick={() => router.post(`/discussions/${thread.id}/takeover`, { on: !thread.ai_taken_over }, { preserveScroll: true })}
+                    >
+                        <span className={`absolute top-0.5 h-4 w-4 rounded-full bg-white transition ${thread.ai_taken_over ? 'left-0.5' : 'left-[18px]'}`} />
+                    </button>
+                </span>
+            </div>
+            {captured.length > 0 && (
+                <div className="flex flex-wrap gap-x-4 gap-y-1 text-gray-600 dark:text-gray-300">
+                    {captured.map(([k, v]) => (
+                        <span key={k}>
+                            <span className="text-gray-400">{k} :</span> {v}
+                        </span>
+                    ))}
+                </div>
+            )}
+            <div className="flex items-start gap-2">
+                <p className="flex-1 whitespace-pre-line text-gray-700 dark:text-gray-200">{thread.summary ?? 'Pas encore de résumé.'}</p>
+                <button
+                    type="button"
+                    className="mdash-btn ghost sm shrink-0"
+                    onClick={() => router.post(`/discussions/${thread.id}/summary`, {}, { preserveScroll: true })}
+                >
+                    {thread.summary ? 'Mettre à jour le résumé' : 'Générer le résumé'}
+                </button>
+            </div>
+        </div>
+    );
+}
+
 const ORIGIN: Record<string, string> = { auto: 'Réponse automatique', ai: 'Agent IA', assistant: 'Assistant IA', reminder: 'Rappel', campaign: 'Campagne' };
 
 function Bubble({ m }: { m: Message }) {
     const out = m.direction === 'out';
     return (
         <div className={`flex ${out ? 'justify-end' : 'justify-start'}`}>
-            <div className={`max-w-[75%] rounded-xl px-3 py-2 text-sm shadow-sm ${out ? 'rounded-br-none bg-brand-50 text-gray-800 dark:bg-brand-500/20 dark:text-white/90' : 'rounded-bl-none bg-white text-gray-800 dark:bg-white/10 dark:text-white/90'}`}>
+            <div
+                className={`max-w-[75%] rounded-xl px-3 py-2 text-sm shadow-sm ${out ? 'rounded-br-none bg-brand-50 text-gray-800 dark:bg-brand-500/20 dark:text-white/90' : 'rounded-bl-none bg-white text-gray-800 dark:bg-white/10 dark:text-white/90'}`}
+            >
                 <p className="whitespace-pre-line">{m.body}</p>
                 <p className="mt-1 text-right text-[11px] text-gray-500">
                     {m.origin && ORIGIN[m.origin] ? `${ORIGIN[m.origin]} · ` : m.author ? `${m.author} · ` : ''}
@@ -79,7 +143,17 @@ function Bubble({ m }: { m: Message }) {
     );
 }
 
-function ThreadPanel({ thread, users, templates, apiEnabled }: { thread: Thread; users: PageProps['users']; templates: PageProps['templates']; apiEnabled: boolean }) {
+function ThreadPanel({
+    thread,
+    users,
+    templates,
+    apiEnabled,
+}: {
+    thread: Thread;
+    users: PageProps['users'];
+    templates: PageProps['templates'];
+    apiEnabled: boolean;
+}) {
     const form = useForm({ body: '', template_id: '' });
     const end = useRef<HTMLDivElement>(null);
     useEffect(() => {
@@ -94,7 +168,14 @@ function ThreadPanel({ thread, users, templates, apiEnabled }: { thread: Thread;
     return (
         <Panel
             title={thread.name}
-            sub={[thread.phone, thread.store, thread.source && `Source : ${thread.source}${thread.source_headline ? ` (« ${thread.source_headline} »)` : ''}`, thread.need && `Besoin : ${thread.need}`].filter(Boolean).join(' · ')}
+            sub={[
+                thread.phone,
+                thread.store,
+                thread.source && `Source : ${thread.source}${thread.source_headline ? ` (« ${thread.source_headline} »)` : ''}`,
+                thread.need && `Besoin : ${thread.need}`,
+            ]
+                .filter(Boolean)
+                .join(' · ')}
             actions={
                 <>
                     <select
@@ -111,7 +192,11 @@ function ThreadPanel({ thread, users, templates, apiEnabled }: { thread: Thread;
                         ))}
                     </select>
                     {thread.needs_attention && (
-                        <button type="button" className="mdash-btn ghost sm" onClick={() => router.post(`/discussions/${thread.id}/resolve`, {}, { preserveScroll: true })}>
+                        <button
+                            type="button"
+                            className="mdash-btn ghost sm"
+                            onClick={() => router.post(`/discussions/${thread.id}/resolve`, {}, { preserveScroll: true })}
+                        >
                             Marquer traitée
                         </button>
                     )}
@@ -124,7 +209,12 @@ function ThreadPanel({ thread, users, templates, apiEnabled }: { thread: Thread;
             }
             className="c8"
         >
-            {thread.bot_paused && <p className="mx-5 mt-3 rounded-lg bg-warning-50 px-3 py-2 text-xs text-warning-700">Le client a demandé à parler à quelqu’un : le robot se tait pendant 24 h.</p>}
+            <AgentBar thread={thread} />
+            {thread.bot_paused && !thread.ai_taken_over && (
+                <p className="mx-5 mt-3 rounded-lg bg-warning-50 px-3 py-2 text-xs text-warning-700">
+                    Le client a demandé à parler à quelqu’un : le robot se tait pendant 24 h.
+                </p>
+            )}
             <div className="h-[52vh] space-y-2 overflow-y-auto bg-gray-50 p-4 dark:bg-white/[0.02]">
                 {thread.messages.length === 0 ? <Empty title="Aucun message pour l’instant" /> : thread.messages.map((m) => <Bubble key={m.id} m={m} />)}
                 <div ref={end} />
@@ -175,7 +265,10 @@ function ThreadPanel({ thread, users, templates, apiEnabled }: { thread: Thread;
 
 function DiscussionsIndex() {
     const { apiEnabled, filters, counts, conversations, selected, users, templates } = usePage<PageProps>().props;
-    const visit = useQueryFilters(selected ? `/discussions/${selected.id}` : '/discussions', { ...filters, filter: filters.filter === 'all' ? null : filters.filter });
+    const visit = useQueryFilters(selected ? `/discussions/${selected.id}` : '/discussions', {
+        ...filters,
+        filter: filters.filter === 'all' ? null : filters.filter,
+    });
     const query = new URLSearchParams({ ...(filters.filter !== 'all' ? { filter: filters.filter } : {}), ...(filters.q ? { q: filters.q } : {}) }).toString();
 
     return (
@@ -200,13 +293,15 @@ function DiscussionsIndex() {
         >
             {!apiEnabled && (
                 <p className="mb-4 rounded-lg bg-warning-50 px-4 py-3 text-sm text-warning-700">
-                    Connectez le numéro WhatsApp de votre établissement (Paramètres › WhatsApp) : les messages de vos clients arriveront ici, avec les réponses automatiques.
+                    Connectez le numéro WhatsApp de votre établissement (Paramètres › WhatsApp) : les messages de vos clients arriveront ici, avec les réponses
+                    automatiques.
                 </p>
             )}
             {conversations.length === 0 && !selected ? (
                 <Panel>
                     <Empty title={filters.filter === 'todo' ? 'Rien à traiter' : 'Aucune discussion pour l’instant'}>
-                        Dès qu’un client écrit sur WhatsApp, sa fiche est créée et la discussion apparaît ici. « À traiter » regroupe ceux qui veulent parler à quelqu’un.
+                        Dès qu’un client écrit sur WhatsApp, sa fiche est créée et la discussion apparaît ici. « À traiter » regroupe ceux qui veulent parler à
+                        quelqu’un.
                     </Empty>
                 </Panel>
             ) : (

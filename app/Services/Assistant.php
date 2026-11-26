@@ -147,11 +147,13 @@ class Assistant
 
         if ($decision['text'] !== null) {
             $partial = $decision['unanswered'] !== [];
-            WhatsAppConversation::text($contact, $decision['text'].($partial ? "\n\nPour le reste de votre message, je transmets à l’équipe, qui vous répond très vite." : ''), 'assistant');
+            WhatsAppConversation::text($contact, $decision['text'].($partial ? "\n\n".__('Pour le reste de votre message, je transmets à l’équipe, qui vous répond très vite.') : ''), 'assistant');
             if ($partial) {
                 self::toLearn($contact, implode(' ? ', $decision['unanswered']), false);
             }
-            (new AssistantNeeds($contact))->offer();
+            if (! self::pushToBooking($contact, $question)) {
+                (new AssistantNeeds($contact))->offer();
+            }
 
             return;
         }
@@ -159,14 +161,54 @@ class Assistant
         self::toLearn($contact, $question);
     }
 
+    /** Mots qui montrent un intérêt pour une prestation (prix, durée, disponibilité…). */
+    private const INTEREST = '/\b(prix|tarif\w*|combien|cout\w*|coute\w*|budget|dispo\w*|libre|quand|ouvert\w*|horaire\w*|duree|seance\w*|prestation\w*|offre\w*|forfait\w*|interesse\w*)\b/';
+
+    /**
+     * Après une réponse, l'assistant pousse au RDV : un client intéressé
+     * reçoit 2 créneaux libres en boutons, sans avoir à écrire « RDV ».
+     * L'intérêt est gardé (contacts.assistant_state.interest) pour la relance.
+     */
+    public static function pushToBooking(Contact $contact, string $question): bool
+    {
+        if (! WhatsAppBooking::available($contact)) {
+            return false;
+        }
+
+        $booking = new WhatsAppBooking($contact);
+        if ($booking->nextAppointment() !== null) {
+            return false;
+        }
+
+        $request = BookingRequest::parse($question, $booking->services());
+        $interested = $request->service !== null || preg_match(self::INTEREST, Str::of($question)->ascii()->lower()->value());
+        $state = $contact->assistant_state ?? [];
+        $recent = isset($state['slots_at']) && now()->subHours(6)->lt($state['slots_at']);
+
+        if (! $interested || $recent) {
+            return false;
+        }
+
+        $service = $request->service ?? ($booking->services()->count() === 1 ? $booking->services()->first() : null);
+        if ($service === null || ! $booking->proposeSlots($service, __('Je peux vous réserver « :service ». Un de ces créneaux vous convient ?', ['service' => $service->name]))) {
+            return false;
+        }
+
+        $contact->forceFill(['assistant_state' => [...$state, 'slots_at' => now()->toIso8601String(),
+            'interest' => ['service_id' => $service->id, 'at' => now()->toIso8601String()]]])->saveQuietly();
+
+        return true;
+    }
+
     /**
      * Réponse à une question, sans rien envoyer (sert aussi à l'essai de
      * l'écran Assistant IA). text = null : question à apprendre.
      *
+     * Plusieurs questions dans un même message (« vos prix ? et vous êtes
+     * où ? ») : chacune est cherchée à part ; unanswered = celles qui restent
+     * sans réponse (à apprendre par l'équipe).
+     *
      * @param  list<array{role: string, content: string}>  $history
-     *                                                               Plusieurs questions dans un même message (« vos prix ? et vous êtes
-     *                                                               où ? ») : chacune est cherchée à part ; unanswered = celles qui restent
-     *                                                               sans réponse (à apprendre par l'équipe).
      * @return array{text: ?string, via: 'ia'|'base'|'inconnu', matches: list<array{title: string, score: float}>, unanswered: list<string>}
      */
     public static function decide(Organization $organization, Store $store, string $question, array $history = [], bool $canBook = false): array
