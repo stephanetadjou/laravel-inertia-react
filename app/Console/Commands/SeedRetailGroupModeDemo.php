@@ -144,6 +144,12 @@ class SeedRetailGroupModeDemo extends Command
 
         $this->runImport($import, $user, 'caisse-2025.csv', array_filter($rows, fn ($r) => $r['date_vente'] < '2026-01-01'));
         $this->runImport($import, $user, 'caisse-2026.csv', array_filter($rows, fn ($r) => $r['date_vente'] >= '2026-01-01'));
+        // Nouveaux clients récents (un seul achat il y a 15 à 45 jours) : la recommandation « à faire revenir » de l'Accueil.
+        $newcomers = [];
+        foreach (range(1, 9) as $i) {
+            $newcomers = [...$newcomers, ...$this->ticket($this->person(), array_keys(self::BRANDS)[$i % 3], $this->end->subDays(14 + $i * 3)->toDateString(), mt_rand(3, 9) * 10000, '')];
+        }
+        $this->runImport($import, $user, 'caisse-nouveaux.csv', $newcomers);
 
         $this->line('Recalcul des fiches, segments RFM et cartes de fidélité…');
         app(CustomerLifecycle::class)->refreshOrganization($organization);

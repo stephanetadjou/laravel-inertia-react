@@ -13,20 +13,24 @@ use App\Models\Purchase;
 use App\Models\Rental;
 use App\Models\Store;
 use App\Models\Subscription;
-use App\Models\Task;
 use App\Models\User;
 use App\Modules\Location\Models\VehicleRequest;
 use App\Services\ActionLists;
 use App\Services\Fleet;
+use App\Services\HomeOverview;
 use App\Services\Occupation;
 use App\Services\Onboarding;
 use App\Services\ProspectPipeline;
 use Illuminate\Http\Request;
+use Illuminate\Support\Str;
 use Inertia\Inertia;
 use Inertia\Response;
 
 /**
- * Accueil : l'essentiel pour commencer la journée. « Pour bien démarrer »
+ * Accueil (page d'arrivée, tous secteurs) : vue globale de l'activité,
+ * actions du jour, recommandations, comparaison des boutiques et tuiles du
+ * secteur (App\Services\HomeOverview). Ancien résumé :
+ * l'essentiel pour commencer la journée. « Pour bien démarrer »
  * tant qu'il n'est pas terminé, 4 chiffres clés adaptés au secteur, puis les
  * actions du jour (demandes et discussions à traiter, listes de « À faire »).
  *
@@ -46,9 +50,14 @@ class DashboardController extends Controller
         $user = $request->user();
         $organization = $user->organization;
         $visible = $user->visibleStoreIds();
-        $storeIds = Store::where('organization_id', $organization->id)
+        $stores = Store::where('organization_id', $organization->id)
             ->when($visible !== null, fn ($q) => $q->whereIn('id', $visible))
-            ->pluck('id')->all();
+            ->orderBy('name')->get(['id', 'name']);
+        $visibleIds = $stores->pluck('id')->all();
+        // Filtre boutique : seulement parmi les boutiques visibles.
+        $storeId = $stores->contains('id', $request->integer('store')) ? $request->integer('store') : null;
+        $storeIds = $storeId ? [$storeId] : $visibleIds;
+        $period = (string) $request->query('period', 'month');
 
         $lists = new ActionLists($user);
         $available = collect(ActionLists::LISTS)
@@ -56,19 +65,32 @@ class DashboardController extends Controller
             ->reject(fn ($list, $key) => in_array($key, ['appointment_reminder', 'no_show'], true) && ! $organization->hasAgenda())
             ->reject(fn ($list) => isset($list['modules']) && ! collect($list['modules'])->contains(fn ($m) => $organization->hasModule($m)));
         $counts = $available->keys()->mapWithKeys(fn ($key) => [$key => count($lists->rows($key))]);
+        $overview = new HomeOverview($user, $storeIds, $visibleIds, $period);
+        $activity = $overview->activity();
 
         return Inertia::render('Dashboard/Index', [
             // « Pour bien démarrer » : étapes selon le secteur et les modules, cochées toutes seules.
             'onboarding' => $user->canManageOrganization() ? (new Onboarding($organization))->forDashboard() : null,
-            'kpis' => $this->kpis($user, $storeIds, $counts->all()),
-            'todo' => [
-                'discussions' => Contact::whereIn('store_id', $storeIds)->where('needs_attention', true)->count(),
-                'tasks' => Task::where('organization_id', $organization->id)->whereNull('done_at')
-                    ->where(fn ($q) => $q->whereNull('store_id')->orWhereIn('store_id', $storeIds))->count(),
+            'header' => [
+                'first_name' => Str::of((string) $user->name)->trim()->explode(' ')->first(),
+                'organization' => $organization->name,
+                'stores_count' => count($visibleIds),
             ],
-            'actions' => $counts->filter()->except('tasks')->sortDesc()->take(self::ACTION_LIMIT)
-                ->map(fn ($count, $key) => ['key' => $key, 'label' => ActionLists::LISTS[$key]['label'], 'description' => ActionLists::LISTS[$key]['description'], 'count' => $count])
-                ->values(),
+            'filters' => ['period' => $activity['period'], 'store' => $storeId],
+            'periods' => HomeOverview::periodOptions(),
+            'stores' => count($visibleIds) > 1 ? $stores->values() : [],
+            // Bloc 1 « Mon activité » : 6 chiffres comparés au mois précédent et à N-1.
+            'activity' => $activity,
+            // Bloc 2 « À faire aujourd'hui ».
+            'todo' => $overview->todo($counts->all()),
+            // Bloc 3 « Recommandations » : trois audiences de Fiches clients.
+            'recommendations' => $overview->recommendations(),
+            // Bloc 4 « Comparaison des boutiques » : seulement si plusieurs boutiques visibles.
+            'comparison' => $storeId === null ? $overview->stores() : null,
+            // Bloc 5 « Mon secteur » : tuiles propres au secteur.
+            'sector' => $organization->sector === 'commerce'
+                ? $overview->commerceTiles()
+                : array_values(array_filter($this->kpis($user, $storeIds, $counts->all()), fn ($k) => ! in_array($k['key'], ['revenue', 'buyers', 'new_contacts'], true))),
             'today' => $organization->hasAgenda() ? $this->todayAppointments($storeIds) : [],
             // Moteur d'occupation : la semaine en cours et les creux / saturations à traiter.
             'occupation' => Occupation::applies($organization) ? $this->occupation($organization, $storeIds) : null,

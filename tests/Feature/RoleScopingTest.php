@@ -182,7 +182,10 @@ it('scopes the dashboard counters to a brand_manager\'s own brand', function () 
         ->where('stores.0.opt_in_count', 1),
     );
     $this->actingAs($brandManager)->get('/dashboard')->assertInertia(fn ($page) => $page
-        ->where('kpis', fn ($kpis) => collect($kpis)->firstWhere('key', 'new_contacts') === null || collect($kpis)->firstWhere('key', 'new_contacts')['value'] === 1),
+        // Accueil : une seule boutique visible, donc pas de comparaison ni de filtre boutique.
+        ->where('header.stores_count', 1)
+        ->where('comparison', null)
+        ->where('stores', []),
     );
 });
 

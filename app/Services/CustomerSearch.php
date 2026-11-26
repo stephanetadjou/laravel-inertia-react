@@ -110,7 +110,7 @@ class CustomerSearch
      */
     public array $analysis = [];
 
-    public const ANALYSIS_KEYS = ['bought_from', 'bought_to', 'first_from', 'first_to', 'first_before', 'with_brand', 'customer_type'];
+    public const ANALYSIS_KEYS = ['bought_from', 'bought_to', 'first_from', 'first_to', 'first_before', 'last_before', 'max_sales', 'with_brand', 'customer_type'];
 
     /**
      * Critère d'un module (« suivi ») : unpaid = tranche en retard,
@@ -146,7 +146,7 @@ class CustomerSearch
 
     public const FILTER_KEYS = ['stage', 'vip', 'consent', 'q', 'brand', 'store', 'group', 'segment', 'risk', 'family', 'family_mode', 'family_days', 'family_not', 'prop', 'article', 'brands', 'never_brand', 'follow',
         'loyalty_program', 'loyalty_brand', 'loyalty_status', 'loyalty_tier',
-        'bought_from', 'bought_to', 'first_from', 'first_to', 'first_before', 'with_brand', 'customer_type'];
+        'bought_from', 'bought_to', 'first_from', 'first_to', 'first_before', 'last_before', 'max_sales', 'with_brand', 'customer_type'];
 
     public const FAMILY_MODES = ['bought', 'lapsed'];
 
@@ -187,7 +187,11 @@ class CustomerSearch
                 continue;
             }
 
-            if (str_ends_with($key, '_from') || str_ends_with($key, '_to') || $key === 'first_before') {
+            if ($key === 'max_sales') {
+                if (ctype_digit($value)) {
+                    $this->analysis[$key] = (int) $value;
+                }
+            } elseif (str_ends_with($key, '_from') || str_ends_with($key, '_to') || in_array($key, ['first_before', 'last_before'], true)) {
                 if (preg_match('/^\d{4}-\d{2}-\d{2}$/', $value)) {
                     $this->analysis[$key] = $value;
                 }
@@ -401,6 +405,20 @@ class CustomerSearch
                 ->select('contacts.customer_id'));
         }
 
+        // Dernier achat (dans le périmètre) avant une date : « pas revenu depuis ».
+        if (isset($a['last_before'])) {
+            $query->whereIn('customers.id', $sales()->groupBy('contacts.customer_id')
+                ->havingRaw('MAX(substr(purchases.purchased_at, 1, 10)) < ?', [$a['last_before']])
+                ->select('contacts.customer_id'));
+        }
+
+        // Nombre d'achats au plus (dans le périmètre) : 1 = pas encore de 2e achat.
+        if (isset($a['max_sales'])) {
+            $query->whereIn('customers.id', $sales()->groupBy('contacts.customer_id')
+                ->havingRaw('COUNT(DISTINCT purchases.id) <= ?', [$a['max_sales']])
+                ->select('contacts.customer_id'));
+        }
+
         if (isset($a['with_brand'])) {
             $query->whereExists(fn ($m) => $m->from('customer_brand_metrics')
                 ->whereColumn('customer_brand_metrics.customer_id', 'customers.id')
@@ -533,6 +551,12 @@ class CustomerSearch
         }
         if (isset($a['first_before'])) {
             $parts[] = 'Clients avant le '.$day($a['first_before']);
+        }
+        if (isset($a['last_before'])) {
+            $parts[] = 'Pas revenus depuis le '.$day($a['last_before']);
+        }
+        if (isset($a['max_sales'])) {
+            $parts[] = $a['max_sales'] === 1 ? 'Un seul achat' : "{$a['max_sales']} achats au plus";
         }
         if (isset($a['with_brand'])) {
             $parts[] = 'Aussi '.Brand::whereKey($a['with_brand'])->value('name');

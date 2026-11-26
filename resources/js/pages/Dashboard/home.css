@@ -1,0 +1,371 @@
+/*
+ * Accueil (.mhome) : sur le thème du tableau de bord (.mdash, dashboard.css),
+ * cartes blanches bordées, accent orange (--brand) et prune (--ink).
+ */
+.mhome-section {
+    margin-top: 20px;
+}
+.mhome-sh {
+    display: flex;
+    align-items: baseline;
+    gap: 10px;
+    flex-wrap: wrap;
+    margin-bottom: 10px;
+}
+.mhome-sh h2 {
+    font-size: 16px;
+    font-weight: 700;
+    margin: 0;
+}
+.mhome-sh small {
+    color: var(--muted);
+    font-size: 12px;
+}
+.mhome-flabel {
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--muted);
+}
+.mhome-select {
+    font: inherit;
+    font-size: 13px;
+    border: 1px solid var(--line);
+    background: var(--surface);
+    color: var(--ink);
+    border-radius: 9px;
+    padding: 7px 30px 7px 10px;
+    min-width: 170px;
+}
+
+/* Mon activité : 6 tuiles en ligne, 2 colonnes sur téléphone */
+.mhome-tiles {
+    display: grid;
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+    gap: 12px;
+}
+.mhome-tiles.n5 {
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+}
+@media (max-width: 1200px) {
+    .mhome-tiles,
+    .mhome-tiles.n5 {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+}
+@media (max-width: 640px) {
+    .mhome-tiles,
+    .mhome-tiles.n5 {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+}
+.mhome-tile,
+.mhome-sector-tile {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    padding: 14px 14px 12px;
+    color: inherit;
+    text-decoration: none;
+    min-width: 0;
+}
+.mhome-tile:hover {
+    border-color: var(--brand);
+}
+.mhome-tile-label {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 12.5px;
+    font-weight: 600;
+    color: var(--muted);
+}
+.mhome-tile b.num,
+.mhome-sector-tile b.num {
+    font-size: 22px;
+    font-weight: 700;
+    letter-spacing: -0.01em;
+    color: var(--ink);
+    line-height: 1.15;
+}
+.mhome-tile-foot {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px 10px;
+}
+.mhome-tile-note,
+.mhome-sector-tile small {
+    font-size: 11.5px;
+    color: var(--faint);
+}
+.mhome-info {
+    display: inline-grid;
+    place-items: center;
+    width: 15px;
+    height: 15px;
+    border-radius: 50%;
+    border: 1px solid var(--faint);
+    color: var(--faint);
+    font-size: 10px;
+    font-weight: 700;
+    font-style: italic;
+    cursor: help;
+    flex-shrink: 0;
+}
+.mhome-delta {
+    font-size: 12px;
+    font-weight: 600;
+    white-space: nowrap;
+}
+.mhome-delta small {
+    font-weight: 500;
+    color: var(--faint);
+}
+.mhome-delta.up {
+    color: var(--ok);
+}
+.mhome-delta.down {
+    color: var(--bad);
+}
+.mhome-delta.flat {
+    color: var(--idle);
+}
+
+/* À faire + Recommandations : deux colonnes, empilées sur tablette */
+.mhome-cols {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    gap: 16px;
+    margin-top: 20px;
+}
+@media (max-width: 1000px) {
+    .mhome-cols {
+        grid-template-columns: minmax(0, 1fr);
+    }
+}
+.mhome-count {
+    display: inline-grid;
+    place-items: center;
+    min-width: 22px;
+    height: 22px;
+    padding: 0 6px;
+    margin-left: 8px;
+    border-radius: 11px;
+    background: var(--brand);
+    color: #fff;
+    font-size: 12px;
+    vertical-align: 2px;
+}
+.mhome-todo {
+    list-style: none;
+    margin: 0 -4px;
+    padding: 0;
+}
+.mhome-todo li {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 4px;
+    border-top: 1px solid var(--line);
+}
+.mhome-todo li:first-child {
+    border-top: 0;
+}
+.mhome-badge {
+    display: inline-grid;
+    place-items: center;
+    min-width: 30px;
+    height: 30px;
+    padding: 0 6px;
+    border-radius: 15px;
+    background: var(--idle-soft);
+    color: var(--ink);
+    font-weight: 700;
+    font-size: 13px;
+    flex-shrink: 0;
+}
+.mhome-badge.urgent {
+    background: var(--bad-soft);
+    color: var(--bad);
+}
+.mhome-todo-icon {
+    display: none;
+}
+.mhome-todo-text {
+    flex: 1;
+    min-width: 0;
+}
+.mhome-todo-text b {
+    display: block;
+    font-size: 13.5px;
+}
+.mhome-todo-text small {
+    display: block;
+    font-size: 12px;
+    color: var(--muted);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+.mdash-btn.sm {
+    padding: 6px 11px;
+    font-size: 12.5px;
+    flex-shrink: 0;
+}
+
+.mhome-recos {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+.mhome-reco {
+    display: flex;
+    gap: 12px;
+    padding: 12px;
+    border: 1px solid var(--line);
+    border-radius: 12px;
+}
+.mhome-reco.empty {
+    opacity: 0.6;
+}
+.mhome-reco-icon {
+    display: grid;
+    place-items: center;
+    width: 38px;
+    height: 38px;
+    border-radius: 10px;
+    flex-shrink: 0;
+    background: var(--accent-soft);
+    color: var(--brand);
+}
+.mhome-reco-icon svg {
+    width: 20px;
+    height: 20px;
+}
+.mhome-reco-icon.star {
+    background: #f1ebf7;
+    color: var(--ink);
+}
+.mhome-reco-icon.user {
+    background: var(--ok-soft);
+    color: var(--ok);
+}
+.mhome-reco-body {
+    min-width: 0;
+    flex: 1;
+}
+.mhome-reco-body > b {
+    display: block;
+    font-size: 14px;
+}
+.mhome-reco-body p {
+    margin: 3px 0 6px;
+    font-size: 12.5px;
+    color: var(--muted);
+}
+.mhome-reco-stat {
+    display: block;
+    font-size: 12px;
+    color: var(--muted);
+}
+.mhome-reco-stat b {
+    color: var(--ink);
+}
+.mhome-reco-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-top: 8px;
+}
+
+/* Comparaison des boutiques */
+.mhome-table-wrap {
+    overflow-x: auto;
+}
+.mhome-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13px;
+    min-width: 680px;
+}
+.mhome-table th {
+    text-align: left;
+    font-size: 11.5px;
+    font-weight: 600;
+    color: var(--muted);
+    padding: 6px 10px;
+    border-bottom: 1px solid var(--line);
+}
+.mhome-table td {
+    padding: 9px 10px;
+    border-bottom: 1px solid var(--grid);
+    white-space: nowrap;
+}
+.mhome-bar-cell {
+    position: relative;
+    width: 30%;
+}
+.mhome-bar-cell .num {
+    position: relative;
+    font-weight: 600;
+}
+.mhome-bar {
+    position: absolute;
+    left: 10px;
+    top: 50%;
+    height: 22px;
+    transform: translateY(-50%);
+    max-width: calc(100% - 20px);
+    border-radius: 6px;
+    background: var(--brand);
+    opacity: 0.18;
+}
+.mhome-bar-cell .num {
+    padding-left: 6px;
+}
+.mhome-note {
+    margin: 10px 0 0;
+    font-size: 12px;
+    color: var(--muted);
+}
+
+/* Mon secteur */
+.mhome-sector {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 12px;
+}
+@media (max-width: 1000px) {
+    .mhome-sector {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+}
+.mhome-sector-tile .mdash-btn {
+    align-self: flex-start;
+    margin-top: 4px;
+}
+.mhome-today {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+}
+.mhome-today li {
+    display: flex;
+    gap: 12px;
+    padding: 8px 0;
+    border-top: 1px solid var(--line);
+    font-size: 13px;
+}
+.mhome-today li:first-child {
+    border-top: 0;
+}
+.mhome-today .mono {
+    width: 48px;
+    font-weight: 600;
+    color: var(--brand-text);
+}
+.mhome-today small {
+    color: var(--muted);
+}

@@ -35,6 +35,9 @@ use Illuminate\Support\Facades\DB;
  */
 class ActionLists
 {
+    /** Listes de relance de clients (« Clients à rappeler » sur l'Accueil). */
+    public const RECALL_LISTS = ['at_risk', 'second_purchase', 'win_back', 'service_cycle', 'prospect_followup', 'quote_followup', 'absent_members', 'subscription_ending'];
+
     public const LISTS = [
         'tasks' => [
             'label' => 'Demandes à traiter',

@@ -201,6 +201,15 @@ function CustomersIndex() {
         setAllMatching(false);
     }, [filtersKey]);
 
+    // Arrivée depuis une recommandation de l'Accueil (?campagne=1) : campagne sur toute l'audience filtrée
+    // (après l'effet qui vide la sélection, pour ne pas être annulé).
+    useEffect(() => {
+        if (apiEnabled && new URLSearchParams(window.location.search).get('campagne') === '1') {
+            setAllMatching(true);
+            setIsCampaignOpen(true);
+        }
+    }, []);
+
     function visit(overrides: Record<string, QueryValue>) {
         const current: Record<string, QueryValue> = {
             ...activeFilters,

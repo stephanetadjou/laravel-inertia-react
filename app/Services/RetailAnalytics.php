@@ -818,7 +818,7 @@ class RetailAnalytics
         ];
     }
 
-    private function newCustomersCount(): int
+    public function newCustomersCount(): int
     {
         $firsts = DB::table('purchases')
             ->join('contacts', 'contacts.id', '=', 'purchases.contact_id')
