@@ -32,6 +32,7 @@ use App\Http\Controllers\ImportTemplateController;
 use App\Http\Controllers\InstallmentController;
 use App\Http\Controllers\KnowledgeController;
 use App\Http\Controllers\LearnerController;
+use App\Http\Controllers\LocaleController;
 use App\Http\Controllers\LoyaltyController;
 use App\Http\Controllers\LoyaltyProgramController;
 use App\Http\Controllers\LoyaltyTrackingController;
@@ -92,6 +93,9 @@ Route::middleware('guest')->group(function () {
     Route::get('/register', [RegisteredOrganizationController::class, 'create'])->name('register');
     Route::post('/register', [RegisteredOrganizationController::class, 'store'])->middleware('throttle:6,1');
 });
+
+// Choix de la langue (fr | en) : enregistré sur l'utilisateur connecté, sinon en session.
+Route::put('/locale', [LocaleController::class, 'update'])->name('locale.update');
 
 Route::middleware('auth')->group(function () {
     Route::post('/logout', [AuthenticatedSessionController::class, 'destroy'])->name('logout');
@@ -224,6 +228,8 @@ Route::middleware('auth')->group(function () {
     Route::post('/discussions/{contact}/reply', [ConversationController::class, 'reply'])->name('discussions.reply');
     Route::put('/discussions/{contact}/assign', [ConversationController::class, 'assign'])->name('discussions.assign');
     Route::post('/discussions/{contact}/resolve', [ConversationController::class, 'resolve'])->name('discussions.resolve');
+    Route::post('/discussions/{contact}/takeover', [ConversationController::class, 'takeover'])->name('discussions.takeover');
+    Route::post('/discussions/{contact}/summary', [ConversationController::class, 'summary'])->name('discussions.summary');
     Route::get('/sources', [SourceReportController::class, 'index'])->name('sources.index');
     Route::put('/sources/budgets', [SourceReportController::class, 'updateBudgets'])->middleware('can-manage-organization')->name('sources.budgets');
 

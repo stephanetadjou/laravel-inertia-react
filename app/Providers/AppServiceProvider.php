@@ -2,6 +2,7 @@
 
 namespace App\Providers;
 
+use App\Support\Locale;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\RateLimiter;
@@ -22,6 +23,10 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
+        // Langue de base (tâches en file, commandes) : français ; chaque requête,
+        // message WhatsApp ou envoi applique ensuite la langue de l'utilisateur ou de l'entreprise.
+        Locale::apply(Locale::DEFAULT);
+
         // Réservation en ligne : compteurs séparés (la recherche de créneaux ne
         // consomme pas le quota d'envoi), par adresse IP ; dépassement affiché
         // dans le formulaire plutôt qu'en page d'erreur.

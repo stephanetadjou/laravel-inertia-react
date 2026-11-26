@@ -6,6 +6,7 @@ import { Empty, Page, Panel, SelectFilter } from '../../components/page/Page';
 import { stageInfo } from '../../components/dashboard/stages';
 import WhatsAppIcon from '../../components/common/WhatsAppIcon';
 import SelectionCampaignModal, { CampaignTemplate } from '../Customers/SelectionCampaignModal';
+import { t } from '../../lib/i18n';
 import '../Customers/customers.css';
 import './actions.css';
 
@@ -67,7 +68,7 @@ function MessagesEditor({ lists, messages, defaults, onClose }: { lists: ListInf
     };
 
     return (
-        <Panel title="Messages préremplis" sub={`Variables disponibles : ${VARIABLES}`}>
+        <Panel title={t('Messages préremplis')} sub={t('Variables disponibles : :vars', { vars: VARIABLES })}>
             <form onSubmit={submit} className="mact-editor">
                 {lists.map((l) => (
                     <label key={l.key}>
@@ -75,17 +76,17 @@ function MessagesEditor({ lists, messages, defaults, onClose }: { lists: ListInf
                         <textarea rows={3} value={data.messages[l.key] ?? ''} onChange={(e) => setData('messages', { ...data.messages, [l.key]: e.target.value })} />
                         {data.messages[l.key] !== defaults[l.key] && (
                             <button type="button" className="mact-reset" onClick={() => setData('messages', { ...data.messages, [l.key]: defaults[l.key] })}>
-                                Revenir au message par défaut
+                                {t('Revenir au message par défaut')}
                             </button>
                         )}
                     </label>
                 ))}
                 <div className="mact-editor-actions">
                     <button type="button" className="mdash-btn ghost" onClick={onClose}>
-                        Annuler
+                        {t('Annuler')}
                     </button>
                     <button type="submit" className="mdash-btn brand" disabled={processing}>
-                        {processing ? 'Enregistrement…' : 'Enregistrer les messages'}
+                        {processing ? t('Enregistrement…') : t('Enregistrer les messages')}
                     </button>
                 </div>
             </form>
@@ -168,7 +169,7 @@ function ActionsIndex() {
     }
 
     function groupSelected() {
-        const name = window.prompt(`Ranger les ${selectedRows.length} client(s) sélectionné(s) dans le groupe :`, current.label);
+        const name = window.prompt(t('Ranger les :n client(s) sélectionné(s) dans le groupe :', { n: selectedRows.length }), current.label);
         if (name && name.trim()) router.post('/actions/group', { ...listParams, keys: selectedRows.map((r) => r.key), name: name.trim() }, { preserveScroll: true, onSuccess: clearSelection });
     }
 
@@ -184,12 +185,12 @@ function ActionsIndex() {
 
     return (
         <Page
-            title="Actions du jour"
-            subtitle={`${total} client${total > 1 ? 's' : ''} à relancer`}
+            title={t('Actions du jour')}
+            subtitle={t(total > 1 ? ':n clients à relancer' : ':n client à relancer', { n: total })}
             actions={
                 canEditMessages && (
                     <button type="button" className="mdash-btn ghost" onClick={() => setEditing((v) => !v)}>
-                        Modifier les messages
+                        {t('Modifier les messages')}
                     </button>
                 )
             }
@@ -197,13 +198,13 @@ function ActionsIndex() {
                 stores.length > 1 || brands.length > 1 || active === 'group' ? (
                     <>
                         {brands.length > 1 && (
-                            <SelectFilter label="Marque" value={brand} allLabel="Toutes les marques" options={brands.map((b) => ({ value: b.id, label: b.name }))} onChange={(v) => go({ brand: v, store: null })} />
+                            <SelectFilter label={t('Marque')} value={brand} allLabel={t('Toutes les marques')} options={brands.map((b) => ({ value: b.id, label: b.name }))} onChange={(v) => go({ brand: v, store: null })} />
                         )}
                         {active === 'group' && groups.length > 0 && (
-                            <SelectFilter label="Groupe" value={group} allLabel="Choisir un groupe" options={groups.map((g) => ({ value: g.id, label: g.name }))} onChange={(v) => go({ group: v })} />
+                            <SelectFilter label={t('Groupe')} value={group} allLabel={t('Choisir un groupe')} options={groups.map((g) => ({ value: g.id, label: g.name }))} onChange={(v) => go({ group: v })} />
                         )}
                         {stores.length > 1 && (
-                            <SelectFilter label="Établissement" value={store} allLabel="Tous les établissements" options={stores.map((s) => ({ value: s.id, label: s.name }))} onChange={(v) => go({ store: v })} />
+                            <SelectFilter label={t('Établissement')} value={store} allLabel={t('Tous les établissements')} options={stores.map((s) => ({ value: s.id, label: s.name }))} onChange={(v) => go({ store: v })} />
                         )}
                     </>
                 ) : undefined
@@ -211,7 +212,7 @@ function ActionsIndex() {
         >
             {editing && <MessagesEditor lists={lists} messages={messages} defaults={defaultMessages} onClose={() => setEditing(false)} />}
 
-            <nav className="mact-lists" aria-label="Listes d'actions">
+            <nav className="mact-lists" aria-label={t('Listes d’actions')}>
                 {lists.map((l) => (
                     <button key={l.key} type="button" aria-pressed={l.key === active} className={l.count === 0 ? 'empty' : ''} onClick={() => go({ list: l.key })}>
                         <b className="num">{l.count}</b>
@@ -228,25 +229,25 @@ function ActionsIndex() {
                         <>
                             {canExport && (
                                 <a className="mdash-btn ghost sm" href={`/actions/export?${listQuery}&format=xlsx`}>
-                                    Exporter la liste
+                                    {t('Exporter la liste')}
                                 </a>
                             )}
                             <button
                                 type="button"
                                 className="mdash-btn ghost sm"
                                 onClick={() => {
-                                    const name = window.prompt('Ranger ces clients dans le groupe :', current.label);
+                                    const name = window.prompt(t('Ranger ces clients dans le groupe :'), current.label);
                                     if (name && name.trim()) router.post('/actions/group', { ...listParams, name: name.trim() }, { preserveScroll: true });
                                 }}
                             >
-                                Ranger dans un groupe
+                                {t('Ranger dans un groupe')}
                             </button>
                         </>
                     ) : undefined
                 }
             >
                 {rows.length === 0 ? (
-                    <Empty title="Rien à faire dans cette liste">Les clients relancés en sortent pendant quelques jours, puis reviennent s'ils n'ont pas réagi.</Empty>
+                    <Empty title={t('Rien à faire dans cette liste')}>{t('Les clients relancés en sortent pendant quelques jours, puis reviennent s’ils n’ont pas réagi.')}</Empty>
                 ) : (
                     <>
                     <label className="mact-selectall">
@@ -258,7 +259,7 @@ function ActionsIndex() {
                             }}
                             onChange={toggleAll}
                         />
-                        Tout sélectionner
+                        {t('Tout sélectionner')}
                     </label>
                     <ul className="mact-rows">
                         {rows.map((row) => {
@@ -274,26 +275,26 @@ function ActionsIndex() {
                                             <b>{row.name}</b>
                                         </Link>
                                         <span className="mono">{row.phone_e164}</span>
-                                        {row.recipient_name && <span className="mact-meta">écrire à {row.recipient_name}</span>}
+                                        {row.recipient_name && <span className="mact-meta">{t('écrire à :name', { name: row.recipient_name })}</span>}
                                         <span className="mact-tags">
-                                            {row.churn_risk && <span className={`mdash-pill ${row.churn_risk === 'high' ? 'bad' : 'warn'}`}>{row.churn_risk === 'high' ? 'Risque élevé' : 'Risque moyen'}</span>}
+                                            {row.churn_risk && <span className={`mdash-pill ${row.churn_risk === 'high' ? 'bad' : 'warn'}`}>{row.churn_risk === 'high' ? t('Risque élevé') : t('Risque moyen')}</span>}
                                             <span className="mact-meta">
-                                                {[stage.label, row.score !== null ? `score ${row.score}` : null, stores.length > 1 ? row.store_name : null].filter(Boolean).join(' · ')}
+                                                {[t(stage.label), row.score !== null ? t('score :n', { n: row.score }) : null, stores.length > 1 ? row.store_name : null].filter(Boolean).join(' · ')}
                                             </span>
                                         </span>
                                     </div>
                                     <div className="mact-why">
                                         <span>{row.reason}</span>
                                         <button type="button" className="mact-preview" onClick={() => setOpen(open === row.key ? null : row.key)} aria-expanded={open === row.key}>
-                                            {open === row.key ? 'Masquer le message' : 'Voir / modifier le message'}
+                                            {open === row.key ? t('Masquer le message') : t('Voir / modifier le message')}
                                         </button>
                                         {open === row.key && (
-                                            <textarea rows={4} aria-label={`Message pour ${row.name}`} value={drafts[row.key] ?? row.message} onChange={(e) => setDrafts({ ...drafts, [row.key]: e.target.value })} />
+                                            <textarea rows={4} aria-label={t('Message pour :name', { name: row.name })} value={drafts[row.key] ?? row.message} onChange={(e) => setDrafts({ ...drafts, [row.key]: e.target.value })} />
                                         )}
                                     </div>
                                     <div className="mact-do">
                                         {isDone ? (
-                                            <span className="mdash-pill ok">✓ Relance enregistrée</span>
+                                            <span className="mdash-pill ok">{t('✓ Relance enregistrée')}</span>
                                         ) : (
                                             <>
                                                 <a
@@ -304,10 +305,10 @@ function ActionsIndex() {
                                                     onClick={() => record(row, 'whatsapp_manual', drafts[row.key] ?? row.message)}
                                                 >
                                                     <WhatsAppIcon />
-                                                    Ouvrir WhatsApp
+                                                    {t('Ouvrir WhatsApp')}
                                                 </a>
-                                                <button type="button" className="mdash-btn ghost sm" onClick={() => record(row, 'call')} title="Client joint autrement (appel, visite) : il sort de la liste">
-                                                    Fait
+                                                <button type="button" className="mdash-btn ghost sm" onClick={() => record(row, 'call')} title={t('Client joint autrement (appel, visite) : il sort de la liste')}>
+                                                    {t('Fait')}
                                                 </button>
                                             </>
                                         )}
@@ -318,7 +319,7 @@ function ActionsIndex() {
                     </ul>
                     </>
                 )}
-                {rows.length >= limit && <p className="mpage-muted">Les {limit} premiers clients sont affichés : relancez-les, les suivants apparaîtront.</p>}
+                {rows.length >= limit && <p className="mpage-muted">{t('Les :n premiers clients sont affichés : relancez-les, les suivants apparaîtront.', { n: limit })}</p>}
             </Panel>
 
             {queueRow && (
@@ -342,13 +343,13 @@ function ActionsIndex() {
                         }}
                     >
                         <WhatsAppIcon />
-                        {queue.length > 1 ? 'Ouvrir WhatsApp, puis suivant' : 'Ouvrir WhatsApp (dernier)'}
+                        {queue.length > 1 ? t('Ouvrir WhatsApp, puis suivant') : t('Ouvrir WhatsApp (dernier)')}
                     </a>
                     <button type="button" className="mdash-btn ghost sm" onClick={() => setQueue(queue.slice(1))}>
-                        Passer
+                        {t('Passer')}
                     </button>
                     <button type="button" className="mdash-btn ghost sm" onClick={() => setQueue([])}>
-                        Arrêter
+                        {t('Arrêter')}
                     </button>
                 </div>
             )}
@@ -357,30 +358,30 @@ function ActionsIndex() {
                 <div className="mcust-selbar" role="region" aria-label="Relances sélectionnées">
                     <span>
                         <b className="num">
-                            {selectedRows.length} sélectionné{selectedRows.length > 1 ? 's' : ''}
+                            {t(selectedRows.length > 1 ? ':n sélectionnés' : ':n sélectionné', { n: selectedRows.length })}
                         </b>
                     </span>
                     <button type="button" className="mdash-btn ghost sm" onClick={clearSelection}>
-                        Tout désélectionner
+                        {t('Tout désélectionner')}
                     </button>
                     <button type="button" className="mdash-btn wa sm" onClick={startQueue}>
                         <WhatsAppIcon />
-                        Envoyer sur WhatsApp
+                        {t('Envoyer sur WhatsApp')}
                     </button>
                     <button type="button" className="mdash-btn primary sm" onClick={markSelectedDone}>
-                        Marquer comme fait
+                        {t('Marquer comme fait')}
                     </button>
                     <button type="button" className="mdash-btn ghost sm" onClick={groupSelected}>
-                        Ranger dans un groupe
+                        {t('Ranger dans un groupe')}
                     </button>
                     {canExport && (
                         <a className="mdash-btn ghost sm" href={`/actions/export?${listQuery}&format=xlsx&keys=${encodeURIComponent(selectedRows.map((r) => r.key).join(','))}`}>
-                            Exporter
+                            {t('Exporter')}
                         </a>
                     )}
                     {apiEnabled && (
                         <button type="button" className="mdash-btn ghost sm" onClick={() => setIsCampaignOpen(true)}>
-                            Campagne WhatsApp
+                            {t('Campagne WhatsApp')}
                         </button>
                     )}
                 </div>
@@ -398,9 +399,8 @@ function ActionsIndex() {
             )}
 
             <div className="mpage-note">
-                « Ouvrir WhatsApp » ouvre la discussion avec le message prérempli : relisez, puis envoyez depuis le téléphone de l'établissement. La relance
-                est notée sur la fiche. Les clients qui ont répondu « Stop » n'apparaissent jamais.
-                {!apiEnabled && ' Les campagnes automatiques s’activeront dans Paramètres une fois votre compte Meta vérifié.'}
+                {t('« Ouvrir WhatsApp » ouvre la discussion avec le message prérempli : relisez, puis envoyez depuis le téléphone de l’établissement. La relance est notée sur la fiche. Les clients qui ont répondu « Stop » n’apparaissent jamais.')}
+                {!apiEnabled && t(' Les campagnes automatiques s’activeront dans Paramètres une fois votre compte Meta vérifié.')}
             </div>
         </Page>
     );

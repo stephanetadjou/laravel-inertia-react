@@ -3,6 +3,7 @@ import { FormEventHandler } from 'react';
 
 import Button from '../../components/ui/button/Button';
 import MenentiaLogo from '../../components/common/MenentiaLogo';
+import { locale, t } from '../../lib/i18n';
 
 export default function Login() {
     const { data, setData, post, processing, errors } = useForm({
@@ -18,7 +19,7 @@ export default function Login() {
 
     return (
         <>
-            <Head title="Connexion" />
+            <Head title={t('Connexion')} />
 
             <div className="flex min-h-screen items-center justify-center bg-gray-50 px-4 dark:bg-gray-900">
                 <div className="w-full max-w-sm rounded-2xl border border-gray-200 bg-white p-8 shadow-theme-md dark:border-gray-800 dark:bg-gray-900">
@@ -26,7 +27,7 @@ export default function Login() {
                         <h1 className="flex justify-center">
                             <MenentiaLogo symbolClassName="h-10 w-10" wordmarkClassName="text-[28px]" />
                         </h1>
-                        <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">Connaissez vos clients. Parlez-leur au bon moment. Faites grandir votre activité.</p>
+                        <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">{t('Connaissez vos clients. Parlez-leur au bon moment. Faites grandir votre activité.')}</p>
                     </div>
 
                     <form onSubmit={submit} className="space-y-5">
@@ -47,7 +48,7 @@ export default function Login() {
 
                         <div>
                             <label htmlFor="password" className="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-300">
-                                Mot de passe
+                                {t('Mot de passe')}
                             </label>
                             <input
                                 id="password"
@@ -60,14 +61,18 @@ export default function Login() {
                         </div>
 
                         <Button className="w-full justify-center" disabled={processing}>
-                            {processing ? 'Connexion...' : 'Se connecter'}
+                            {processing ? t('Connexion...') : t('Se connecter')}
                         </Button>
 
                         <p className="text-center text-sm text-gray-500 dark:text-gray-400">
-                            Nouvelle entreprise ?{' '}
+                            {t('Nouvelle entreprise ?')}{' '}
                             <Link href="/register" className="font-medium text-brand-text hover:underline">
-                                Créer un compte
+                                {t('Créer un compte')}
                             </Link>
+                        </p>
+                        <p className="text-center text-xs text-gray-400">
+                            <a href="?lang=fr" className={locale() === 'fr' ? 'font-bold text-gray-700' : 'hover:underline'}>FR</a> |{' '}
+                            <a href="?lang=en" className={locale() === 'en' ? 'font-bold text-gray-700' : 'hover:underline'}>EN</a>
                         </p>
                     </form>
                 </div>

@@ -4,6 +4,7 @@ namespace App\Jobs;
 
 use App\Models\Contact;
 use App\Services\Assistant;
+use App\Support\Locale;
 use Illuminate\Contracts\Queue\ShouldBeUniqueUntilProcessing;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
@@ -31,6 +32,9 @@ class AssistantReplyJob implements ShouldBeUniqueUntilProcessing, ShouldQueue
     public function handle(): void
     {
         $contact = Contact::with('store.organization', 'customer')->find($this->contactId);
+
+        // Réponse dans la langue de l'entreprise.
+        Locale::apply($contact?->store?->organization?->locale ?? Locale::DEFAULT);
 
         if ($contact === null || ! Assistant::active($contact)) {
             return;

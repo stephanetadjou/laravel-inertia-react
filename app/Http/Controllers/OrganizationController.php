@@ -6,6 +6,7 @@ use App\Models\Brand;
 use App\Models\Organization;
 use App\Services\Audit;
 use App\Services\CustomerLifecycle;
+use App\Support\Locale;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
@@ -31,6 +32,7 @@ class OrganizationController extends Controller
                 'sector' => $organization->sector,
                 'currency' => $organization->currency ?? 'XAF',
                 'timezone' => $organization->timezone ?? 'Africa/Libreville',
+                'locale' => $organization->locale ?? 'fr',
                 'product_analysis_level' => $organization->analysisLevel(),
             ],
             'currencies' => collect(Organization::CURRENCIES)->map(fn ($label, $code) => ['value' => $code, 'label' => $label])->values(),
@@ -141,6 +143,8 @@ class OrganizationController extends Controller
             'sector' => ['nullable', Rule::in(array_keys(Organization::SECTORS))],
             'currency' => ['sometimes', 'required', Rule::in(array_keys(Organization::CURRENCIES))],
             'timezone' => ['sometimes', 'required', Rule::in(Organization::TIMEZONES)],
+            // Langue des pages publiques et des messages aux clients, et langue par défaut de l'équipe.
+            'locale' => ['sometimes', 'required', Rule::in(Locale::SUPPORTED)],
             'product_analysis_level' => ['sometimes', 'required', Rule::in(array_keys(Organization::ANALYSIS_LEVELS))],
         ]);
 

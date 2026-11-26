@@ -79,7 +79,7 @@ class PublicCardController extends Controller
 
         // Champ caché anti-robots : rempli = robot, on fait comme si tout allait bien.
         if (filled($request->input('site_web'))) {
-            return back()->with('success', 'Merci, votre message a bien été envoyé.');
+            return back()->with('success', __('Merci, votre message a bien été envoyé.'));
         }
 
         $data = $request->validate([
@@ -88,16 +88,16 @@ class PublicCardController extends Controller
             'message' => ['nullable', 'string', 'max:1000'],
             'consent' => ['nullable', 'boolean'],
         ], [
-            'name.required' => 'Indiquez votre nom.',
-            'phone.required' => 'Indiquez votre numéro WhatsApp.',
+            'name.required' => __('Indiquez votre nom.'),
+            'phone.required' => __('Indiquez votre numéro WhatsApp.'),
         ]);
 
         $phone = PhoneNormalizer::normalize($data['phone'])
-            ?? throw ValidationException::withMessages(['phone' => 'Numéro invalide : attendu '.PhoneNormalizer::EXPECTED_FORMAT.'.']);
+            ?? throw ValidationException::withMessages(['phone' => __('Numéro invalide : attendu :format.', ['format' => PhoneNormalizer::EXPECTED_FORMAT])]);
 
         DigitalCards::receiveContact($card, trim($data['name']), $phone, $data['message'] ?? null, (bool) ($data['consent'] ?? false));
 
-        return back()->with('success', "Merci ! {$card->name} vous recontacte très vite sur WhatsApp.");
+        return back()->with('success', __('Merci ! :name vous recontacte très vite sur WhatsApp.', ['name' => $card->name]));
     }
 
     private function card(string $slug): DigitalCard

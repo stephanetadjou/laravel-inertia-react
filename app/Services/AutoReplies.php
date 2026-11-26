@@ -10,6 +10,7 @@ use App\Models\Organization;
 use App\Models\Store;
 use App\Models\Task;
 use App\Support\AutoReplyDefaults;
+use App\Support\Locale;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Str;
 
@@ -41,6 +42,9 @@ class AutoReplies
     /** @param  array<string, mixed>  $message  message entrant du webhook */
     public static function handle(Contact $contact, array $message): void
     {
+        // Réponses au client dans la langue de l'entreprise.
+        Locale::apply($contact->store?->organization?->locale ?? Locale::DEFAULT);
+
         (new self($contact))->process($message);
     }
 

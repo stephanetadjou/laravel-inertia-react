@@ -42,6 +42,9 @@ class HandleInertiaRequests extends Middleware
 
         return [
             ...parent::share($request),
+            // Langue de l'interface et traductions anglaises (clé = texte français), cf. App\Support\Locale.
+            'locale' => fn () => app()->getLocale(),
+            'translations' => fn () => \App\Support\Locale::dictionary(app()->getLocale()),
             'flash' => [
                 'success' => fn () => $request->session()->get('success'),
                 'error' => fn () => $request->session()->get('error'),

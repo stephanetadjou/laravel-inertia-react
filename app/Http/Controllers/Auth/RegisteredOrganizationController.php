@@ -76,16 +76,17 @@ class RegisteredOrganizationController extends Controller
             // Inscription publique : secteurs de prestations de services (le commerce n'est plus proposé).
             'sectors' => collect(Organization::PUBLIC_SECTORS)->map(fn ($key) => [
                 'key' => $key,
-                'label' => Organization::SECTORS[$key]['label'],
-                'description' => Organization::SECTORS[$key]['description'],
+                'label' => __(Organization::SECTORS[$key]['label']),
+                'description' => __(Organization::SECTORS[$key]['description']),
                 'modules' => SectorPresets::PRESETS[$key]['modules'] ?? Organization::SECTORS[$key]['modules'],
-                'module_labels' => collect(SectorPresets::PRESETS[$key]['modules'] ?? [])->map(fn ($m) => Organization::MODULES[$m]['label'])->values(),
+                'module_labels' => collect(SectorPresets::PRESETS[$key]['modules'] ?? [])->map(fn ($m) => __(Organization::MODULES[$m]['label']))->values(),
             ])->values(),
             'families' => collect(Organization::FAMILIES)->map(fn ($f, $key) => [
                 'key' => $key,
-                'label' => $f['label'],
+                'label' => __($f['label']),
                 'sector' => $f['sector'],
-                'metiers' => collect($f['metiers'])->map(fn ($sector, $label) => ['label' => $label, 'sector' => $sector])->values(),
+                // « label » est enregistré comme activité (français) ; « name » est affiché dans la langue.
+                'metiers' => collect($f['metiers'])->map(fn ($sector, $label) => ['label' => $label, 'name' => __($label), 'sector' => $sector])->values(),
             ])->values(),
             // « Comment travaillez-vous ? » : une réponse oui coche le module.
             'questions' => collect(Organization::WORK_QUESTIONS)->map(fn ($question, $module) => ['module' => $module, 'question' => $question])->values(),

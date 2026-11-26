@@ -69,7 +69,10 @@ class LeadController extends Controller
             return response()->json(['ok' => true], $status);
         }
 
-        return redirect()->away(rtrim((string) config('services.menentia.site_url'), '/').'/contact#merci');
+        // Le formulaire anglais (/en/contact) envoie lang=en : retour sur la page dans la même langue.
+        $prefix = $request->input('lang') === 'en' ? '/en' : '';
+
+        return redirect()->away(rtrim((string) config('services.menentia.site_url'), '/').$prefix.'/contact#merci');
     }
 
     /** Prévient l'équipe ClientlyX par email, après la réponse au visiteur. */

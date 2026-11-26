@@ -1,4 +1,5 @@
 import { BoxCubeIcon, BoxIcon, CalenderIcon, ChatIcon, DollarLineIcon, DownloadIcon, FileIcon, GridIcon, PaperPlaneIcon, PieChartIcon, TaskIcon, UserCircleIcon, UserIcon } from '../icons';
+import { t } from '../lib/i18n';
 
 /*
  * Menu principal, à la manière d'Odoo : quelques grandes rubriques dans le
@@ -296,7 +297,8 @@ export function buildSections({ canManageOrganization, whatsappApiEnabled, modul
         section.tabs.push({ name: 'Automatisations', path: `/apps/automations?app=${section.key}` });
     }
 
-    return sections;
+    // Libellés traduits à l'affichage (anglais : lang/en.json).
+    return sections.map((sec) => ({ ...sec, name: t(sec.name), tabs: sec.tabs.map((tab) => ({ ...tab, name: t(tab.name) })) }));
 }
 
 export function matches(url: string, path: string): boolean {

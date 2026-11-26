@@ -1,17 +1,17 @@
 @php
     $money = fn ($v) => number_format((int) $v, 0, ',', ' ').' FCFA';
-    $date = fn ($d) => $d?->locale('fr')->translatedFormat('j F Y');
+    $date = fn ($d) => $d?->locale(app()->getLocale())->translatedFormat('j F Y');
     $status = $invoice->displayStatus();
     $canAnswer = ($public ?? false) && $invoice->isQuote() && in_array($invoice->status, ['draft', 'sent'], true) && $status !== 'expired';
     $phone = $invoice->store?->whatsapp_display_phone_number ?? $invoice->store?->booking_phone;
 @endphp
 <!DOCTYPE html>
-<html lang="fr">
+<html lang="{{ app()->getLocale() }}">
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="robots" content="noindex">
-    <title>{{ $invoice->typeLabel() }} {{ $invoice->number }} · {{ $invoice->organization->name }}</title>
+    <title>{{ __($invoice->typeLabel()) }} {{ $invoice->number }} · {{ $invoice->organization->name }}</title>
     <style>
         @page { size: A4; margin: 14mm; }
         * { box-sizing: border-box; }
@@ -57,32 +57,32 @@
             <div class="muted">{{ $invoice->store?->name }}@if ($phone) · {{ $phone }}@endif</div>
         </div>
         <div class="doc">
-            <h1>{{ $invoice->typeLabel() }}</h1>
+            <h1>{{ __($invoice->typeLabel()) }}</h1>
             <div><b>{{ $invoice->number }}</b></div>
-            <div class="muted">Émis le {{ $date($invoice->issued_on) }}</div>
-            <span class="pill {{ in_array($status, ['accepted', 'paid', 'invoiced'], true) ? 'ok' : (in_array($status, ['overdue', 'refused', 'expired', 'cancelled'], true) ? 'bad' : '') }}">{{ $invoice->statusLabel() }}</span>
+            <div class="muted">{{ __('Émis le :date', ['date' => $date($invoice->issued_on)]) }}</div>
+            <span class="pill {{ in_array($status, ['accepted', 'paid', 'invoiced'], true) ? 'ok' : (in_array($status, ['overdue', 'refused', 'expired', 'cancelled'], true) ? 'bad' : '') }}">{{ __($invoice->statusLabel()) }}</span>
         </div>
     </div>
 
     <div class="parties">
         <div class="box">
-            <b>Pour</b>
+            <b>{{ __('Pour') }}</b>
             <div style="font-weight:600">{{ $invoice->customer->name }}</div>
             @if ($invoice->customer->phone_e164)<div class="muted">{{ $invoice->customer->phone_e164 }}</div>@endif
         </div>
         <div class="box">
-            <b>{{ $invoice->isQuote() ? 'Validité' : 'Échéance' }}</b>
+            <b>{{ $invoice->isQuote() ? __('Validité') : __('Échéance') }}</b>
             @if ($invoice->isQuote())
-                Valable jusqu’au {{ $date($invoice->valid_until) }}
+                {{ __('Valable jusqu’au :date', ['date' => $date($invoice->valid_until)]) }}
             @else
-                À régler avant le {{ $date($invoice->due_on) }}
+                {{ __('À régler avant le :date', ['date' => $date($invoice->due_on)]) }}
             @endif
             @if ($invoice->title)<div class="muted">{{ $invoice->title }}</div>@endif
         </div>
     </div>
 
     <table>
-        <thead><tr><th>Désignation</th><th class="num">Qté</th><th class="num">Prix unitaire</th><th class="num">Montant</th></tr></thead>
+        <thead><tr><th>{{ __('Désignation') }}</th><th class="num">{{ __('Qté') }}</th><th class="num">{{ __('Prix unitaire') }}</th><th class="num">{{ __('Montant') }}</th></tr></thead>
         <tbody>
         @foreach ($invoice->lines as $line)
             <tr>
@@ -97,13 +97,13 @@
 
     <table class="totals">
         @if ($invoice->discount_amount > 0)
-            <tr><td>Sous-total</td><td class="num">{{ $money($invoice->subtotal) }}</td></tr>
-            <tr><td>{{ $invoice->kind === 'balance' ? 'Remise et acomptes' : 'Remise' }}</td><td class="num">− {{ $money($invoice->discount_amount) }}</td></tr>
+            <tr><td>{{ __('Sous-total') }}</td><td class="num">{{ $money($invoice->subtotal) }}</td></tr>
+            <tr><td>{{ $invoice->kind === 'balance' ? __('Remise et acomptes') : __('Remise') }}</td><td class="num">− {{ $money($invoice->discount_amount) }}</td></tr>
         @endif
         <tr class="grand"><td>Total</td><td class="num">{{ $money($invoice->total) }}</td></tr>
         @if (! $invoice->isQuote() && $invoice->paid_amount > 0)
-            <tr><td>Déjà payé</td><td class="num">{{ $money($invoice->paid_amount) }}</td></tr>
-            <tr><td><b>Reste à payer</b></td><td class="num"><b>{{ $money($invoice->balance()) }}</b></td></tr>
+            <tr><td>{{ __('Déjà payé') }}</td><td class="num">{{ $money($invoice->paid_amount) }}</td></tr>
+            <tr><td><b>{{ __('Reste à payer') }}</b></td><td class="num"><b>{{ $money($invoice->balance()) }}</b></td></tr>
         @endif
     </table>
 
@@ -112,27 +112,27 @@
     @endif
 
     @if ($invoice->isQuote() && $invoice->accepted_at)
-        <p class="notes"><b>Accepté</b> le {{ $date($invoice->accepted_at) }}@if ($invoice->accepted_by_name) par {{ $invoice->accepted_by_name }}@endif.</p>
+        <p class="notes"><b>{{ __('Accepté') }}</b> {{ __('le :date', ['date' => $date($invoice->accepted_at)]) }}@if ($invoice->accepted_by_name) {{ __('par :name', ['name' => $invoice->accepted_by_name]) }}@endif.</p>
     @endif
 
     @if ($canAnswer)
         <div class="answer">
-            <b>Ce devis vous convient ?</b>
+            <b>{{ __('Ce devis vous convient ?') }}</b>
             <form method="post" action="{{ url('/d/'.$invoice->token.'/accept') }}">
                 @csrf
-                <label class="muted" for="name">Votre nom, pour signer votre accord</label>
+                <label class="muted" for="name">{{ __('Votre nom, pour signer votre accord') }}</label>
                 <input id="name" name="name" required maxlength="255" value="{{ $invoice->customer->name }}">
-                <button class="btn ok" type="submit">J’accepte le devis</button>
+                <button class="btn ok" type="submit">{{ __('J’accepte le devis') }}</button>
             </form>
             <form method="post" action="{{ url('/d/'.$invoice->token.'/refuse') }}" style="margin-top:8px">
                 @csrf
-                <button class="btn ghost" type="submit">Non merci</button>
+                <button class="btn ghost" type="submit">{{ __('Non merci') }}</button>
             </form>
         </div>
     @endif
 
-    <p class="foot muted">Document émis avec ClientlyX CRM</p>
+    <p class="foot muted">{{ __('Document émis avec ClientlyX CRM') }}</p>
 </div>
-<div class="print"><button class="btn ghost" onclick="window.print()">Imprimer ou enregistrer en PDF</button></div>
+<div class="print"><button class="btn ghost" onclick="window.print()">{{ __('Imprimer ou enregistrer en PDF') }}</button></div>
 </body>
 </html>

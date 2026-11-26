@@ -1,3 +1,4 @@
+import { locale, switchLocale, t } from '../lib/i18n';
 import { useEffect, useRef, useState } from 'react';
 import { Link, router, usePage } from '@inertiajs/react';
 
@@ -182,7 +183,7 @@ function MobileDrawer({ auth, sections, current, onClose, theme, toggleTheme }: 
                         <span className="text-gray-500">{theme === 'dark' ? 'Sombre' : 'Clair'}</span>
                     </button>
                     <Link href="/aide" onClick={onClose} className="block px-4 py-3">Besoin d’aide ?</Link>
-                    <button type="button" onClick={() => router.post('/logout')} className="block w-full px-4 py-3 text-left text-rose-600">Se déconnecter</button>
+                    <button type="button" onClick={() => router.post('/logout')} className="block w-full px-4 py-3 text-left text-rose-600">{t('Se déconnecter')}</button>
                 </div>
                 <p className="mt-3 text-center text-[11.5px] text-gray-400">Réglages, imports et configuration : sur ordinateur.</p>
             </div>
@@ -299,14 +300,30 @@ const AppHeader: React.FC = () => {
                                                 Back-office ClientlyX
                                             </Link>
                                         )}
+                                        <div className="flex items-center justify-between px-4 py-2 text-sm">
+                                            <span>{t('Langue')}</span>
+                                            <span className="inline-flex rounded-full border border-gray-200 p-0.5 text-[12px] font-bold dark:border-gray-700">
+                                                {(['fr', 'en'] as const).map((l) => (
+                                                    <button
+                                                        key={l}
+                                                        type="button"
+                                                        onClick={() => switchLocale(l)}
+                                                        aria-pressed={locale() === l}
+                                                        className={`rounded-full px-2.5 py-0.5 ${locale() === l ? 'bg-gray-900 text-white dark:bg-white dark:text-gray-900' : 'text-gray-500'}`}
+                                                    >
+                                                        {l.toUpperCase()}
+                                                    </button>
+                                                ))}
+                                            </span>
+                                        </div>
                                         <button onClick={toggleTheme} className="block w-full px-4 py-2 text-left text-sm hover:bg-gray-50 dark:hover:bg-white/5">
-                                            {theme === 'dark' ? 'Thème clair' : 'Thème sombre'}
+                                            {theme === 'dark' ? t('Thème clair') : t('Thème sombre')}
                                         </button>
                                         <Link href="/aide" className="block w-full px-4 py-2 text-left text-sm hover:bg-gray-50 dark:hover:bg-white/5">
-                                            Besoin d’aide ?
+                                            {t('Besoin d’aide ?')}
                                         </Link>
                                         <button onClick={() => router.post('/logout')} className="block w-full px-4 py-2 text-left text-sm hover:bg-gray-50 dark:hover:bg-white/5">
-                                            Se déconnecter
+                                            {t('Se déconnecter')}
                                         </button>
                                     </div>
                                 )}

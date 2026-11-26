@@ -148,17 +148,17 @@ class BookingController extends Controller
             // Piège à robots : champ caché, toujours vide pour un humain.
             'website' => ['nullable', 'max:0'],
         ], [
-            'items.required' => 'Choisissez au moins une prestation.',
-            'name.required' => 'Indiquez votre nom.',
-            'phone.required' => 'Indiquez votre numéro WhatsApp.',
-            'website.max' => 'Réservation refusée.',
+            'items.required' => __('Choisissez au moins une prestation.'),
+            'name.required' => __('Indiquez votre nom.'),
+            'phone.required' => __('Indiquez votre numéro WhatsApp.'),
+            'website.max' => __('Réservation refusée.'),
         ]);
 
         $store = $this->stores($organization)->firstWhere('id', (int) $data['store']) ?? throw new NotFoundHttpException;
         $items = $this->items($organization, $store, $data['items']);
         $duration = max(5, (int) $items->sum('duration_minutes'));
         $phone = PhoneNormalizer::normalize($data['phone'])
-            ?? throw ValidationException::withMessages(['phone' => 'Numéro invalide : attendu '.PhoneNormalizer::EXPECTED_FORMAT.'.']);
+            ?? throw ValidationException::withMessages(['phone' => __('Numéro invalide : attendu :format.', ['format' => PhoneNormalizer::EXPECTED_FORMAT])]);
         $start = Carbon::parse("{$data['date']} {$data['time']}");
 
         $pending = Appointment::where('source', Appointment::SOURCE_ONLINE)
@@ -168,7 +168,7 @@ class BookingController extends Controller
             ->count();
 
         if ($pending >= self::MAX_PENDING_PER_PHONE) {
-            throw ValidationException::withMessages(['phone' => 'Vous avez déjà plusieurs rendez-vous à venir : contactez l’établissement pour en prendre un autre.']);
+            throw ValidationException::withMessages(['phone' => __('Vous avez déjà plusieurs rendez-vous à venir : contactez l’établissement pour en prendre un autre.')]);
         }
 
         $serviceIds = $items->pluck('id')->all();
@@ -184,7 +184,7 @@ class BookingController extends Controller
             $staffId = $this->staffId($availability, $serviceIds, $data['staff'] ?? null);
 
             if (! $availability->isFree($start, $duration, $serviceIds, $staffId)) {
-                throw ValidationException::withMessages(['time' => 'Ce créneau vient d’être pris. Choisissez un autre horaire.']);
+                throw ValidationException::withMessages(['time' => __('Ce créneau vient d’être pris. Choisissez un autre horaire.')]);
             }
 
             $staff = $availability->assign($start, $duration, $serviceIds, $staffId);
@@ -328,7 +328,7 @@ class BookingController extends Controller
         $items = collect($ids)->map(fn ($id) => $available->get((int) $id))->filter()->values();
 
         if ($items->isEmpty()) {
-            throw ValidationException::withMessages(['items' => 'Choisissez une prestation proposée dans cet établissement.']);
+            throw ValidationException::withMessages(['items' => __('Choisissez une prestation proposée dans cet établissement.')]);
         }
 
         return $items;

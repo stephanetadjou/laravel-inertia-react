@@ -5,6 +5,7 @@ namespace App\Modules\Facturation\Http;
 use App\Http\Controllers\Controller;
 use App\Modules\Facturation\Models\Invoice;
 use App\Modules\Facturation\Services\Invoicing;
+use App\Support\Locale;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
@@ -42,6 +43,11 @@ class PublicDocumentController extends Controller
     {
         $invoice = Invoice::where('token', $token)->with(['lines', 'customer', 'store', 'organization', 'payments'])->first();
         abort_if($invoice === null || $invoice->status === 'cancelled' || ! $invoice->organization->hasModule('factures'), 404);
+
+        // Document vu par le client : dans la langue de l'entreprise, sauf choix du visiteur (?lang=).
+        if (! session()->has('locale')) {
+            Locale::apply($invoice->organization->locale ?? Locale::DEFAULT);
+        }
 
         return $invoice;
     }
